@@ -10,6 +10,8 @@ type Media = { type: 'audio' | 'image' | 'video'; src: string; caption?: string 
 type St = { id: string; title: string; line: string; lines?: string[]; date?: string; shape: string; x: number; y: number; media: Media[]; body: string };
 type Ln = { id: string; label: string; color: string; text: string; shape: string; blurb: string; d: string; pts?: Pt[] };
 type Pin = { id: string; kind: 'note' | 'photo'; x: number; y: number; w: number; h: number; tag?: string; text?: string; src?: string; caption?: string };
+type AboutLink = { label: string; url: string };
+type SiteMeta = { originLabel: string; originCue: string; about: { name: string; role: string; blurb: string; links: AboutLink[] } };
 type Snap = { lines: Ln[]; stations: St[] };
 
 type Tool = 'select' | 'station' | 'track' | 'paint' | 'terrain' | 'note' | 'bulldoze';
@@ -140,10 +142,11 @@ export default function Admin() {
   const [pinDraw, setPinDraw] = useState<Rect | null>(null);
   const [pinDrag, setPinDrag] = useState<{ id: string; mode: 'move' | 'resize'; corner?: number; dx?: number; dy?: number } | null>(null);
   const pinDrawStart = useRef<Pt | null>(null);
-  // origin marker (movable)
+  // origin marker (movable) + editable pill / about content
   const [origin, setOrigin] = useState<Pt>([700, 96]);
   const [origDrag, setOrigDrag] = useState(false);
   const origGrab = useRef<Pt>([0, 0]);
+  const [site, setSite] = useState<SiteMeta>({ originLabel: 'the origin — toeesh', originCue: 'about ↗', about: { name: '', role: '', blurb: '', links: [] } });
   const svgRef = useRef<SVGSVGElement>(null);
   const linesRef = useRef<Ln[]>([]);
   const tw = useRef<ReactZoomPanPinchRef>(null);
@@ -157,7 +160,7 @@ export default function Admin() {
   const loadStations = useCallback(async () => { const r = await fetch('/api/stations'); setStations((await r.json()).stations || []); }, []);
   const loadTerrain = useCallback(async () => { const r = await fetch('/api/terrain'); setTerrain((await r.json()).terrain || []); }, []);
   const loadPins = useCallback(async () => { const r = await fetch('/api/pins'); setPins((await r.json()).pins || []); }, []);
-  const loadSite = useCallback(async () => { const r = await fetch('/api/site'); const j = await r.json(); if (Array.isArray(j.site?.origin)) setOrigin(j.site.origin as Pt); }, []);
+  const loadSite = useCallback(async () => { const r = await fetch('/api/site'); const j = await r.json(); const s = j.site; if (!s) return; if (Array.isArray(s.origin)) setOrigin(s.origin as Pt); setSite({ originLabel: s.originLabel ?? '', originCue: s.originCue ?? '', about: { name: s.about?.name ?? '', role: s.about?.role ?? '', blurb: s.about?.blurb ?? '', links: Array.isArray(s.about?.links) ? s.about.links : [] } }); }, []);
   useEffect(() => { loadLines(); loadStations(); loadTerrain(); loadPins(); loadSite(); }, [loadLines, loadStations, loadTerrain, loadPins, loadSite]);
 
   linesRef.current = lines;
@@ -200,6 +203,9 @@ export default function Admin() {
   const commitPins = useCallback(async (next: Pin[]) => { setSaving(true); setPins(next); await fetch('/api/pins', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pins: next }) }); setSaving(false); }, []);
   const updPin = (id: string, patch: Partial<Pin>) => setPins((arr) => arr.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   const commitOrigin = useCallback(async (o: Pt) => { setSaving(true); setOrigin(o); await fetch('/api/site', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ origin: o }) }); setSaving(false); }, []);
+  const commitSite = useCallback(async (next: SiteMeta) => { setSaving(true); setSite(next); await fetch('/api/site', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ originLabel: next.originLabel, originCue: next.originCue, about: next.about }) }); setSaving(false); }, []);
+  const setSiteAbout = (patch: Partial<SiteMeta['about']>) => setSite((s) => ({ ...s, about: { ...s.about, ...patch } }));
+  const setSiteLink = (i: number, patch: Partial<AboutLink>) => setSite((s) => ({ ...s, about: { ...s.about, links: s.about.links.map((l, k) => (k === i ? { ...l, ...patch } : l)) } }));
 
   // which threads pass within reach of a point — drives joint-station suggestions
   const linesNear = useCallback((x: number, y: number, thr = 26): string[] =>
@@ -754,6 +760,22 @@ export default function Admin() {
                   </li>
                 ))}
               </ul>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '2px solid var(--line)', marginTop: 12, paddingTop: 12 }}>
+                <div className="ed-h"><span className="mono">origin pill & about</span></div>
+                <label>pill text<input value={site.originLabel} onChange={(e) => setSite((s) => ({ ...s, originLabel: e.target.value }))} onBlur={() => commitSite(site)} /></label>
+                <label>pill cue <span className="dimk" style={{ textTransform: 'none', letterSpacing: 0 }}>(the about ↗ button)</span><input value={site.originCue} placeholder="about ↗" onChange={(e) => setSite((s) => ({ ...s, originCue: e.target.value }))} onBlur={() => commitSite(site)} /></label>
+                <label>about · name<input value={site.about.name} onChange={(e) => setSiteAbout({ name: e.target.value })} onBlur={() => commitSite(site)} /></label>
+                <label>about · role<textarea className="bodyta" style={{ minHeight: 54, resize: 'vertical' }} value={site.about.role} onChange={(e) => setSiteAbout({ role: e.target.value })} onBlur={() => commitSite(site)} /></label>
+                <label>about · blurb<textarea className="bodyta" style={{ minHeight: 78, resize: 'vertical' }} value={site.about.blurb} onChange={(e) => setSiteAbout({ blurb: e.target.value })} onBlur={() => commitSite(site)} /></label>
+                <div className="ed-h"><span className="mono">about · link buttons</span><button className="tbtn sm" onClick={() => commitSite({ ...site, about: { ...site.about, links: [...site.about.links, { label: 'link ↗', url: 'https://' }] } })}>＋ add</button></div>
+                {site.about.links.map((l, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 6, alignItems: 'end' }}>
+                    <label>label<input value={l.label} onChange={(e) => setSiteLink(i, { label: e.target.value })} onBlur={() => commitSite(site)} /></label>
+                    <label>url<input value={l.url} onChange={(e) => setSiteLink(i, { url: e.target.value })} onBlur={() => commitSite(site)} /></label>
+                    <button className="tbtn sm" onClick={() => commitSite({ ...site, about: { ...site.about, links: site.about.links.filter((_, k) => k !== i) } })}>✕</button>
+                  </div>
+                ))}
+              </div>
               <p className="mono dimk foot">{stations.length} stops · {lines.length} threads · dev-only writes</p>
             </div>
           )}

@@ -52,11 +52,13 @@ type Props = {
   onSelect: (id: string) => void;
   onOrigin?: () => void; // click the origin marker → About card
   origin?: [number, number]; // editable origin-marker position
+  originLabel?: string; // editable pill text
+  originCue?: string; // editable pill cue/button
   featured?: string[]; // station ids that pulse as "start here"
   codeOf?: Record<string, string>; // station id → system code (e.g. 02·01)
 };
 
-export default function TransitMap({ lines, stations, terrain, pins = [], selectedId, activeLine, started, trains, onHoverLine, onSelect, onOrigin, origin = [700, 96], featured = [], codeOf = {} }: Props) {
+export default function TransitMap({ lines, stations, terrain, pins = [], selectedId, activeLine, started, trains, onHoverLine, onSelect, onOrigin, origin = [700, 96], originLabel = 'the origin — toeesh', originCue = 'about ↗', featured = [], codeOf = {} }: Props) {
   const [hoverId, setHoverId] = useState<string | null>(null);
   const dim = (lineId: string) => (activeLine && activeLine !== lineId ? 0.14 : 1);
   const [ox, oy] = origin;
@@ -160,9 +162,15 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
             initial={{ scale: 0 }} animate={{ scale: started ? 1 : 0 }} transition={{ delay: ORIGIN_T + 0.18, type: 'spring', stiffness: 420, damping: 16 }} />
         </motion.g>
       </g>
-      <foreignObject x={ox + 36} y={oy - 28} width={340} height={44} style={{ overflow: 'visible' }}>
-        <button className="plate big origin-plate" onClick={() => onOrigin?.()}><span className="dot" style={{ background: '#141414' }} />the origin — toeesh<span className="origin-cue">about ↗</span></button>
-      </foreignObject>
+      {/* pill animates via an SVG <g> wrapper — framer won't animate an HTML node inside foreignObject */}
+      <motion.g
+        initial={{ opacity: 0, x: -12 }}
+        animate={{ opacity: started ? 1 : 0, x: started ? 0 : -12 }}
+        transition={{ delay: started ? ORIGIN_T + 0.24 : 0, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
+        <foreignObject x={ox + 36} y={oy - 28} width={360} height={44} style={{ overflow: 'visible' }}>
+          <button className="plate big origin-plate" onClick={() => onOrigin?.()}><span className="dot" style={{ background: '#141414' }} />{originLabel}{originCue && <span className="origin-cue">{originCue}</span>}</button>
+        </foreignObject>
+      </motion.g>
 
       {/* stations */}
       {stations.map((s, i) => {

@@ -28,15 +28,49 @@ const TERRAIN_FILE = path.join(process.cwd(), 'content', 'terrain.json');
 const PINS_FILE = path.join(process.cwd(), 'content', 'pins.json');
 const SITE_FILE = path.join(process.cwd(), 'content', 'site.json');
 
-export type Site = { origin: [number, number] };
-const DEFAULT_ORIGIN: [number, number] = [700, 96];
+export type AboutLink = { label: string; url: string };
+export type Site = {
+  origin: [number, number];
+  originLabel: string;   // the pill text next to the origin dot
+  originCue: string;     // the small "about ↗" cue/button on the pill
+  about: { name: string; role: string; blurb: string; links: AboutLink[] };
+};
+
+const DEFAULTS: Site = {
+  origin: [700, 96],
+  originLabel: 'the origin — toeesh',
+  originCue: 'about ↗',
+  about: {
+    name: 'Toeesh Chaudhary',
+    role: 'a Delhi student-artist who builds games & software, rices linux desktops, and curates a whole visual world.',
+    blurb: "This isn't a résumé, it's a network. Each thread is a part of me; each stop is something I made or can't stop thinking about. Take it slow — ride a line, or jump in anywhere.",
+    links: [
+      { label: 'github ↗', url: 'https://github.com/NerdsForGaming' },
+      { label: 'cosmos ↗', url: 'https://www.cosmos.so/toeeshchaudhary' },
+      { label: 'email ↗', url: 'mailto:thesonofdevilhunter1@gmail.com' },
+    ],
+  },
+};
 
 export function getSite(): Site {
   try {
     const raw = JSON.parse(fs.readFileSync(SITE_FILE, 'utf8'));
-    if (Array.isArray(raw?.origin) && raw.origin.length === 2) return { origin: [Number(raw.origin[0]), Number(raw.origin[1])] };
+    const origin: [number, number] = Array.isArray(raw?.origin) && raw.origin.length === 2
+      ? [Number(raw.origin[0]), Number(raw.origin[1])] : DEFAULTS.origin;
+    const a = raw?.about ?? {};
+    return {
+      origin,
+      originLabel: typeof raw?.originLabel === 'string' ? raw.originLabel : DEFAULTS.originLabel,
+      originCue: typeof raw?.originCue === 'string' ? raw.originCue : DEFAULTS.originCue,
+      about: {
+        name: typeof a.name === 'string' ? a.name : DEFAULTS.about.name,
+        role: typeof a.role === 'string' ? a.role : DEFAULTS.about.role,
+        blurb: typeof a.blurb === 'string' ? a.blurb : DEFAULTS.about.blurb,
+        links: Array.isArray(a.links) ? a.links.filter((l: AboutLink) => l && typeof l.label === 'string').map((l: AboutLink) => ({ label: String(l.label), url: String(l.url || '') })) : DEFAULTS.about.links,
+      },
+    };
   } catch {}
-  return { origin: DEFAULT_ORIGIN };
+  return DEFAULTS;
 }
 
 // distance ALONG a polyline to the foot of the perpendicular from (x,y) — used to

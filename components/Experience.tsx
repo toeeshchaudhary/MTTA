@@ -11,7 +11,10 @@ import IndexPanel from './IndexPanel';
 import Intro from './Intro';
 import ThemeToggle from './ThemeToggle';
 
-export default function Experience({ lines, stations, terrain = [], pins = [], origin = [700, 96], initialStop }: { lines: Line[]; stations: Station[]; terrain?: TerrainFeature[]; pins?: Pin[]; origin?: [number, number]; initialStop?: string }) {
+type AboutData = { name: string; role: string; blurb: string; links: { label: string; url: string }[] };
+const DEFAULT_ABOUT: AboutData = { name: 'Toeesh Chaudhary', role: '', blurb: '', links: [] };
+
+export default function Experience({ lines, stations, terrain = [], pins = [], origin = [700, 96], originLabel = 'the origin — toeesh', originCue = 'about ↗', about = DEFAULT_ABOUT, initialStop }: { lines: Line[]; stations: Station[]; terrain?: TerrainFeature[]; pins?: Pin[]; origin?: [number, number]; originLabel?: string; originCue?: string; about?: AboutData; initialStop?: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoveredLine, setHoveredLine] = useState<string | null>(null);
   const [focusLine, setFocusLine] = useState<string | null>(null);
@@ -167,6 +170,8 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
             onSelect={(id) => { setExpanded(false); select(id); }}
             onOrigin={() => setAboutOpen(true)}
             origin={origin}
+            originLabel={originLabel}
+            originCue={originCue}
             featured={featured}
             codeOf={stationCode}
           />
@@ -239,14 +244,16 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
             <button className="about-x" onClick={() => setAboutOpen(false)} aria-label="close">✕</button>
             <div className="about-band" />
             <div className="mono about-kicker">slowly living</div>
-            <h1 className="about-name">Toeesh Chaudhary</h1>
-            <div className="about-role">a Delhi student-artist who builds games &amp; software, rices linux desktops, and curates a whole visual world.</div>
+            <h1 className="about-name">{about.name}</h1>
+            <div className="about-role">{about.role}</div>
             <div className="mono about-tags">artist · gamedev · ricer · curator</div>
-            <p className="about-blurb">This isn’t a résumé, it’s a network. Each thread is a part of me; each stop is something I made or can’t stop thinking about. Take it slow — ride a line, or jump in anywhere.</p>
+            <p className="about-blurb">{about.blurb}</p>
             <div className="about-links">
-              <a href="https://github.com/NerdsForGaming" target="_blank" rel="noreferrer">github ↗</a>
-              <a href="https://www.cosmos.so/toeeshchaudhary" target="_blank" rel="noreferrer">cosmos ↗</a>
-              <a href="mailto:thesonofdevilhunter1@gmail.com">email ↗</a>
+              {about.links.map((l, i) => (
+                l.url.startsWith('mailto:') || l.url.startsWith('/')
+                  ? <a key={i} href={l.url}>{l.label}</a>
+                  : <a key={i} href={l.url} target="_blank" rel="noreferrer">{l.label}</a>
+              ))}
               {featured[0] && <button onClick={() => { setAboutOpen(false); setExpanded(false); select(featured[0]); }}>start here ↘</button>}
             </div>
           </div>

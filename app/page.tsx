@@ -7,5 +7,5 @@ export default function Home() {
   const terrain = getTerrain();
   const pins = getPins();
   const site = getSite();
-  return <Experience lines={lines} stations={stations} terrain={terrain} pins={pins} origin={site.origin} />;
+  return <Experience lines={lines} stations={stations} terrain={terrain} pins={pins} origin={site.origin} originLabel={site.originLabel} originCue={site.originCue} about={site.about} />;
 }
