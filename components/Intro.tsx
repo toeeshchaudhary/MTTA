@@ -10,7 +10,7 @@ export default function Intro({ onDone }: { onDone: () => void }) {
     try { seen = sessionStorage.getItem('introSeen') === '1'; } catch {}
     if (seen) { setShow(false); onDone(); return; }
     setShow(true);
-    const t = setTimeout(finish, 2400);
+    const t = setTimeout(finish, 1100);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -29,7 +29,7 @@ export default function Intro({ onDone }: { onDone: () => void }) {
           onClick={finish}
           initial={{ opacity: 1 }}
           exit={{ y: '-100%' }}
-          transition={{ duration: 0.7, ease: [0.7, 0, 0.2, 1] }}
+          transition={{ duration: 0.5, ease: [0.7, 0, 0.2, 1] }}
         >
           <motion.span className="i-shape" style={{ background: '#141414', borderRadius: '50%' }}
             initial={{ scale: 0, x: -160, y: -120 }} animate={{ scale: 1, x: -160, y: -120 }} transition={{ type: 'spring', stiffness: 200, damping: 12, delay: 0.1 }} />

@@ -69,15 +69,16 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
   for (let y = Math.floor(b.y / GS) * GS; y <= b.y + b.h; y += GS) hy.push(y);
 
   // ---- intro choreography: origin → notes → terrain → line 1 → line 2 → … ----
-  const ORIGIN_T = 0.1, ORIGIN_DUR = 0.5;
-  const NOTES_T = ORIGIN_T + ORIGIN_DUR + 0.15;
-  const NOTE_STAGGER = 0.12, NOTE_DUR = 0.4;
+  // kept brisk — the whole cascade lands in well under ~2.5s so it never drags.
+  const ORIGIN_T = 0.04, ORIGIN_DUR = 0.28;
+  const NOTES_T = ORIGIN_T + ORIGIN_DUR + 0.05;
+  const NOTE_STAGGER = 0.06, NOTE_DUR = 0.26;
   const notesEnd = pins.length ? NOTES_T + (pins.length - 1) * NOTE_STAGGER + NOTE_DUR : NOTES_T;
-  const TERR_T = notesEnd + 0.1;
-  const TERR_STAGGER = 0.08, TERR_DUR = 0.4;
+  const TERR_T = notesEnd + 0.05;
+  const TERR_STAGGER = 0.04, TERR_DUR = 0.26;
   const terrEnd = terrain.length ? TERR_T + (terrain.length - 1) * TERR_STAGGER + TERR_DUR : TERR_T;
-  const LINES_T = terrEnd + 0.15;
-  const LINE_DUR = 1.0, LINE_GAP = 0.25;
+  const LINES_T = terrEnd + 0.06;
+  const LINE_DUR = 0.5, LINE_GAP = 0.08;
   const lineStartAt = (i: number) => LINES_T + i * (LINE_DUR + LINE_GAP);
   const lineEndAt = (i: number) => lineStartAt(i) + LINE_DUR;
   const lineIndex: Record<string, number> = Object.fromEntries(lines.map((l, i) => [l.id, i]));
@@ -87,8 +88,22 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
   for (const s of stations) {
     const li = lineIndex[s.line] ?? 0;
     const k = (perLine[s.line] = (perLine[s.line] || 0) + 1) - 1;
-    stDelay[s.id] = lineEndAt(li) + 0.05 + k * 0.06;
+    stDelay[s.id] = lineEndAt(li) + 0.02 + k * 0.04;
   }
+
+  // ---- terminus bullets: sit clearly BEYOND each line's last stop (past the
+  // station marker, in open canvas so they never blend with the line), fanned out
+  // when several lines end at (or overlap on) the same point so numbers don't stack ----
+  const BULLET_OFF = 46;
+  const termini = lines.map((l, i) => {
+    const pts = l.pts; if (!pts || pts.length < 2) return null;
+    const end = pts[pts.length - 1], prev = pts[pts.length - 2];
+    const vx = end[0] - prev[0], vy = end[1] - prev[1], len = Math.hypot(vx, vy) || 1;
+    return { id: l.id, i, color: l.color, text: l.text, x: end[0] + (vx / len) * BULLET_OFF, y: end[1] + (vy / len) * BULLET_OFF };
+  }).filter((t): t is NonNullable<typeof t> => t !== null);
+  const groups: Record<string, typeof termini> = {};
+  for (const t of termini) { const key = `${Math.round(t.x / 18)}:${Math.round(t.y / 18)}`; (groups[key] ||= []).push(t); }
+  for (const g of Object.values(groups)) if (g.length > 1) g.forEach((t, k) => { t.x += (k - (g.length - 1) / 2) * 32; });
 
   return (
     <svg viewBox={b.viewBox} className="tmap" width={b.w} height={b.h} role="group" aria-label="The network — a map of toeesh">
@@ -118,39 +133,31 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
         />
       ))}
 
-      {/* numbered route bullets at each terminus — pop in as the line completes */}
-      {lines.map((l, i) => {
-        const pts = l.pts; if (!pts || !pts.length) return null;
-        const [tx, ty] = pts[pts.length - 1];
-        return (
-          <motion.g key={`bullet-${l.id}`} transform={`translate(${tx},${ty})`}
-            style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: started ? 1 : 0, opacity: started ? dim(l.id) : 0 }}
-            transition={{ delay: started ? lineEndAt(i) : 0, type: 'spring', stiffness: 320, damping: 16 }}>
-            <circle r={14} fill={l.color} />
-            <text textAnchor="middle" dominantBaseline="central" fontSize={14} fontWeight={700} fill={l.text || '#fff'} style={{ fontFamily: 'var(--font-mono)' }}>{i + 1}</text>
-          </motion.g>
-        );
-      })}
-
       {/* trains — JS rAF beads riding the lines (white, high-contrast, always move) */}
       <Trains lines={lines.map((l) => ({ id: l.id, color: l.color }))} run={trains} />
 
       {/* the pinboard — settles in right after the origin */}
       <Pins pins={pins} started={started} startAt={NOTES_T} stagger={NOTE_STAGGER} dur={NOTE_DUR} />
 
-      {/* origin — movable; pops in on intro; click for the About card */}
+      {/* origin — movable; opens with a ping + aperture on intro; click for About */}
       <g transform={`translate(${ox},${oy})`}>
-        <motion.g role="button" tabIndex={0} aria-label="About toeesh" style={{ cursor: onOrigin ? 'pointer' : 'default' }}
+        {/* expanding ping ring — the "opening" beat */}
+        <motion.circle r={30} fill="none" stroke={INK} strokeWidth={3}
+          style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+          initial={{ scale: 0.2, opacity: 0 }}
+          animate={started ? { scale: [0.2, 2.2], opacity: [0.55, 0] } : { scale: 0.2, opacity: 0 }}
+          transition={{ delay: ORIGIN_T + 0.05, duration: 0.7, ease: 'easeOut' }} />
+        <motion.g role="button" tabIndex={0} aria-label="About toeesh" style={{ cursor: onOrigin ? 'pointer' : 'default', transformBox: 'fill-box', transformOrigin: 'center' }}
           onClick={() => onOrigin?.()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOrigin?.(); } }}
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: started ? 1 : 0, opacity: started ? 1 : 0 }}
-          transition={{ delay: started ? ORIGIN_T : 0, type: 'spring', stiffness: 300, damping: 15 }}>
+          initial={{ scale: 0, opacity: 0, rotate: -90 }}
+          animate={{ scale: started ? 1 : 0, opacity: started ? 1 : 0, rotate: started ? 0 : -90 }}
+          transition={{ delay: started ? ORIGIN_T : 0, type: 'spring', stiffness: 360, damping: 14 }}>
           <circle r={40} fill="transparent" />
-          <motion.circle r={30} fill={INK}
-            initial={{ scale: 1 }} animate={{ scale: started ? [1, 1.18, 1] : 1 }} transition={{ delay: ORIGIN_T + 0.2, duration: 0.5 }} />
-          <circle r={13} fill="var(--canvas)" />
+          <circle r={30} fill={INK} />
+          {/* the aperture opens — inner hole expands from nothing */}
+          <motion.circle r={13} fill="var(--canvas)"
+            style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+            initial={{ scale: 0 }} animate={{ scale: started ? 1 : 0 }} transition={{ delay: ORIGIN_T + 0.18, type: 'spring', stiffness: 420, damping: 16 }} />
         </motion.g>
       </g>
       <foreignObject x={ox + 36} y={oy - 28} width={340} height={44} style={{ overflow: 'visible' }}>
@@ -206,6 +213,21 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
           </g>
         );
       })}
+
+      {/* numbered route bullets — drawn last so terminal stops never cover them;
+          sit just beyond each line's last stop, fanned out where lines overlap */}
+      {termini.map((t) => (
+        <g key={`bullet-${t.id}`} transform={`translate(${t.x},${t.y})`}>
+          <motion.g style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: started ? 1 : 0, opacity: started ? dim(t.id) : 0 }}
+            transition={{ delay: started ? lineEndAt(t.i) : 0, type: 'spring', stiffness: 320, damping: 16 }}>
+            <circle r={15} fill="var(--canvas)" stroke="var(--canvas)" strokeWidth={6} />
+            <circle r={14} fill={t.color} />
+            <text textAnchor="middle" dominantBaseline="central" fontSize={14} fontWeight={700} fill={t.text || '#fff'} style={{ fontFamily: 'var(--font-mono)' }}>{t.i + 1}</text>
+          </motion.g>
+        </g>
+      ))}
     </svg>
   );
 }
