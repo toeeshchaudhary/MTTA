@@ -403,11 +403,11 @@ export default function Admin() {
               <span className="t-ic">{t.icon}</span><span className="t-lab">{t.label}</span><kbd>{t.key}</kbd>
             </button>
           ))}
-          {flyout && <><div className="rail-div" />{flyout}</>}
         </div>
 
         {view === 'build' ? (
           <div className="adm-canvas">
+            {flyout && <div className="adm-flybar">{flyout}</div>}
             <div className="adm-stage">
             <TransformWrapper ref={tw} initialScale={0.7} minScale={0.3} maxScale={4} centerOnInit limitToBounds={false} doubleClick={{ disabled: true }} panning={{ allowLeftClickPan: tool !== 'terrain' && tool !== 'note', excluded: ['rt-drag'] }} wheel={{ step: 0.08 }}>
               <TransformComponent wrapperStyle={{ width: '100%', height: '100%', background: 'var(--canvas)' }} contentStyle={{ width: 1400, height: 940 }}>
@@ -700,7 +700,7 @@ export default function Admin() {
         .adm-main { min-height: 0; display: grid; grid-template-columns: 74px 1fr 360px; }
         .adm-main.writing { grid-template-columns: 74px 1fr clamp(420px, 38vw, 620px); }
         /* ---- left rail ---- */
-        .adm-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; border-right: 3px solid var(--ink); background: var(--panel); overflow: visible; z-index: 5; }
+        .adm-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; border-right: 3px solid var(--ink); background: var(--panel); overflow-y: auto; z-index: 5; }
         .addstop-wrap { position: relative; }
         .rail-compose { width: 62px; height: 44px; font-size: 1.3rem; font-weight: 700; background: var(--yellow); color: #111; border: 2px solid #111; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
         .rail-compose:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
@@ -712,9 +712,11 @@ export default function Admin() {
         .rail-tool kbd { position: absolute; top: 2px; right: 3px; font-size: 0.42rem; opacity: 0.4; }
         .rail-tool:hover { border-color: var(--ink); }
         .rail-tool.on { background: var(--ink); color: var(--bg); border-color: var(--ink); box-shadow: 2px 2px 0 var(--line); }
-        .rail-fly { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        /* contextual options float over the canvas (bottom-left) so the rail never has to grow/clip */
+        .adm-flybar { position: absolute; left: 12px; bottom: 12px; z-index: 6; background: var(--panel); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 7px; }
+        .rail-fly { display: flex; align-items: center; gap: 6px; }
         .picker-scrim { position: fixed; inset: 0; z-index: 40; }
-        .picker { position: absolute; top: 0; left: calc(100% + 10px); z-index: 41; width: 260px; background: var(--panel); border: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+        .picker { position: fixed; top: 58px; left: 80px; z-index: 41; width: 260px; background: var(--panel); border: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
         .picker-h { color: var(--ink-soft); font-size: 0.55rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 8px 8px; }
         .picker-empty { color: var(--ink-soft); padding: 8px; font-size: 0.7rem; }
         .picker-row { display: flex; align-items: center; gap: 9px; background: none; border: 0; color: var(--ink); padding: 9px 8px; cursor: pointer; text-align: left; }
@@ -722,7 +724,7 @@ export default function Admin() {
         .picker-row b { font-size: 0.95rem; }
         .picker-row .dimk { margin-left: auto; }
         .swatches, .swrow { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
-        .rail-fly.swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .rail-fly.swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
         .cpick { padding: 0; }
         .cpick input { width: 26px; height: 26px; padding: 0; border: 2px solid var(--ink); background: none; cursor: pointer; }
         .sw { width: 22px; height: 22px; border: 2px solid var(--ink); cursor: pointer; }
@@ -781,13 +783,13 @@ export default function Admin() {
         .med-f { display: flex; flex-direction: column; gap: 4px; }
         .med-f input, .med-f select { padding: 5px 7px; font-size: 0.78rem; }
         /* ---- writing studio (split view) ---- */
-        .adm-inspector.wide { padding: 0; overflow: hidden; display: flex; }
-        .studio { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg); border-left: 6px solid var(--ink); }
+        .adm-inspector.wide { padding: 0; overflow: auto; display: flex; flex-direction: column; }
+        .studio { flex: 1 0 auto; min-height: 100%; display: flex; flex-direction: column; background: var(--bg); border-left: 6px solid var(--ink); }
         .studio-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px 12px; }
         .studio-head .acc { width: 12px; height: 30px; flex: none; }
         .title-in { flex: 1; font-family: var(--font-sans); font-size: 1.55rem; font-weight: 800; letter-spacing: -0.02em; border: 0; border-bottom: 2px solid transparent; background: none; padding: 4px 0; }
         .title-in:focus { outline: none; border-bottom-color: var(--ink); }
-        .studio-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 0 20px 14px; border-bottom: 2px solid var(--line); }
+        .studio-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(116px, 1fr)); gap: 12px; padding: 0 20px 14px; border-bottom: 2px solid var(--line); }
         .studio-lines { display: flex; flex-direction: column; gap: 8px; padding: 12px 20px; border-bottom: 2px solid var(--line); }
         .sl-h { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); font-size: 0.55rem; letter-spacing: 0.08em; text-transform: uppercase; }
         .sl-badge { background: var(--ink); color: var(--bg); padding: 2px 6px; font-size: 0.5rem; letter-spacing: 0.06em; }
@@ -805,8 +807,8 @@ export default function Admin() {
         .md-tools .up:hover { background: var(--yellow); color: #111; border-color: #111; }
         .md-tools.right button { width: auto; padding: 0 10px; font-family: var(--font-mono); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.05em; }
         .md-tools button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-        .studio-body { flex: 1; min-height: 0; display: flex; }
-        .studio-body .bodyta { flex: 1; min-height: 0; border: 0; resize: none; padding: 26px 30px; font-family: var(--font-sans); font-size: 1.08rem; line-height: 1.75; background: var(--bg); }
+        .studio-body { flex: 1 1 auto; min-height: 240px; display: flex; }
+        .studio-body .bodyta { flex: 1; min-height: 240px; border: 0; resize: none; padding: 26px 30px; font-family: var(--font-sans); font-size: 1.08rem; line-height: 1.75; background: var(--bg); }
         .studio-body .bodyta:focus { outline: none; }
         .studio-body.split .bodyta { flex: 1 1 50%; border-right: 2px solid var(--line); font-family: var(--font-mono); font-size: 0.95rem; line-height: 1.65; }
         .studio-body .md-prev { flex: 1 1 50%; min-height: 0; overflow: auto; border: 0; padding: 26px 30px; font-size: 1.04rem; line-height: 1.7; }
