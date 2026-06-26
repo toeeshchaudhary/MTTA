@@ -400,7 +400,7 @@ export default function Admin() {
           <div className="rail-div" />
           {TOOLS.map((t) => (
             <button key={t.id} className={`rail-tool ${tool === t.id ? 'on' : ''}`} title={`${t.label} (${t.key})`} onClick={() => { setTool(t.id); if (t.id === 'track') { setEditId('__new'); setTrack([]); setSelLn(null); setForm(null); } else cancelTrack(); }}>
-              <span className="t-ic">{t.icon}</span><kbd>{t.key}</kbd>
+              <span className="t-ic">{t.icon}</span><span className="t-lab">{t.label}</span><kbd>{t.key}</kbd>
             </button>
           ))}
           {flyout && <><div className="rail-div" />{flyout}</>}
@@ -697,18 +697,19 @@ export default function Admin() {
         .adm-top-r { margin-left: auto; display: flex; gap: 6px; align-items: center; }
         .adm-div { width: 2px; align-self: stretch; background: var(--line); margin: 2px 0; }
         /* ---- main: rail | work | inspector ---- */
-        .adm-main { min-height: 0; display: grid; grid-template-columns: 58px 1fr 360px; }
-        .adm-main.writing { grid-template-columns: 58px 1fr clamp(420px, 38vw, 620px); }
+        .adm-main { min-height: 0; display: grid; grid-template-columns: 74px 1fr 360px; }
+        .adm-main.writing { grid-template-columns: 74px 1fr clamp(420px, 38vw, 620px); }
         /* ---- left rail ---- */
         .adm-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; border-right: 3px solid var(--ink); background: var(--panel); overflow: visible; z-index: 5; }
         .addstop-wrap { position: relative; }
-        .rail-compose { width: 42px; height: 42px; font-size: 1.3rem; font-weight: 700; background: var(--yellow); color: #111; border: 2px solid #111; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
+        .rail-compose { width: 62px; height: 44px; font-size: 1.3rem; font-weight: 700; background: var(--yellow); color: #111; border: 2px solid #111; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
         .rail-compose:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
         .rail-compose:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--ink); }
-        .rail-div { width: 30px; height: 2px; background: var(--line); margin: 3px 0; flex: none; }
-        .rail-tool { position: relative; width: 42px; height: 42px; display: grid; place-items: center; background: none; border: 2px solid var(--line); color: var(--ink); cursor: pointer; flex: none; }
-        .rail-tool .t-ic { font-size: 1.15rem; line-height: 1; }
-        .rail-tool kbd { position: absolute; bottom: 1px; right: 3px; font-size: 0.46rem; opacity: 0.45; }
+        .rail-div { width: 44px; height: 2px; background: var(--line); margin: 3px 0; flex: none; }
+        .rail-tool { position: relative; width: 62px; min-height: 46px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 5px 2px; background: none; border: 2px solid var(--line); color: var(--ink); cursor: pointer; flex: none; }
+        .rail-tool .t-ic { font-size: 1.1rem; line-height: 1; }
+        .rail-tool .t-lab { font-family: var(--font-mono); font-size: 0.44rem; text-transform: uppercase; letter-spacing: 0.03em; line-height: 1; text-align: center; }
+        .rail-tool kbd { position: absolute; top: 2px; right: 3px; font-size: 0.42rem; opacity: 0.4; }
         .rail-tool:hover { border-color: var(--ink); }
         .rail-tool.on { background: var(--ink); color: var(--bg); border-color: var(--ink); box-shadow: 2px 2px 0 var(--line); }
         .rail-fly { display: flex; flex-direction: column; align-items: center; gap: 5px; }
@@ -721,15 +722,15 @@ export default function Admin() {
         .picker-row b { font-size: 0.95rem; }
         .picker-row .dimk { margin-left: auto; }
         .swatches, .swrow { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
-        .rail-fly.swatches { gap: 5px; }
+        .rail-fly.swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
         .cpick { padding: 0; }
         .cpick input { width: 26px; height: 26px; padding: 0; border: 2px solid var(--ink); background: none; cursor: pointer; }
         .sw { width: 22px; height: 22px; border: 2px solid var(--ink); cursor: pointer; }
-        .rail-fly .sw { width: 26px; height: 26px; }
+        .rail-fly .sw { width: 27px; height: 27px; }
         .sw.on { outline: 3px solid var(--yellow); outline-offset: 1px; }
         .kinds { display: flex; gap: 4px; }
         .kind { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.05em; background: none; border: 2px solid var(--line); color: var(--ink); padding: 5px 8px; cursor: pointer; }
-        .rail-fly .kind { flex-direction: column; gap: 3px; width: 46px; padding: 5px 2px; font-size: 0.44rem; letter-spacing: 0.02em; text-align: center; }
+        .rail-fly .kind { flex-direction: column; gap: 3px; width: 62px; padding: 5px 2px; font-size: 0.44rem; letter-spacing: 0.02em; text-align: center; }
         .kind.on { border-color: var(--ink); background: var(--ink); color: var(--bg); }
         .k-sw { width: 14px; height: 14px; border: 1.5px solid var(--ink); }
         .tbtn { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 6px 9px; cursor: pointer; text-decoration: none; }
