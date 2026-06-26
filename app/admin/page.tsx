@@ -5,32 +5,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MAP_VIEWBOX, RIBBON, roundedPath, type Pt } from '@/content/lines';
 import { TERRAIN_KINDS, KIND_BY_ID, type TerrainKind, type TerrainFeature } from '@/components/map/terrain-kinds';
+import type { Media, St, Ln, Pin, AboutLink, SiteMeta, Rect, Tool } from '@/components/admin/types';
+import { TOOLS, PIN_KINDS, SHAPES, PALETTE, GRID, FAR, INK } from '@/components/admin/lib/constants';
+import { snap, isLight, clone, clientToSvg, distToPolyline, projectOnLine, snapTrack } from '@/components/admin/lib/geometry';
 
-type Media = { type: 'audio' | 'image' | 'video'; src: string; caption?: string };
-type St = { id: string; title: string; line: string; lines?: string[]; date?: string; shape: string; x: number; y: number; media: Media[]; body: string };
-type Ln = { id: string; label: string; color: string; text: string; shape: string; blurb: string; d: string; pts?: Pt[] };
-type Pin = { id: string; kind: 'note' | 'photo'; x: number; y: number; w: number; h: number; tag?: string; text?: string; src?: string; caption?: string };
-type AboutLink = { label: string; url: string };
-type SiteMeta = { originLabel: string; originCue: string; about: { name: string; role: string; blurb: string; links: AboutLink[] } };
 type Snap = { lines: Ln[]; stations: St[] };
-
-type Tool = 'select' | 'station' | 'track' | 'paint' | 'terrain' | 'note' | 'bulldoze';
-const TOOLS: { id: Tool; key: string; icon: string; label: string; hint: string }[] = [
-  { id: 'select', key: 'v', icon: '✥', label: 'select', hint: 'click a stop to edit/drag · click a thread then drag its dots to curve & re-route · drag empty space to pan' },
-  { id: 'station', key: 's', icon: '◉', label: 'place stop', hint: 'tap the map to drop a new stop · stops sitting on more than one thread become joint stations' },
-  { id: 'track', key: 't', icon: '╱', label: 'lay track', hint: 'tap to add track points · finish to make a thread' },
-  { id: 'paint', key: 'p', icon: '▦', label: 'paint', hint: 'click a line or stop to recolour its thread' },
-  { id: 'terrain', key: 'r', icon: '⛰', label: 'terrain', hint: 'pick land below · drag on the map to paint it · drag a piece to move, grab a corner to resize' },
-  { id: 'note', key: 'n', icon: '✦', label: 'note', hint: 'pick note/photo below · drag (or tap) the map to pin it · drag to move, grab a corner to resize' },
-  { id: 'bulldoze', key: 'x', icon: '✕', label: 'bulldoze', hint: 'click a stop, line, land or pin to delete it' },
-];
-const PIN_KINDS: { id: Pin['kind']; label: string }[] = [{ id: 'note', label: 'note' }, { id: 'photo', label: 'photo' }];
-type Rect = { x: number; y: number; w: number; h: number };
-const SHAPES = ['circle', 'square', 'triangle', 'semi'];
-const PALETTE = ['#e3000b', '#0d47a1', '#ffcf00', '#1f8a4c', '#141414', '#ff6319', '#00add0', '#b933ad'];
-const GRID = 20;
-const FAR = 20000; // half-size of the "infinite" paper/hit surface
-const snap = (v: number) => Math.round(v / GRID) * GRID;
 
 // Grid that only draws the lines currently on screen, recomputed on every
 // pan/zoom from the SVG's live screen matrix — so it reads as infinite & always
@@ -74,10 +53,6 @@ function InfiniteGrid({ svgRef }: { svgRef: React.RefObject<SVGSVGElement | null
     </g>
   );
 }
-const isLight = (hex: string) => { const c = hex.replace('#', ''); const r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16); return 0.299 * r + 0.587 * g + 0.114 * b > 150; };
-const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
-
-const INK = '#2b2b33';
 function Marker({ shape, color, r = 15, sel = false, colors }: { shape: string; color: string; r?: number; sel?: boolean; colors?: string[] }) {
   const sw = sel ? 6 : 5;
   // joint / interchange stop — white disc, ink ring, a colour tick per thread
@@ -91,20 +66,6 @@ function Marker({ shape, color, r = 15, sel = false, colors }: { shape: string; 
   return <circle r={r} fill="#fff" stroke={color} strokeWidth={sw} />;
 }
 
-// shortest distance from a point to a polyline (used to detect line overlaps for joint stops)
-function distToPolyline(x: number, y: number, pts: Pt[]): number {
-  let best = Infinity;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
-    const dx = bx - ax, dy = by - ay;
-    const len2 = dx * dx + dy * dy || 1;
-    let t = ((x - ax) * dx + (y - ay) * dy) / len2;
-    t = Math.max(0, Math.min(1, t));
-    const px = ax + t * dx, py = ay + t * dy;
-    best = Math.min(best, Math.hypot(x - px, y - py));
-  }
-  return best;
-}
 
 export default function Admin() {
   const [lines, setLines] = useState<Ln[]>([]);
@@ -166,20 +127,8 @@ export default function Admin() {
   linesRef.current = lines;
   const lnColor = (id: string) => lines.find((l) => l.id === id)?.color ?? '#888';
   const lnShape = (id: string) => lines.find((l) => l.id === id)?.shape ?? 'circle';
-  const toSvg = (cx: number, cy: number): Pt => { const s = svgRef.current!; const p = s.createSVGPoint(); p.x = cx; p.y = cy; const r = p.matrixTransform(s.getScreenCTM()!.inverse()); return [snap(r.x), snap(r.y)]; };
-  const toSvgRaw = (cx: number, cy: number): Pt => { const s = svgRef.current!; const p = s.createSVGPoint(); p.x = cx; p.y = cy; const r = p.matrixTransform(s.getScreenCTM()!.inverse()); return [r.x, r.y]; };
-  // nearest point ON a polyline to (x,y) — used to lock stop placement onto a thread
-  const projectOnLine = (pts: Pt[], x: number, y: number): Pt => {
-    let best = Infinity, bx = x, by = y;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const [ax, ay] = pts[i], [cx2, cy2] = pts[i + 1];
-      const dx = cx2 - ax, dy = cy2 - ay, len2 = dx * dx + dy * dy || 1;
-      let t = ((x - ax) * dx + (y - ay) * dy) / len2; t = Math.max(0, Math.min(1, t));
-      const px = ax + t * dx, py = ay + t * dy, d = Math.hypot(x - px, y - py);
-      if (d < best) { best = d; bx = px; by = py; }
-    }
-    return [snap(bx), snap(by)];
-  };
+  const toSvg = (cx: number, cy: number): Pt => clientToSvg(svgRef.current!, cx, cy, true);
+  const toSvgRaw = (cx: number, cy: number): Pt => clientToSvg(svgRef.current!, cx, cy, false);
 
   // ---- history ----
   const pushHistory = () => { past.current.push({ lines: clone(lines), stations: clone(stations) }); if (past.current.length > 60) past.current.shift(); future.current = []; };
@@ -355,7 +304,6 @@ export default function Admin() {
     return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
   }, [lnDrag, commitLines]);
 
-  const snapTrack = (last: Pt | undefined, cur: Pt): Pt => { if (!last) return cur; let dx = cur[0] - last[0], dy = cur[1] - last[1]; const adx = Math.abs(dx), ady = Math.abs(dy); if (adx > ady * 2) dy = 0; else if (ady > adx * 2) dx = 0; else { const m = Math.min(adx, ady); dx = Math.sign(dx) * m; dy = Math.sign(dy) * m; } return [snap(last[0] + dx), snap(last[1] + dy)]; };
   const cancelTrack = () => { setTrack([]); setEditId(null); setNodeDrag(null); };
   const finishTrack = async () => {
     if (track.length < 2) { cancelTrack(); return; }
