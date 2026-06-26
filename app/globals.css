@@ -58,6 +58,11 @@
   --canvas-grid: #2b2836;
 }
 
+/* admin editor chrome — handle/stroke inks that resolve per theme so the map editor
+   stays legible in dark mode. --ed-face is the white disc/handle fill (reads on both). */
+:root, :root[data-theme="light"] { --ed-ink: #2b2b33; --ed-face: #ffffff; }
+:root[data-theme="dark"] { --ed-ink: #e9e6f0; --ed-face: #ffffff; }
+
 * , *::before, *::after { box-sizing: border-box; }
 html, body { padding: 0; margin: 0; height: 100%; }
 body {

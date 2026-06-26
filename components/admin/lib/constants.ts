@@ -17,5 +17,5 @@ export const PALETTE = ['#e3000b', '#0d47a1', '#ffcf00', '#1f8a4c', '#141414', '
 
 export const GRID = 20;
 export const FAR = 20000; // half-size of the "infinite" paper/hit surface
-// editor chrome ink (tokenized to var(--ed-ink) in Phase 10)
-export const INK = '#2b2b33';
+// editor chrome ink — resolves per theme (see --ed-ink in globals.css)
+export const INK = 'var(--ed-ink)';

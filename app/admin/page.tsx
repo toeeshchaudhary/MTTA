@@ -423,18 +423,18 @@ export default function Admin() {
                     {terrain.map((f) => { const k = KIND_BY_ID[f.kind] ?? KIND_BY_ID.block; const isSel = selTerr === f.id; const active = tool === 'terrain' || tool === 'bulldoze';
                       return (
                         <g key={f.id}>
-                          <rect data-hit={active ? '' : undefined} x={f.x} y={f.y} width={f.w} height={f.h} rx={k.round} ry={k.round} fill={k.fill} stroke={isSel ? '#141414' : k.stroke} strokeWidth={isSel ? 3 : 2} strokeDasharray={isSel ? '7 6' : undefined}
+                          <rect data-hit={active ? '' : undefined} x={f.x} y={f.y} width={f.w} height={f.h} rx={k.round} ry={k.round} fill={k.fill} stroke={isSel ? INK : k.stroke} strokeWidth={isSel ? 3 : 2} strokeDasharray={isSel ? '7 6' : undefined}
                             style={{ cursor: tool === 'terrain' ? 'move' : tool === 'bulldoze' ? 'not-allowed' : 'default' }}
                             onPointerDown={(e) => { if (!active) return; e.stopPropagation(); if (tool === 'bulldoze') { commitTerrain(terrain.filter((q) => q.id !== f.id)); if (selTerr === f.id) setSelTerr(null); } else { setSelTerr(f.id); setTerrDrag({ id: f.id, mode: 'move' }); } }} />
                           {f.label && <text x={f.x + f.w / 2} y={f.y + f.h / 2} textAnchor="middle" dominantBaseline="middle" className="terrain-label" fill="rgba(20,20,20,0.30)" style={{ pointerEvents: 'none' }}>{f.label}</text>}
                           {isSel && tool === 'terrain' && [[f.x, f.y], [f.x + f.w, f.y], [f.x + f.w, f.y + f.h], [f.x, f.y + f.h]].map((c, ci) => (
-                            <rect key={ci} data-hit x={c[0] - 8} y={c[1] - 8} width={16} height={16} fill="#fff" stroke="#141414" strokeWidth={3} style={{ cursor: ci === 0 || ci === 2 ? 'nwse-resize' : 'nesw-resize' }}
+                            <rect key={ci} data-hit x={c[0] - 8} y={c[1] - 8} width={16} height={16} fill="var(--ed-face)" stroke={INK} strokeWidth={3} style={{ cursor: ci === 0 || ci === 2 ? 'nwse-resize' : 'nesw-resize' }}
                               onPointerDown={(e) => { e.stopPropagation(); setSelTerr(f.id); setTerrDrag({ id: f.id, mode: 'resize', corner: ci }); }} />
                           ))}
                         </g>
                       );
                     })}
-                    {draw && draw.w > 0 && draw.h > 0 && (() => { const k = KIND_BY_ID[terrainKind]; return <rect x={draw.x} y={draw.y} width={draw.w} height={draw.h} rx={k.round} ry={k.round} fill={k.fill} stroke="#141414" strokeWidth={3} strokeDasharray="8 6" opacity={0.8} style={{ pointerEvents: 'none' }} />; })()}
+                    {draw && draw.w > 0 && draw.h > 0 && (() => { const k = KIND_BY_ID[terrainKind]; return <rect x={draw.x} y={draw.y} width={draw.w} height={draw.h} rx={k.round} ry={k.round} fill={k.fill} stroke={INK} strokeWidth={3} strokeDasharray="8 6" opacity={0.8} style={{ pointerEvents: 'none' }} />; })()}
                   </g>
 
                   {lines.map((l) => (editId && editId !== '__new' && editId === l.id ? null : (
@@ -455,7 +455,7 @@ export default function Admin() {
                             onPointerDown={(e) => { e.stopPropagation(); pushHistory(); const mid: Pt = [snap((pts[i][0] + pts[i + 1][0]) / 2), snap((pts[i][1] + pts[i + 1][1]) / 2)]; const np = [...pts.slice(0, i + 1), mid, ...pts.slice(i + 1)]; setLines((arr) => arr.map((l) => (l.id === selLine.id ? { ...l, pts: np, d: roundedPath(np) } : l))); setLnDrag({ id: selLine.id, i: i + 1 }); }} />
                         ))}
                         {pts.map((p, i) => (
-                          <circle key={'ln' + i} className="rt-drag" data-hit cx={p[0]} cy={p[1]} r={11} fill="#fff" stroke={selLine.color} strokeWidth={4} style={{ cursor: 'move' }}
+                          <circle key={'ln' + i} className="rt-drag" data-hit cx={p[0]} cy={p[1]} r={11} fill="var(--ed-face)" stroke={selLine.color} strokeWidth={4} style={{ cursor: 'move' }}
                             onPointerDown={(e) => { e.stopPropagation(); pushHistory(); setLnDrag({ id: selLine.id, i }); }}
                             onDoubleClick={(e) => { e.stopPropagation(); if (pts.length > 2) { pushHistory(); const np = pts.filter((_, k) => k !== i); commitLines(lines.map((l) => (l.id === selLine.id ? { ...l, pts: np, d: roundedPath(np) } : l))); } }} />
                         ))}
@@ -468,8 +468,8 @@ export default function Admin() {
                     <g>
                       <path d={roundedPath(previewPts)} fill="none" stroke={editColor} strokeWidth={RIBBON} strokeLinecap="round" strokeLinejoin="round" opacity={0.85} />
                       {nodeDrag !== null && track[nodeDrag] && (() => { const p = track[nodeDrag]; return <g opacity={0.5}><line x1={p[0]} y1={-FAR} x2={p[0]} y2={FAR} stroke="#e3000b" strokeDasharray="6 8" /><line x1={-FAR} y1={p[1]} x2={FAR} y2={p[1]} stroke="#e3000b" strokeDasharray="6 8" /></g>; })()}
-                      {track.map((p, i) => i < track.length - 1 && (<circle key={'m' + i} className="rt-drag" data-hit cx={(p[0] + track[i + 1][0]) / 2} cy={(p[1] + track[i + 1][1]) / 2} r={6} fill="var(--canvas)" stroke="#141414" strokeWidth={2} style={{ cursor: 'copy' }} onPointerDown={(e) => { e.stopPropagation(); setTrack((t) => [...t.slice(0, i + 1), [snap((t[i][0] + t[i + 1][0]) / 2), snap((t[i][1] + t[i + 1][1]) / 2)] as Pt, ...t.slice(i + 1)]); }} />))}
-                      {track.map((p, i) => (<circle key={'n' + i} className="rt-drag" data-hit cx={p[0]} cy={p[1]} r={10} fill="#fff" stroke="#141414" strokeWidth={4} style={{ cursor: 'move' }} onPointerDown={(e) => { e.stopPropagation(); setNodeDrag(i); }} onDoubleClick={(e) => { e.stopPropagation(); setTrack((t) => (t.length > 2 ? t.filter((_, k) => k !== i) : t)); }} />))}
+                      {track.map((p, i) => i < track.length - 1 && (<circle key={'m' + i} className="rt-drag" data-hit cx={(p[0] + track[i + 1][0]) / 2} cy={(p[1] + track[i + 1][1]) / 2} r={6} fill="var(--canvas)" stroke={INK} strokeWidth={2} style={{ cursor: 'copy' }} onPointerDown={(e) => { e.stopPropagation(); setTrack((t) => [...t.slice(0, i + 1), [snap((t[i][0] + t[i + 1][0]) / 2), snap((t[i][1] + t[i + 1][1]) / 2)] as Pt, ...t.slice(i + 1)]); }} />))}
+                      {track.map((p, i) => (<circle key={'n' + i} className="rt-drag" data-hit cx={p[0]} cy={p[1]} r={10} fill="var(--ed-face)" stroke={INK} strokeWidth={4} style={{ cursor: 'move' }} onPointerDown={(e) => { e.stopPropagation(); setNodeDrag(i); }} onDoubleClick={(e) => { e.stopPropagation(); setTrack((t) => (t.length > 2 ? t.filter((_, k) => k !== i) : t)); }} />))}
                     </g>
                   )}
 
@@ -524,7 +524,7 @@ export default function Admin() {
                             style={{ cursor: tool === 'note' ? 'move' : tool === 'bulldoze' ? 'not-allowed' : 'default' }}
                             onPointerDown={(e) => { if (!active) return; e.stopPropagation(); if (tool === 'bulldoze') { commitPins(pins.filter((q) => q.id !== p.id)); if (selPin === p.id) setSelPin(null); } else { setSelPin(p.id); const [rx, ry] = toSvgRaw(e.clientX, e.clientY); setPinDrag({ id: p.id, mode: 'move', dx: rx - p.x, dy: ry - p.y }); } }} />
                           {isSel && tool === 'note' && [[p.x, p.y], [p.x + p.w, p.y], [p.x + p.w, p.y + p.h], [p.x, p.y + p.h]].map((c, ci) => (
-                            <rect key={ci} className="rt-drag" data-hit x={c[0] - 10} y={c[1] - 10} width={20} height={20} fill="#fff" stroke={INK} strokeWidth={3} style={{ cursor: ci === 0 || ci === 2 ? 'nwse-resize' : 'nesw-resize' }}
+                            <rect key={ci} className="rt-drag" data-hit x={c[0] - 10} y={c[1] - 10} width={20} height={20} fill="var(--ed-face)" stroke={INK} strokeWidth={3} style={{ cursor: ci === 0 || ci === 2 ? 'nwse-resize' : 'nesw-resize' }}
                               onPointerDown={(e) => { e.stopPropagation(); setSelPin(p.id); setPinDrag({ id: p.id, mode: 'resize', corner: ci }); }} />
                           ))}
                         </g>
