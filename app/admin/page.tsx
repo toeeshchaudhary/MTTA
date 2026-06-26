@@ -138,8 +138,12 @@ export default function Admin() {
   const [pinKind, setPinKind] = useState<Pin['kind']>('note');
   const [selPin, setSelPin] = useState<string | null>(null);
   const [pinDraw, setPinDraw] = useState<Rect | null>(null);
-  const [pinDrag, setPinDrag] = useState<{ id: string; mode: 'move' | 'resize'; corner?: number } | null>(null);
+  const [pinDrag, setPinDrag] = useState<{ id: string; mode: 'move' | 'resize'; corner?: number; dx?: number; dy?: number } | null>(null);
   const pinDrawStart = useRef<Pt | null>(null);
+  // origin marker (movable)
+  const [origin, setOrigin] = useState<Pt>([700, 96]);
+  const [origDrag, setOrigDrag] = useState(false);
+  const origGrab = useRef<Pt>([0, 0]);
   const svgRef = useRef<SVGSVGElement>(null);
   const linesRef = useRef<Ln[]>([]);
   const tw = useRef<ReactZoomPanPinchRef>(null);
@@ -153,12 +157,26 @@ export default function Admin() {
   const loadStations = useCallback(async () => { const r = await fetch('/api/stations'); setStations((await r.json()).stations || []); }, []);
   const loadTerrain = useCallback(async () => { const r = await fetch('/api/terrain'); setTerrain((await r.json()).terrain || []); }, []);
   const loadPins = useCallback(async () => { const r = await fetch('/api/pins'); setPins((await r.json()).pins || []); }, []);
-  useEffect(() => { loadLines(); loadStations(); loadTerrain(); loadPins(); }, [loadLines, loadStations, loadTerrain, loadPins]);
+  const loadSite = useCallback(async () => { const r = await fetch('/api/site'); const j = await r.json(); if (Array.isArray(j.site?.origin)) setOrigin(j.site.origin as Pt); }, []);
+  useEffect(() => { loadLines(); loadStations(); loadTerrain(); loadPins(); loadSite(); }, [loadLines, loadStations, loadTerrain, loadPins, loadSite]);
 
   linesRef.current = lines;
   const lnColor = (id: string) => lines.find((l) => l.id === id)?.color ?? '#888';
   const lnShape = (id: string) => lines.find((l) => l.id === id)?.shape ?? 'circle';
   const toSvg = (cx: number, cy: number): Pt => { const s = svgRef.current!; const p = s.createSVGPoint(); p.x = cx; p.y = cy; const r = p.matrixTransform(s.getScreenCTM()!.inverse()); return [snap(r.x), snap(r.y)]; };
+  const toSvgRaw = (cx: number, cy: number): Pt => { const s = svgRef.current!; const p = s.createSVGPoint(); p.x = cx; p.y = cy; const r = p.matrixTransform(s.getScreenCTM()!.inverse()); return [r.x, r.y]; };
+  // nearest point ON a polyline to (x,y) — used to lock stop placement onto a thread
+  const projectOnLine = (pts: Pt[], x: number, y: number): Pt => {
+    let best = Infinity, bx = x, by = y;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [ax, ay] = pts[i], [cx2, cy2] = pts[i + 1];
+      const dx = cx2 - ax, dy = cy2 - ay, len2 = dx * dx + dy * dy || 1;
+      let t = ((x - ax) * dx + (y - ay) * dy) / len2; t = Math.max(0, Math.min(1, t));
+      const px = ax + t * dx, py = ay + t * dy, d = Math.hypot(x - px, y - py);
+      if (d < best) { best = d; bx = px; by = py; }
+    }
+    return [snap(bx), snap(by)];
+  };
 
   // ---- history ----
   const pushHistory = () => { past.current.push({ lines: clone(lines), stations: clone(stations) }); if (past.current.length > 60) past.current.shift(); future.current = []; };
@@ -181,6 +199,7 @@ export default function Admin() {
   const updTerr = (id: string, patch: Partial<TerrainFeature>) => setTerrain((arr) => arr.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   const commitPins = useCallback(async (next: Pin[]) => { setSaving(true); setPins(next); await fetch('/api/pins', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pins: next }) }); setSaving(false); }, []);
   const updPin = (id: string, patch: Partial<Pin>) => setPins((arr) => arr.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const commitOrigin = useCallback(async (o: Pt) => { setSaving(true); setOrigin(o); await fetch('/api/site', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ origin: o }) }); setSaving(false); }, []);
 
   // which threads pass within reach of a point — drives joint-station suggestions
   const linesNear = useCallback((x: number, y: number, thr = 26): string[] =>
@@ -284,15 +303,15 @@ export default function Admin() {
     return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
   }, [pinDraw, pins, pinKind, commitPins]);
 
-  // pins: move / resize an existing one
+  // pins: move (grab-anchored, no center jump) / resize an existing one
   useEffect(() => {
     if (!pinDrag) return;
     const move = (e: PointerEvent) => {
-      const [x, y] = toSvg(e.clientX, e.clientY);
+      const [rx, ry] = toSvgRaw(e.clientX, e.clientY);
       setPins((arr) => arr.map((p) => {
         if (p.id !== pinDrag.id) return p;
-        if (pinDrag.mode === 'move') return { ...p, x: x - Math.round(p.w / 2), y: y - Math.round(p.h / 2) };
-        const x2 = p.x + p.w, y2 = p.y + p.h;
+        if (pinDrag.mode === 'move') return { ...p, x: snap(rx - (pinDrag.dx ?? 0)), y: snap(ry - (pinDrag.dy ?? 0)) };
+        const x = snap(rx), y = snap(ry), x2 = p.x + p.w, y2 = p.y + p.h;
         let nx = p.x, ny = p.y, nx2 = x2, ny2 = y2;
         if (pinDrag.corner === 0) { nx = x; ny = y; } else if (pinDrag.corner === 1) { nx2 = x; ny = y; } else if (pinDrag.corner === 2) { nx2 = x; ny2 = y; } else { nx = x; ny2 = y; }
         return { ...p, x: Math.min(nx, nx2), y: Math.min(ny, ny2), w: Math.max(GRID, Math.abs(nx2 - nx)), h: Math.max(GRID, Math.abs(ny2 - ny)) };
@@ -302,6 +321,15 @@ export default function Admin() {
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
     return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
   }, [pinDrag, commitPins]);
+
+  // origin marker: drag to reposition (grab-anchored), persist on release
+  useEffect(() => {
+    if (!origDrag) return;
+    const move = (e: PointerEvent) => { const [rx, ry] = toSvgRaw(e.clientX, e.clientY); setOrigin([snap(rx - origGrab.current[0]), snap(ry - origGrab.current[1])]); };
+    const up = () => { setOrigin((o) => { commitOrigin(o); return o; }); setOrigDrag(false); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+  }, [origDrag, commitOrigin]);
 
   // live re-route: drag a waypoint of an already-built line (Mini-Metro style) — no mode, no delete.
   useEffect(() => {
@@ -337,7 +365,16 @@ export default function Admin() {
   // canvas tap (place / lay track) — distinguished from a pan-drag
   const onCanvasTap = (cx: number, cy: number) => {
     const [x, y] = toSvg(cx, cy);
-    if (tool === 'station') { const onLn = hover && hover[0] === 'L' ? hover.slice(1) : null; const ln = onLn || lines[0]?.id || 'central'; const near = Array.from(new Set([ln, ...linesNear(x, y)])); pushHistory(); editStation({ id: '', title: 'new stop', line: ln, lines: near, date: '', shape: lnShape(ln), x, y, media: [], body: '' }); setTool('select'); flash(near.length > 1 ? `joint stop on ${near.length} threads — fill it in & save` : 'new stop — fill it in & save'); }
+    if (tool === 'station') {
+      if (selLn) {
+        // locked to the selected thread: snap the stop onto that line, bind to it only
+        const line = lines.find((l) => l.id === selLn);
+        const pos: Pt = line?.pts && line.pts.length >= 2 ? projectOnLine(line.pts as Pt[], x, y) : [x, y];
+        pushHistory(); editStation({ id: '', title: 'new stop', line: selLn, lines: [selLn], date: '', shape: lnShape(selLn), x: pos[0], y: pos[1], media: [], body: '' }); setTool('select'); flash(`new stop on ${line?.label || selLn} — fill it in & save`);
+      } else {
+        const onLn = hover && hover[0] === 'L' ? hover.slice(1) : null; const ln = onLn || lines[0]?.id || 'central'; const near = Array.from(new Set([ln, ...linesNear(x, y)])); pushHistory(); editStation({ id: '', title: 'new stop', line: ln, lines: near, date: '', shape: lnShape(ln), x, y, media: [], body: '' }); setTool('select'); flash(near.length > 1 ? `joint stop on ${near.length} threads — fill it in & save` : 'new stop — fill it in & save');
+      }
+    }
     else if (tool === 'track') { setTrack((t) => [...t, snapTrack(t[t.length - 1], [x, y])]); }
     else if (tool === 'select') { setSelLn(null); } // tap empty space → deselect the thread (hides its re-route handles)
   };
@@ -387,7 +424,7 @@ export default function Admin() {
       if (el && /INPUT|TEXTAREA|SELECT/.test(el.tagName)) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
-      if (e.key === 'Escape') { cancelTrack(); closeForm(); setSelLn(null); setSelTerr(null); setSelPin(null); setDraw(null); setPinDraw(null); setPickStop(false); setLnDrag(null); drawStart.current = null; pinDrawStart.current = null; return; }
+      if (e.key === 'Escape') { cancelTrack(); closeForm(); setSelLn(null); setSelTerr(null); setSelPin(null); setDraw(null); setPinDraw(null); setPickStop(false); setLnDrag(null); setOrigDrag(false); drawStart.current = null; pinDrawStart.current = null; return; }
       const t = TOOLS.find((x) => x.key === e.key.toLowerCase());
       if (t) { setTool(t.id); if (t.id === 'track') { setEditId('__new'); setTrack([]); } else cancelTrack(); }
     };
@@ -538,6 +575,15 @@ export default function Admin() {
                     );
                   })}
 
+                  {/* origin — drag to reposition in the select tool */}
+                  <g className="rt-drag" data-hit transform={`translate(${origin[0]},${origin[1]})`} style={{ cursor: tool === 'select' ? 'grab' : 'default' }}
+                    onPointerDown={(e) => { if (tool !== 'select') return; e.stopPropagation(); const [rx, ry] = toSvgRaw(e.clientX, e.clientY); origGrab.current = [rx - origin[0], ry - origin[1]]; setOrigDrag(true); }}>
+                    <circle r={40} fill="transparent" />
+                    <circle r={30} fill={INK} />
+                    <circle r={13} fill="var(--canvas)" />
+                    {tool === 'select' && <text y={-44} textAnchor="middle" className="map-tip">origin</text>}
+                  </g>
+
                   {/* pins — notes & photos tacked on the board, editable in the note tool */}
                   <g>
                     {pins.map((p) => {
@@ -547,13 +593,13 @@ export default function Admin() {
                           <rect className="rt-drag" data-hit={active ? '' : undefined} x={p.x} y={p.y} width={p.w} height={p.h} rx={3} ry={3}
                             fill="var(--panel)" stroke={isSel ? INK : 'var(--line)'} strokeWidth={isSel ? 3 : 2} strokeDasharray={isSel ? '7 6' : undefined}
                             style={{ cursor: tool === 'note' ? 'move' : tool === 'bulldoze' ? 'not-allowed' : 'default' }}
-                            onPointerDown={(e) => { if (!active) return; e.stopPropagation(); if (tool === 'bulldoze') { commitPins(pins.filter((q) => q.id !== p.id)); if (selPin === p.id) setSelPin(null); } else { setSelPin(p.id); setPinDrag({ id: p.id, mode: 'move' }); } }} />
+                            onPointerDown={(e) => { if (!active) return; e.stopPropagation(); if (tool === 'bulldoze') { commitPins(pins.filter((q) => q.id !== p.id)); if (selPin === p.id) setSelPin(null); } else { setSelPin(p.id); const [rx, ry] = toSvgRaw(e.clientX, e.clientY); setPinDrag({ id: p.id, mode: 'move', dx: rx - p.x, dy: ry - p.y }); } }} />
                           {p.kind === 'photo' && p.src && <image href={p.src} x={p.x + 6} y={p.y + 6} width={Math.max(0, p.w - 12)} height={Math.max(0, p.h - 30)} preserveAspectRatio="xMidYMid slice" style={{ pointerEvents: 'none' }} />}
                           <text x={p.x + 8} y={p.y + 15} style={{ pointerEvents: 'none', fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.08em', fontWeight: 700, fill: 'var(--ink-soft)' }}>{(p.tag || p.kind).toUpperCase()}</text>
                           {p.kind === 'note' && <foreignObject x={p.x + 6} y={p.y + 20} width={Math.max(0, p.w - 12)} height={Math.max(0, p.h - 26)} style={{ pointerEvents: 'none', overflow: 'hidden' }}><div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.35, color: 'var(--ink)' }}>{p.text}</div></foreignObject>}
                           {p.kind === 'photo' && p.caption && <text x={p.x + 8} y={p.y + p.h - 8} style={{ pointerEvents: 'none', fontFamily: 'var(--font-sans)', fontSize: 11, fill: 'var(--ink)' }}>{p.caption}</text>}
                           {isSel && tool === 'note' && [[p.x, p.y], [p.x + p.w, p.y], [p.x + p.w, p.y + p.h], [p.x, p.y + p.h]].map((c, ci) => (
-                            <rect key={ci} className="rt-drag" data-hit x={c[0] - 8} y={c[1] - 8} width={16} height={16} fill="#fff" stroke={INK} strokeWidth={3} style={{ cursor: ci === 0 || ci === 2 ? 'nwse-resize' : 'nesw-resize' }}
+                            <rect key={ci} className="rt-drag" data-hit x={c[0] - 10} y={c[1] - 10} width={20} height={20} fill="#fff" stroke={INK} strokeWidth={3} style={{ cursor: ci === 0 || ci === 2 ? 'nwse-resize' : 'nesw-resize' }}
                               onPointerDown={(e) => { e.stopPropagation(); setSelPin(p.id); setPinDrag({ id: p.id, mode: 'resize', corner: ci }); }} />
                           ))}
                         </g>
@@ -687,8 +733,8 @@ export default function Admin() {
                         <label>name<input value={l.label} onChange={(e) => upLine({ label: e.target.value })} /></label>
                         <label>blurb<input value={l.blurb} onChange={(e) => upLine({ blurb: e.target.value })} /></label>
                         <div className="row2"><label>shape<select value={l.shape} onChange={(e) => upLine({ shape: e.target.value })}>{SHAPES.map((s) => <option key={s} value={s}>{s}</option>)}</select></label><label>bullet<select value={l.text} onChange={(e) => upLine({ text: e.target.value })}><option value="#fff">white</option><option value="#111">black</option></select></label></div>
-                        <div className="swrow">{PALETTE.map((c) => <button key={c} className={`sw ${l.color === c ? 'on' : ''}`} style={{ background: c }} onClick={() => upLine({ color: c, text: isLight(c) ? '#111' : '#fff' })} />)}</div>
-                        <div className="thr-act"><button className="tbtn sm solid" onClick={() => { setForm(null); setSelSt(null); setTool('track'); setEditId(l.id); setTrack((l.pts as Pt[]) ?? []); flash('drag nodes · ＋ to add · dbl-click to remove · finish'); }}>✎ re-route</button><button className="tbtn sm" onClick={() => { pushHistory(); commitLines(lines.filter((q) => q.id !== l.id)); setSelLn(null); }}>delete</button></div>
+                        <div className="swrow">{PALETTE.map((c) => <button key={c} className={`sw ${l.color === c ? 'on' : ''}`} style={{ background: c }} onClick={() => upLine({ color: c, text: isLight(c) ? '#111' : '#fff' })} />)}<label className="cpick" title="custom colour"><input type="color" value={l.color} onChange={(e) => upLine({ color: e.target.value, text: isLight(e.target.value) ? '#111' : '#fff' })} /></label></div>
+                        <div className="thr-act"><button className="tbtn sm solid" onClick={() => { setForm(null); setSelSt(null); setTool('station'); flash(`tap the ${l.label} line to add a stop on it`); }}>＋ stop here</button><button className="tbtn sm" onClick={() => { setForm(null); setSelSt(null); setTool('track'); setEditId(l.id); setTrack((l.pts as Pt[]) ?? []); flash('drag nodes · ＋ to add · dbl-click to remove · finish'); }}>✎ re-route</button><button className="tbtn sm" onClick={() => { pushHistory(); commitLines(lines.filter((q) => q.id !== l.id)); setSelLn(null); }}>delete</button></div>
                       </div>
                     )}
                   </li>
@@ -721,7 +767,9 @@ export default function Admin() {
         .tool .t-ic { font-size: 0.95rem; }
         .tool kbd { font-size: 0.5rem; border: 1px solid currentColor; border-radius: 2px; padding: 0 3px; opacity: 0.5; }
         .tool.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-        .swatches, .swrow { display: flex; gap: 4px; }
+        .swatches, .swrow { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+        .cpick { padding: 0; }
+        .cpick input { width: 26px; height: 26px; padding: 0; border: 2px solid var(--ink); background: none; cursor: pointer; }
         .sw { width: 22px; height: 22px; border: 2px solid var(--ink); cursor: pointer; }
         .sw.on { outline: 3px solid var(--yellow); outline-offset: 1px; }
         .kinds { display: flex; gap: 4px; }

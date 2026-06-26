@@ -11,7 +11,7 @@ import IndexPanel from './IndexPanel';
 import Intro from './Intro';
 import ThemeToggle from './ThemeToggle';
 
-export default function Experience({ lines, stations, terrain = [], pins = [], initialStop }: { lines: Line[]; stations: Station[]; terrain?: TerrainFeature[]; pins?: Pin[]; initialStop?: string }) {
+export default function Experience({ lines, stations, terrain = [], pins = [], origin = [700, 96], initialStop }: { lines: Line[]; stations: Station[]; terrain?: TerrainFeature[]; pins?: Pin[]; origin?: [number, number]; initialStop?: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoveredLine, setHoveredLine] = useState<string | null>(null);
   const [focusLine, setFocusLine] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], i
     return () => { clearTimeout(t); evs.forEach((e) => window.removeEventListener(e, arm)); };
   }, [selectedId, showOnboard]);
 
-  const bounds = useMemo(() => contentBounds(lines, stations, [...terrain, ...pins]), [lines, stations, terrain, pins]);
+  const bounds = useMemo(() => contentBounds(lines, [...stations, { x: origin[0], y: origin[1] }], [...terrain, ...pins]), [lines, stations, terrain, pins, origin]);
   const byId = useMemo(() => Object.fromEntries(stations.map((s) => [s.id, s])), [stations]);
   const featured = useMemo(() => ['hello', 'the-rice', 'the-map-editor', 'why-a-map'].filter((id) => byId[id]).slice(0, 3), [byId]);
   const countByLine = useMemo(() => { const m: Record<string, number> = {}; for (const s of stations) m[s.line] = (m[s.line] || 0) + 1; return m; }, [stations]);
@@ -166,6 +166,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], i
             onHoverLine={setHoveredLine}
             onSelect={(id) => { setExpanded(false); select(id); }}
             onOrigin={() => setAboutOpen(true)}
+            origin={origin}
             featured={featured}
             codeOf={stationCode}
           />

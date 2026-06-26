@@ -51,16 +51,18 @@ type Props = {
   onHoverLine: (id: string | null) => void;
   onSelect: (id: string) => void;
   onOrigin?: () => void; // click the origin marker → About card
+  origin?: [number, number]; // editable origin-marker position
   featured?: string[]; // station ids that pulse as "start here"
   codeOf?: Record<string, string>; // station id → system code (e.g. 02·01)
 };
 
-export default function TransitMap({ lines, stations, terrain, pins = [], selectedId, activeLine, started, trains, onHoverLine, onSelect, onOrigin, featured = [], codeOf = {} }: Props) {
+export default function TransitMap({ lines, stations, terrain, pins = [], selectedId, activeLine, started, trains, onHoverLine, onSelect, onOrigin, origin = [700, 96], featured = [], codeOf = {} }: Props) {
   const [hoverId, setHoverId] = useState<string | null>(null);
   const dim = (lineId: string) => (activeLine && activeLine !== lineId ? 0.14 : 1);
+  const [ox, oy] = origin;
 
-  // frame the map to whatever has been drawn — no fixed cut-off rectangle
-  const b = useMemo(() => contentBounds(lines, stations, terrain), [lines, stations, terrain]);
+  // frame the map to whatever has been drawn — no fixed cut-off rectangle (origin included)
+  const b = useMemo(() => contentBounds(lines, [...stations, { x: ox, y: oy }], terrain), [lines, stations, terrain, ox, oy]);
   const GS = 80;
   const vx: number[] = [], hy: number[] = [];
   for (let x = Math.floor(b.x / GS) * GS; x <= b.x + b.w; x += GS) vx.push(x);
@@ -111,14 +113,14 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
       {/* the pinboard — your stuff, tacked onto the board */}
       <Pins pins={pins} />
 
-      {/* origin — top of the central spine; click for the About card */}
-      <g transform="translate(700,96)" role="button" tabIndex={0} aria-label="About toeesh" style={{ cursor: onOrigin ? 'pointer' : 'default' }}
+      {/* origin — movable; click for the About card */}
+      <g transform={`translate(${ox},${oy})`} role="button" tabIndex={0} aria-label="About toeesh" style={{ cursor: onOrigin ? 'pointer' : 'default' }}
         onClick={() => onOrigin?.()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOrigin?.(); } }}>
         <circle r={40} fill="transparent" />
         <circle r={30} fill={INK} />
         <circle r={13} fill="var(--canvas)" />
       </g>
-      <foreignObject x={736} y={68} width={340} height={44} style={{ overflow: 'visible' }}>
+      <foreignObject x={ox + 36} y={oy - 28} width={340} height={44} style={{ overflow: 'visible' }}>
         <button className="plate big origin-plate" onClick={() => onOrigin?.()}><span className="dot" style={{ background: '#141414' }} />the origin — toeesh<span className="origin-cue">about ↗</span></button>
       </foreignObject>
 

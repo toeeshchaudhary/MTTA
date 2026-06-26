@@ -1,4 +1,4 @@
-import { getLines, getStations, getTerrain, getPins } from '@/lib/content';
+import { getLines, getStations, getTerrain, getPins, getSite } from '@/lib/content';
 import Experience from '@/components/Experience';
 
 export default function Home() {
@@ -6,5 +6,6 @@ export default function Home() {
   const stations = getStations();
   const terrain = getTerrain();
   const pins = getPins();
-  return <Experience lines={lines} stations={stations} terrain={terrain} pins={pins} />;
+  const site = getSite();
+  return <Experience lines={lines} stations={stations} terrain={terrain} pins={pins} origin={site.origin} />;
 }
