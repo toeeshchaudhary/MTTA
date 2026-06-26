@@ -11,6 +11,7 @@ import { snap, isLight, clone, clientToSvg, distToPolyline, projectOnLine, snapT
 import InfiniteGrid from '@/components/admin/canvas/InfiniteGrid';
 import Marker from '@/components/admin/canvas/Marker';
 import { onDrag } from '@/components/admin/hooks/usePointerDrag';
+import { useAdminTheme } from '@/components/admin/hooks/useAdminTheme';
 
 type Snap = { lines: Ln[]; stations: St[]; terrain: TerrainFeature[]; pins: Pin[]; site: SiteMeta; origin: Pt };
 
@@ -343,60 +344,71 @@ export default function Admin() {
     return () => clearTimeout(t);
   }, [form]);
 
+  const { theme, toggle: toggleTheme } = useAdminTheme();
   const editColor = editId && editId !== '__new' ? (lines.find((l) => l.id === editId)?.color ?? paint) : paint;
   const previewPts = cursor && tool === 'track' && editId === '__new' ? [...track, snapTrack(track[track.length - 1], cursor)] : track;
+  const flyout = tool === 'terrain'
+    ? <div className="rail-fly kinds">{TERRAIN_KINDS.map((k) => <button key={k.id} className={`kind ${terrainKind === k.id ? 'on' : ''}`} onClick={() => setTerrainKind(k.id)} title={k.label}><span className="k-sw" style={{ background: k.fill }} />{k.label}</button>)}</div>
+    : tool === 'note'
+    ? <div className="rail-fly kinds">{PIN_KINDS.map((k) => <button key={k.id} className={`kind ${pinKind === k.id ? 'on' : ''}`} onClick={() => setPinKind(k.id)} title={k.label}><span className="k-ic">{k.id === 'photo' ? '▣' : '✎'}</span>{k.label}</button>)}</div>
+    : (tool === 'paint' || tool === 'track' || tool === 'select')
+    ? <div className="rail-fly swatches">{PALETTE.map((c) => <button key={c} className={`sw ${paint === c ? 'on' : ''}`} style={{ background: c }} onClick={() => setPaint(c)} aria-label={c} />)}</div>
+    : null;
 
   return (
-    <div className="admin">
-      <div className="topbar">
-        <b className="brand">toeesh · build</b>
-        <div className="addstop-wrap">
-          <button className="addstop" onClick={() => setPickStop((v) => !v)}>＋ add stop</button>
-          {pickStop && (
-            <>
-              <div className="picker-scrim" onClick={() => setPickStop(false)} />
-              <div className="picker">
-                <div className="picker-h mono">add a stop to which thread?</div>
-                {lines.length === 0 && <div className="picker-empty mono">no threads yet — lay a track first</div>}
-                {lines.map((l) => (
-                  <button key={l.id} className="picker-row" onClick={() => addStopToThread(l.id)}>
-                    <span className="dot" style={{ background: l.color }} /><b>{l.label}</b><span className="mono dimk">{l.blurb}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-        <div className="tools">
-          {TOOLS.map((t) => (
-            <button key={t.id} className={`tool ${tool === t.id ? 'on' : ''}`} title={`${t.label} (${t.key})`} onClick={() => { setTool(t.id); if (t.id === 'track') { setEditId('__new'); setTrack([]); setSelLn(null); setForm(null); } else cancelTrack(); }}>
-              <span className="t-ic">{t.icon}</span>{t.label}<kbd>{t.key}</kbd>
-            </button>
-          ))}
-        </div>
-        {tool === 'terrain'
-          ? <div className="kinds">{TERRAIN_KINDS.map((k) => <button key={k.id} className={`kind ${terrainKind === k.id ? 'on' : ''}`} onClick={() => setTerrainKind(k.id)} title={k.label}><span className="k-sw" style={{ background: k.fill }} />{k.label}</button>)}</div>
-          : tool === 'note'
-          ? <div className="kinds">{PIN_KINDS.map((k) => <button key={k.id} className={`kind ${pinKind === k.id ? 'on' : ''}`} onClick={() => setPinKind(k.id)} title={k.label}><span className="k-ic">{k.id === 'photo' ? '▣' : '✎'}</span>{k.label}</button>)}</div>
-          : <div className="swatches">{PALETTE.map((c) => <button key={c} className={`sw ${paint === c ? 'on' : ''}`} style={{ background: c }} onClick={() => setPaint(c)} aria-label={c} />)}</div>}
-        <div className="topright">
-          {(track.length > 0 || editId) && <button className="tbtn solid" onClick={finishTrack}>✓ {editId && editId !== '__new' ? 're-route' : 'finish'} ({track.length})</button>}
-          {(track.length > 0 || editId) && <button className="tbtn" onClick={cancelTrack}>✗</button>}
+    <div className="adm">
+      {/* top strip — brand · contextual track actions · history/zoom/theme/view */}
+      <div className="adm-top">
+        <b className="adm-brand">toeesh<span className="dimk"> · build</span></b>
+        {(track.length > 0 || editId) && <button className="tbtn solid" onClick={finishTrack}>✓ {editId && editId !== '__new' ? 're-route' : 'finish'} ({track.length})</button>}
+        {(track.length > 0 || editId) && <button className="tbtn" onClick={cancelTrack}>✗ cancel</button>}
+        <div className="adm-top-r">
           <button className="tbtn" onClick={undo} title="undo (⌘Z)">↶</button>
           <button className="tbtn" onClick={redo} title="redo (⌘⇧Z)">↷</button>
           <span className={`save ${saving ? 'on' : ''}`}>{saving ? 'saving…' : 'saved'}</span>
-          <button className="tbtn" onClick={() => tw.current?.zoomIn()}>+</button>
-          <button className="tbtn" onClick={() => tw.current?.zoomOut()}>−</button>
-          <button className="tbtn" onClick={() => tw.current?.resetTransform()}>⊙</button>
-          <button className={`tbtn ${view === 'dashboard' ? 'on' : ''}`} onClick={() => setView(view === 'build' ? 'dashboard' : 'build')}>{view === 'build' ? 'list' : 'build'}</button>
+          <span className="adm-div" />
+          <button className="tbtn" onClick={() => tw.current?.zoomOut()} title="zoom out">−</button>
+          <button className="tbtn" onClick={() => tw.current?.resetTransform()} title="reset view">⊙</button>
+          <button className="tbtn" onClick={() => tw.current?.zoomIn()} title="zoom in">＋</button>
+          <span className="adm-div" />
+          <button className="tbtn" onClick={toggleTheme} title="toggle theme">{theme === 'dark' ? '◐ dark' : '◑ light'}</button>
+          <button className={`tbtn ${view === 'dashboard' ? 'on' : ''}`} onClick={() => setView(view === 'build' ? 'dashboard' : 'build')}>{view === 'build' ? '≡ list' : '▦ map'}</button>
           <a className="tbtn" href="/">view →</a>
         </div>
       </div>
-      <div className="hint mono">{msg || TOOLS.find((t) => t.id === tool)!.hint}</div>
 
-      <div className={`body ${form ? 'writing' : ''}`}>
+      <div className={`adm-main ${form ? 'writing' : ''}`}>
+        {/* left tool rail */}
+        <div className="adm-rail">
+          <div className="addstop-wrap">
+            <button className="rail-compose" title="add stop to a thread" onClick={() => setPickStop((v) => !v)}>＋</button>
+            {pickStop && (
+              <>
+                <div className="picker-scrim" onClick={() => setPickStop(false)} />
+                <div className="picker">
+                  <div className="picker-h mono">add a stop to which thread?</div>
+                  {lines.length === 0 && <div className="picker-empty mono">no threads yet — lay a track first</div>}
+                  {lines.map((l) => (
+                    <button key={l.id} className="picker-row" onClick={() => addStopToThread(l.id)}>
+                      <span className="dot" style={{ background: l.color }} /><b>{l.label}</b><span className="mono dimk">{l.blurb}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="rail-div" />
+          {TOOLS.map((t) => (
+            <button key={t.id} className={`rail-tool ${tool === t.id ? 'on' : ''}`} title={`${t.label} (${t.key})`} onClick={() => { setTool(t.id); if (t.id === 'track') { setEditId('__new'); setTrack([]); setSelLn(null); setForm(null); } else cancelTrack(); }}>
+              <span className="t-ic">{t.icon}</span><kbd>{t.key}</kbd>
+            </button>
+          ))}
+          {flyout && <><div className="rail-div" />{flyout}</>}
+        </div>
+
         {view === 'build' ? (
-          <div className="canvas">
+          <div className="adm-canvas">
+            <div className="adm-stage">
             <TransformWrapper ref={tw} initialScale={0.7} minScale={0.3} maxScale={4} centerOnInit limitToBounds={false} doubleClick={{ disabled: true }} panning={{ allowLeftClickPan: tool !== 'terrain' && tool !== 'note', excluded: ['rt-drag'] }} wheel={{ step: 0.08 }}>
               <TransformComponent wrapperStyle={{ width: '100%', height: '100%', background: 'var(--canvas)' }} contentStyle={{ width: 1400, height: 940 }}>
                 <svg ref={svgRef} viewBox={MAP_VIEWBOX} width={1400} height={940} className={`svg tool-${tool}`}
@@ -531,16 +543,18 @@ export default function Admin() {
                 </svg>
               </TransformComponent>
             </TransformWrapper>
+            </div>
+            <div className="adm-hint mono">{msg || TOOLS.find((t) => t.id === tool)!.hint}</div>
           </div>
         ) : (
-          <div className="dash scroll">
+          <div className="adm-list scroll">
             <table><thead><tr><th></th><th>title</th><th>thread</th><th>date</th><th></th></tr></thead>
               <tbody>{stations.map((s) => (<tr key={s.id}><td><span className="dot" style={{ background: lnColor(s.line) }} /></td><td><b>{s.title}</b></td><td className="mono">{s.line}</td><td className="mono">{s.date}</td><td className="rt"><button className="tbtn sm" onClick={() => { setView('build'); editStation(s); }}>edit</button> <button className="tbtn sm" onClick={() => { pushHistory(); s.id && delStation(s.id); }}>del</button></td></tr>))}</tbody>
             </table>
           </div>
         )}
 
-        <aside className="panel scroll" onDragOver={(e) => { if (form) e.preventDefault(); }} onDrop={(e) => { if (form && e.dataTransfer.files[0]) { e.preventDefault(); upload(e.dataTransfer.files[0]); } }}>
+        <aside className={`adm-inspector scroll ${form ? 'wide' : ''}`} onDragOver={(e) => { if (form) e.preventDefault(); }} onDrop={(e) => { if (form && e.dataTransfer.files[0]) { e.preventDefault(); upload(e.dataTransfer.files[0]); } }}>
           {form ? (
             <div className="studio" style={{ borderLeftColor: lnColor(form.line) }}>
               <div className="studio-head">
@@ -676,57 +690,69 @@ export default function Admin() {
       </div>
 
       <style jsx>{`
-        .admin { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--ink); }
-        .topbar { display: flex; align-items: center; gap: 14px; padding: 9px 14px; border-bottom: 3px solid var(--ink); background: var(--panel); flex-wrap: wrap; }
-        .brand { font-weight: 800; letter-spacing: -0.02em; }
+        .adm { position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr; background: var(--bg); color: var(--ink); }
+        /* ---- top strip ---- */
+        .adm-top { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 3px solid var(--ink); background: var(--panel); }
+        .adm-brand { font-weight: 800; letter-spacing: -0.02em; font-size: 0.95rem; }
+        .adm-top-r { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+        .adm-div { width: 2px; align-self: stretch; background: var(--line); margin: 2px 0; }
+        /* ---- main: rail | work | inspector ---- */
+        .adm-main { min-height: 0; display: grid; grid-template-columns: 58px 1fr 360px; }
+        .adm-main.writing { grid-template-columns: 58px 1fr clamp(420px, 38vw, 620px); }
+        /* ---- left rail ---- */
+        .adm-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; border-right: 3px solid var(--ink); background: var(--panel); overflow-y: auto; }
         .addstop-wrap { position: relative; }
-        .addstop { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; background: var(--yellow); color: #111; border: 2px solid #111; padding: 8px 12px; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
-        .addstop:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
-        .addstop:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--ink); }
+        .rail-compose { width: 42px; height: 42px; font-size: 1.3rem; font-weight: 700; background: var(--yellow); color: #111; border: 2px solid #111; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
+        .rail-compose:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
+        .rail-compose:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--ink); }
+        .rail-div { width: 30px; height: 2px; background: var(--line); margin: 3px 0; flex: none; }
+        .rail-tool { position: relative; width: 42px; height: 42px; display: grid; place-items: center; background: none; border: 2px solid var(--line); color: var(--ink); cursor: pointer; flex: none; }
+        .rail-tool .t-ic { font-size: 1.15rem; line-height: 1; }
+        .rail-tool kbd { position: absolute; bottom: 1px; right: 3px; font-size: 0.46rem; opacity: 0.45; }
+        .rail-tool:hover { border-color: var(--ink); }
+        .rail-tool.on { background: var(--ink); color: var(--bg); border-color: var(--ink); box-shadow: 2px 2px 0 var(--line); }
+        .rail-fly { display: flex; flex-direction: column; align-items: center; gap: 5px; }
         .picker-scrim { position: fixed; inset: 0; z-index: 40; }
-        .picker { position: absolute; top: calc(100% + 8px); left: 0; z-index: 41; width: 280px; background: var(--panel); border: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+        .picker { position: absolute; top: 0; left: calc(100% + 10px); z-index: 41; width: 260px; background: var(--panel); border: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
         .picker-h { color: var(--ink-soft); font-size: 0.55rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 8px 8px; }
         .picker-empty { color: var(--ink-soft); padding: 8px; font-size: 0.7rem; }
         .picker-row { display: flex; align-items: center; gap: 9px; background: none; border: 0; color: var(--ink); padding: 9px 8px; cursor: pointer; text-align: left; }
         .picker-row:hover { background: var(--yellow); color: #111; }
         .picker-row b { font-size: 0.95rem; }
         .picker-row .dimk { margin-left: auto; }
-        .tools { display: flex; gap: 4px; }
-        .tool { position: relative; display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.05em; background: none; border: 2px solid var(--line); color: var(--ink); padding: 6px 9px; cursor: pointer; }
-        .tool .t-ic { font-size: 0.95rem; }
-        .tool kbd { font-size: 0.5rem; border: 1px solid currentColor; border-radius: 2px; padding: 0 3px; opacity: 0.5; }
-        .tool.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
         .swatches, .swrow { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+        .rail-fly.swatches { gap: 5px; }
         .cpick { padding: 0; }
         .cpick input { width: 26px; height: 26px; padding: 0; border: 2px solid var(--ink); background: none; cursor: pointer; }
         .sw { width: 22px; height: 22px; border: 2px solid var(--ink); cursor: pointer; }
+        .rail-fly .sw { width: 26px; height: 26px; }
         .sw.on { outline: 3px solid var(--yellow); outline-offset: 1px; }
         .kinds { display: flex; gap: 4px; }
         .kind { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.05em; background: none; border: 2px solid var(--line); color: var(--ink); padding: 5px 8px; cursor: pointer; }
-        .kind.on { border-color: var(--ink); background: var(--panel); }
+        .rail-fly .kind { flex-direction: column; gap: 3px; width: 46px; padding: 5px 2px; font-size: 0.44rem; letter-spacing: 0.02em; text-align: center; }
+        .kind.on { border-color: var(--ink); background: var(--ink); color: var(--bg); }
         .k-sw { width: 14px; height: 14px; border: 1.5px solid var(--ink); }
-        .topright { margin-left: auto; display: flex; gap: 6px; align-items: center; }
         .tbtn { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 6px 9px; cursor: pointer; text-decoration: none; }
         .tbtn.solid { background: var(--ink); color: var(--bg); }
         .tbtn.on { background: var(--yellow); color: #111; border-color: #111; }
         .tbtn.sm { padding: 4px 7px; font-size: 0.56rem; }
         .tbtn:hover { background: var(--yellow); color: #111; border-color: #111; }
-        .save { font-family: var(--font-mono); font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); }
+        .save { font-family: var(--font-mono); font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); min-width: 48px; }
         .save.on { color: var(--yellow); }
-        .hint { padding: 6px 14px; color: var(--ink-soft); border-bottom: 1px solid var(--line); background: var(--panel); }
-        .body { flex: 1; display: grid; grid-template-columns: 1fr 380px; min-height: 0; }
-        .body.writing { grid-template-columns: minmax(360px, 44%) 1fr; }
-        .canvas { position: relative; overflow: hidden; border-right: 3px solid var(--ink); }
+        /* ---- canvas + status ---- */
+        .adm-canvas { position: relative; min-width: 0; display: grid; grid-template-rows: 1fr auto; overflow: hidden; }
+        .adm-stage { position: relative; min-height: 0; overflow: hidden; }
+        .adm-hint { padding: 6px 14px; color: var(--ink-soft); border-top: 1px solid var(--line); background: var(--panel); font-size: 0.78rem; }
         .svg { display: block; touch-action: none; overflow: visible; }
         .svg.tool-station, .svg.tool-track { cursor: crosshair; }
-        :global(.map-tip) { font-family: var(--font-sans); font-weight: 800; font-size: 16px; fill: #141414; paint-order: stroke; stroke: var(--canvas); stroke-width: 4px; }
-        .dash { padding: 12px; }
+        :global(.map-tip) { font-family: var(--font-sans); font-weight: 800; font-size: 16px; fill: var(--ink); paint-order: stroke; stroke: var(--canvas); stroke-width: 4px; }
+        .adm-list { padding: 12px; overflow: auto; }
         table { width: 100%; border-collapse: collapse; }
         th { text-align: left; font-family: var(--font-mono); font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); padding: 6px; border-bottom: 2px solid var(--line); }
         td { padding: 8px 6px; border-bottom: 1px solid var(--line); }
         td.rt { text-align: right; white-space: nowrap; }
         .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex: none; }
-        .panel { padding: 14px; }
+        .adm-inspector { border-left: 3px solid var(--ink); background: var(--panel); padding: 14px; overflow: auto; }
         .ed { display: flex; flex-direction: column; gap: 10px; }
         .ed-h { display: flex; justify-content: space-between; align-items: center; }
         .ed-h .mono { color: var(--ink-soft); letter-spacing: 0.1em; }
@@ -754,7 +780,7 @@ export default function Admin() {
         .med-f { display: flex; flex-direction: column; gap: 4px; }
         .med-f input, .med-f select { padding: 5px 7px; font-size: 0.78rem; }
         /* ---- writing studio (split view) ---- */
-        .body.writing .panel { padding: 0; overflow: hidden; display: flex; }
+        .adm-inspector.wide { padding: 0; overflow: hidden; display: flex; }
         .studio { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg); border-left: 6px solid var(--ink); }
         .studio-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px 12px; }
         .studio-head .acc { width: 12px; height: 30px; flex: none; }
@@ -800,7 +826,11 @@ export default function Admin() {
         .thr-ord button:disabled { opacity: 0.25; }
         .thr-ed { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 2px solid var(--line); border-top: 0; }
         .thr-act { display: flex; gap: 6px; }
-        @media (max-width: 860px) { .body, .body.writing { grid-template-columns: 1fr; } }
+        /* desktop-first; on narrow screens the inspector floats as a right drawer */
+        @media (max-width: 820px) {
+          .adm-main, .adm-main.writing { grid-template-columns: 52px 1fr; }
+          .adm-inspector, .adm-inspector.wide { position: fixed; top: 51px; right: 0; bottom: 0; width: min(92vw, 440px); z-index: 30; box-shadow: -6px 0 0 var(--ink); }
+        }
       `}</style>
     </div>
   );
