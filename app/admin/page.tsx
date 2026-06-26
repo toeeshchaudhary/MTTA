@@ -351,7 +351,7 @@ export default function Admin() {
     ? <div className="rail-fly kinds">{TERRAIN_KINDS.map((k) => <button key={k.id} className={`kind ${terrainKind === k.id ? 'on' : ''}`} onClick={() => setTerrainKind(k.id)} title={k.label}><span className="k-sw" style={{ background: k.fill }} />{k.label}</button>)}</div>
     : tool === 'note'
     ? <div className="rail-fly kinds">{PIN_KINDS.map((k) => <button key={k.id} className={`kind ${pinKind === k.id ? 'on' : ''}`} onClick={() => setPinKind(k.id)} title={k.label}><span className="k-ic">{k.id === 'photo' ? '▣' : '✎'}</span>{k.label}</button>)}</div>
-    : (tool === 'paint' || tool === 'track' || tool === 'select')
+    : (tool === 'paint' || tool === 'track')
     ? <div className="rail-fly swatches">{PALETTE.map((c) => <button key={c} className={`sw ${paint === c ? 'on' : ''}`} style={{ background: c }} onClick={() => setPaint(c)} aria-label={c} />)}</div>
     : null;
 
@@ -700,7 +700,7 @@ export default function Admin() {
         .adm-main { min-height: 0; display: grid; grid-template-columns: 58px 1fr 360px; }
         .adm-main.writing { grid-template-columns: 58px 1fr clamp(420px, 38vw, 620px); }
         /* ---- left rail ---- */
-        .adm-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; border-right: 3px solid var(--ink); background: var(--panel); overflow-y: auto; }
+        .adm-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; border-right: 3px solid var(--ink); background: var(--panel); overflow: visible; z-index: 5; }
         .addstop-wrap { position: relative; }
         .rail-compose { width: 42px; height: 42px; font-size: 1.3rem; font-weight: 700; background: var(--yellow); color: #111; border: 2px solid #111; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
         .rail-compose:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
