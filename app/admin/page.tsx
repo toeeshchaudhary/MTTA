@@ -260,7 +260,7 @@ export default function Admin() {
     setTrack([]); setEditId(null); setNodeDrag(null); setTool('select'); setSelSt(null);
   };
 
-  const paintLine = (id: string) => { const l = lines.find((q) => q.id === id); if (!l) return; pushHistory(); commitLines(lines.map((q) => (q.id === id ? { ...q, color: paint, text: isLight(paint) ? '#111' : '#fff' } : q))); };
+  const paintLine = (id: string) => { const l = lines.find((q) => q.id === id); if (!l) return; pushHistory(); commitLines(lines.map((q) => (q.id === id ? { ...q, color: paint, text: isLight(paint) ? '#111' : '#fff' } : q))); flash(`recoloured “${l.label || id}” → ${paint}`); };
 
   // canvas tap (place / lay track) — distinguished from a pan-drag
   const onCanvasTap = (cx: number, cy: number) => {
