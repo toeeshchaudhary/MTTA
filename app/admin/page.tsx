@@ -10,6 +10,7 @@ import { snap, isLight, clone, clientToSvg, distToPolyline, projectOnLine, snapT
 import InfiniteGrid from '@/components/admin/canvas/InfiniteGrid';
 import Marker from '@/components/admin/canvas/Marker';
 import Inspector from '@/components/admin/Inspector';
+import Canvas from '@/components/admin/Canvas';
 import { onDrag } from '@/components/admin/hooks/usePointerDrag';
 import { useAdminTheme } from '@/components/admin/hooks/useAdminTheme';
 
@@ -403,168 +404,19 @@ export default function Admin() {
         </div>
 
         {view === 'build' ? (
-          <div className="adm-canvas">
-            {hasFly && (
-              <div className="adm-flybar">
-                <span className="fly-h mono">{flyLabel}</span>
-                {(tool === 'paint' || tool === 'track') && (
-                  <div className="rail-fly swatches">
-                    {PALETTE.map((c) => <button key={c} className={`sw ${paint === c ? 'on' : ''}`} style={{ background: c }} onClick={() => setPaint(c)} aria-label={c} />)}
-                    <label className="cpick" title="custom colour"><input type="color" value={paint} onChange={(e) => setPaint(e.target.value)} /></label>
-                  </div>
-                )}
-                {tool === 'terrain' && <div className="rail-fly kinds">{TERRAIN_KINDS.map((k) => <button key={k.id} className={`kind ${terrainKind === k.id ? 'on' : ''}`} onClick={() => setTerrainKind(k.id)} title={k.label}><span className="k-sw" style={{ background: k.fill }} />{k.label}</button>)}</div>}
-                {tool === 'note' && <div className="rail-fly kinds">{PIN_KINDS.map((k) => <button key={k.id} className={`kind ${pinKind === k.id ? 'on' : ''}`} onClick={() => setPinKind(k.id)} title={k.label}><span className="k-ic">{k.id === 'photo' ? '▣' : '✎'}</span>{k.label}</button>)}</div>}
-              </div>
-            )}
-            {(track.length > 0 || editId) && (
-              <div className="adm-trackbar">
-                <span className="mono">{editId && editId !== '__new' ? 're-routing' : 'laying track'} · {track.length} {track.length === 1 ? 'point' : 'points'}{track.length < 2 ? ' · tap the map' : ''}</span>
-                <button className="tbtn solid" onClick={finishTrack}>✓ {editId && editId !== '__new' ? 're-route' : 'finish'}</button>
-                <button className="tbtn" onClick={cancelTrack}>✗ cancel</button>
-              </div>
-            )}
-            <div className="adm-stage">
-            <TransformWrapper ref={tw} initialScale={0.7} minScale={0.3} maxScale={4} centerOnInit limitToBounds={false} doubleClick={{ disabled: true }} panning={{ allowLeftClickPan: tool !== 'terrain' && tool !== 'note', excluded: ['rt-drag'] }} wheel={{ step: 0.08 }}>
-              <TransformComponent wrapperStyle={{ width: '100%', height: '100%', background: 'var(--canvas)' }} contentStyle={{ width: 1400, height: 940 }}>
-                <svg ref={svgRef} viewBox={MAP_VIEWBOX} width={1400} height={940} className={`svg tool-${tool}`}
-                  onPointerDown={(e) => { downPt.current = { x: e.clientX, y: e.clientY }; const onHit = (e.target as Element).closest('[data-hit]'); if (tool === 'terrain' && !onHit) { const p = toSvg(e.clientX, e.clientY); drawStart.current = p; setSelTerr(null); setDraw({ x: p[0], y: p[1], w: 0, h: 0 }); } else if (tool === 'note' && !onHit) { const p = toSvg(e.clientX, e.clientY); pinDrawStart.current = p; setSelPin(null); setPinDraw({ x: p[0], y: p[1], w: 0, h: 0 }); } }}
-                  onPointerUp={(e) => { const d = downPt.current; downPt.current = null; if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6 && !(e.target as Element).closest('[data-hit]')) onCanvasTap(e.clientX, e.clientY); }}
-                  onPointerMove={(e) => { if (tool === 'track') setCursor(toSvg(e.clientX, e.clientY)); }}>
-                  <rect x={-FAR} y={-FAR} width={FAR * 2} height={FAR * 2} fill="var(--canvas)" />
-                  <InfiniteGrid svgRef={svgRef} />
-
-                  {/* terrain — editable in the terrain tool, static otherwise */}
-                  <g>
-                    {terrain.map((f) => { const k = KIND_BY_ID[f.kind] ?? KIND_BY_ID.block; const isSel = selTerr === f.id; const active = tool === 'terrain' || tool === 'bulldoze';
-                      return (
-                        <g key={f.id}>
-                          <rect data-hit={active ? '' : undefined} x={f.x} y={f.y} width={f.w} height={f.h} rx={k.round} ry={k.round} fill={k.fill} stroke={isSel ? INK : k.stroke} strokeWidth={isSel ? 3 : 2} strokeDasharray={isSel ? '7 6' : undefined}
-                            style={{ cursor: tool === 'terrain' ? 'move' : tool === 'bulldoze' ? 'not-allowed' : 'default' }}
-                            onPointerDown={(e) => { if (!active) return; e.stopPropagation(); if (tool === 'bulldoze') { commitTerrain(terrain.filter((q) => q.id !== f.id)); if (selTerr === f.id) setSelTerr(null); } else { setSelTerr(f.id); setTerrDrag({ id: f.id, mode: 'move' }); } }} />
-                          {f.label && <text x={f.x + f.w / 2} y={f.y + f.h / 2} textAnchor="middle" dominantBaseline="middle" className="terrain-label" fill="rgba(20,20,20,0.30)" style={{ pointerEvents: 'none' }}>{f.label}</text>}
-                          {isSel && tool === 'terrain' && [[f.x, f.y], [f.x + f.w, f.y], [f.x + f.w, f.y + f.h], [f.x, f.y + f.h]].map((c, ci) => (
-                            <rect key={ci} data-hit x={c[0] - 8} y={c[1] - 8} width={16} height={16} fill="var(--ed-face)" stroke={INK} strokeWidth={3} style={{ cursor: ci === 0 || ci === 2 ? 'nwse-resize' : 'nesw-resize' }}
-                              onPointerDown={(e) => { e.stopPropagation(); setSelTerr(f.id); setTerrDrag({ id: f.id, mode: 'resize', corner: ci }); }} />
-                          ))}
-                        </g>
-                      );
-                    })}
-                    {draw && draw.w > 0 && draw.h > 0 && (() => { const k = KIND_BY_ID[terrainKind]; return <rect x={draw.x} y={draw.y} width={draw.w} height={draw.h} rx={k.round} ry={k.round} fill={k.fill} stroke={INK} strokeWidth={3} strokeDasharray="8 6" opacity={0.8} style={{ pointerEvents: 'none' }} />; })()}
-                  </g>
-
-                  {lines.map((l) => (editId && editId !== '__new' && editId === l.id ? null : (
-                    <g key={l.id} style={{ cursor: tool === 'select' || tool === 'paint' || tool === 'bulldoze' ? 'pointer' : 'crosshair' }}
-                      onPointerDown={(e) => { if (tool === 'station' || tool === 'track') return; e.stopPropagation(); onLine(l); }} onPointerEnter={() => setHover('L' + l.id)} onPointerLeave={() => setHover(null)}>
-                      {/* fat invisible hit area so thin threads are easy to click (paint/select/bulldoze) */}
-                      <path d={l.d} fill="none" stroke="transparent" strokeWidth={28} strokeLinecap="round" strokeLinejoin="round" />
-                      <path d={l.d} fill="none" stroke={l.color} strokeWidth={RIBBON} strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}
-                        opacity={(selLn && selLn !== l.id) || (hover && hover !== 'L' + l.id && tool === 'paint') ? 0.4 : 0.92} />
-                    </g>
-                  )))}
-
-                  {/* live re-route handles for the selected thread (Mini-Metro style) */}
-                  {tool === 'select' && !editId && selLine && selLine.pts && selLine.pts.length >= 2 && (() => {
-                    const pts = selLine.pts as Pt[];
-                    return (
-                      <g>
-                        {lnDrag && lnDrag.id === selLine.id && pts[lnDrag.i] && (() => { const p = pts[lnDrag.i]; return <g opacity={0.5}><line x1={p[0]} y1={-FAR} x2={p[0]} y2={FAR} stroke={selLine.color} strokeDasharray="6 8" /><line x1={-FAR} y1={p[1]} x2={FAR} y2={p[1]} stroke={selLine.color} strokeDasharray="6 8" /></g>; })()}
-                        {pts.map((p, i) => i < pts.length - 1 && (
-                          <circle key={'lm' + i} className="rt-drag" data-hit cx={(p[0] + pts[i + 1][0]) / 2} cy={(p[1] + pts[i + 1][1]) / 2} r={7} fill="var(--canvas)" stroke={selLine.color} strokeWidth={2.5} style={{ cursor: 'copy' }}
-                            onPointerDown={(e) => { e.stopPropagation(); pushHistory(); const mid: Pt = [snap((pts[i][0] + pts[i + 1][0]) / 2), snap((pts[i][1] + pts[i + 1][1]) / 2)]; const np = [...pts.slice(0, i + 1), mid, ...pts.slice(i + 1)]; setLines((arr) => arr.map((l) => (l.id === selLine.id ? { ...l, pts: np, d: roundedPath(np) } : l))); setLnDrag({ id: selLine.id, i: i + 1 }); }} />
-                        ))}
-                        {pts.map((p, i) => (
-                          <circle key={'ln' + i} className="rt-drag" data-hit cx={p[0]} cy={p[1]} r={11} fill="var(--ed-face)" stroke={selLine.color} strokeWidth={4} style={{ cursor: 'move' }}
-                            onPointerDown={(e) => { e.stopPropagation(); pushHistory(); setLnDrag({ id: selLine.id, i }); }}
-                            onDoubleClick={(e) => { e.stopPropagation(); if (pts.length > 2) { pushHistory(); const np = pts.filter((_, k) => k !== i); commitLines(lines.map((l) => (l.id === selLine.id ? { ...l, pts: np, d: roundedPath(np) } : l))); } }} />
-                        ))}
-                      </g>
-                    );
-                  })()}
-
-                  {/* track preview + editable nodes + snap guides */}
-                  {(track.length > 0 || editId) && (
-                    <g>
-                      <path d={roundedPath(previewPts)} fill="none" stroke={editColor} strokeWidth={RIBBON} strokeLinecap="round" strokeLinejoin="round" opacity={0.85} />
-                      {nodeDrag !== null && track[nodeDrag] && (() => { const p = track[nodeDrag]; return <g opacity={0.5}><line x1={p[0]} y1={-FAR} x2={p[0]} y2={FAR} stroke="#e3000b" strokeDasharray="6 8" /><line x1={-FAR} y1={p[1]} x2={FAR} y2={p[1]} stroke="#e3000b" strokeDasharray="6 8" /></g>; })()}
-                      {track.map((p, i) => i < track.length - 1 && (<circle key={'m' + i} className="rt-drag" data-hit cx={(p[0] + track[i + 1][0]) / 2} cy={(p[1] + track[i + 1][1]) / 2} r={6} fill="var(--canvas)" stroke={INK} strokeWidth={2} style={{ cursor: 'copy' }} onPointerDown={(e) => { e.stopPropagation(); setTrack((t) => [...t.slice(0, i + 1), [snap((t[i][0] + t[i + 1][0]) / 2), snap((t[i][1] + t[i + 1][1]) / 2)] as Pt, ...t.slice(i + 1)]); }} />))}
-                      {track.map((p, i) => (<circle key={'n' + i} className="rt-drag" data-hit cx={p[0]} cy={p[1]} r={10} fill="var(--ed-face)" stroke={INK} strokeWidth={4} style={{ cursor: 'move' }} onPointerDown={(e) => { e.stopPropagation(); setNodeDrag(i); }} onDoubleClick={(e) => { e.stopPropagation(); setTrack((t) => (t.length > 2 ? t.filter((_, k) => k !== i) : t)); }} />))}
-                    </g>
-                  )}
-
-                  {stations.map((s) => {
-                    const ids = s.lines && s.lines.length ? s.lines : [s.line];
-                    const cols = ids.map(lnColor);
-                    return (
-                    <g key={s.id || 'new'} className="rt-drag" id={s.id ? 'st-' + s.id : undefined} data-hit transform={`translate(${s.x},${s.y})`} style={{ cursor: tool === 'bulldoze' ? 'not-allowed' : tool === 'select' ? 'grab' : 'pointer' }}
-                      onPointerDown={(e) => { e.stopPropagation(); onStation(s); }} onPointerEnter={() => setHover('S' + s.id)} onPointerLeave={() => setHover(null)}>
-                      {(selSt === s.id || hover === 'S' + s.id) && <circle r={30} fill="none" stroke={lnColor(s.line)} strokeWidth={3} strokeDasharray={selSt === s.id ? '4 5' : '0'} opacity={selSt === s.id ? 1 : 0.5} />}
-                      <Marker shape={s.shape || lnShape(s.line)} color={lnColor(s.line)} colors={cols.length >= 2 ? cols : undefined} sel={selSt === s.id} />
-                      {hover === 'S' + s.id && <text y={-38} textAnchor="middle" className="map-tip">{s.title}</text>}
-                    </g>
-                    );
-                  })}
-
-                  {/* origin — drag to reposition in the select tool */}
-                  <g className="rt-drag" data-hit transform={`translate(${origin[0]},${origin[1]})`} style={{ cursor: tool === 'select' ? 'grab' : 'default' }}
-                    onPointerDown={(e) => { if (tool !== 'select') return; e.stopPropagation(); const [rx, ry] = toSvgRaw(e.clientX, e.clientY); origGrab.current = [rx - origin[0], ry - origin[1]]; setOrigDrag(true); }}>
-                    <circle r={40} fill="transparent" />
-                    <circle r={30} fill={INK} />
-                    <circle r={13} fill="var(--canvas)" />
-                    {tool === 'select' && <text y={-44} textAnchor="middle" className="map-tip">origin</text>}
-                  </g>
-
-                  {/* pins — notes & photos tacked on the board, editable in the note tool */}
-                  <g>
-                    {pins.map((p, i) => {
-                      const isSel = selPin === p.id; const active = tool === 'note' || tool === 'bulldoze';
-                      const no = `T·${String(i + 1).padStart(2, '0')}`;
-                      return (
-                        <g key={p.id}>
-                          {/* WYSIWYG preview — identical markup/CSS to the public board so sizing matches */}
-                          <foreignObject x={p.x} y={p.y} width={p.w} height={p.h} style={{ overflow: 'visible', pointerEvents: 'none' }}>
-                            <div className={`tile tile-${p.kind}`} style={{ width: p.w, height: p.h }}>
-                              {p.kind === 'photo' ? (
-                                <>
-                                  <div className="tile-frame">{p.src ? <img src={p.src} alt={p.caption || ''} draggable={false} /> : <span className="tile-ph" />}</div>
-                                  <div className="tile-meta"><span className="tile-tag"><span className="tile-no">{no}</span>{p.tag || 'photo'}</span>{p.caption && <span className="tile-cap">{p.caption}</span>}</div>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="tile-tag"><span className="tile-no">{no}</span>{p.tag || 'note'}</span>
-                                  <p>{p.text}</p>
-                                </>
-                              )}
-                            </div>
-                          </foreignObject>
-                          {/* transparent hit + selection outline on top */}
-                          <rect className="rt-drag" data-hit={active ? '' : undefined} x={p.x} y={p.y} width={p.w} height={p.h}
-                            fill="transparent" stroke={isSel ? INK : 'transparent'} strokeWidth={isSel ? 3 : 0} strokeDasharray={isSel ? '7 6' : undefined}
-                            style={{ cursor: tool === 'note' ? 'move' : tool === 'bulldoze' ? 'not-allowed' : 'default' }}
-                            onPointerDown={(e) => { if (!active) return; e.stopPropagation(); if (tool === 'bulldoze') { commitPins(pins.filter((q) => q.id !== p.id)); if (selPin === p.id) setSelPin(null); } else { setSelPin(p.id); const [rx, ry] = toSvgRaw(e.clientX, e.clientY); setPinDrag({ id: p.id, mode: 'move', dx: rx - p.x, dy: ry - p.y }); } }} />
-                          {isSel && tool === 'note' && [[p.x, p.y], [p.x + p.w, p.y], [p.x + p.w, p.y + p.h], [p.x, p.y + p.h]].map((c, ci) => (
-                            <rect key={ci} className="rt-drag" data-hit x={c[0] - 10} y={c[1] - 10} width={20} height={20} fill="var(--ed-face)" stroke={INK} strokeWidth={3} style={{ cursor: ci === 0 || ci === 2 ? 'nwse-resize' : 'nesw-resize' }}
-                              onPointerDown={(e) => { e.stopPropagation(); setSelPin(p.id); setPinDrag({ id: p.id, mode: 'resize', corner: ci }); }} />
-                          ))}
-                        </g>
-                      );
-                    })}
-                    {pinDraw && pinDraw.w > 0 && pinDraw.h > 0 && <rect x={pinDraw.x} y={pinDraw.y} width={pinDraw.w} height={pinDraw.h} rx={3} fill="var(--panel)" stroke={INK} strokeWidth={3} strokeDasharray="8 6" opacity={0.8} style={{ pointerEvents: 'none' }} />}
-                  </g>
-
-                  {/* ghost marker for a staged (unsaved) stop so the camera can frame it */}
-                  {form && !form.id && (
-                    <g id="st-editing" transform={`translate(${form.x},${form.y})`} style={{ pointerEvents: 'none' }}>
-                      <circle r={30} fill="none" stroke={lnColor(form.line)} strokeWidth={3} strokeDasharray="4 5" />
-                      <Marker shape={form.shape || lnShape(form.line)} color={lnColor(form.line)} sel />
-                    </g>
-                  )}
-                </svg>
-              </TransformComponent>
-            </TransformWrapper>
-            </div>
-            <div className="adm-hint mono">{msg || TOOLS.find((t) => t.id === tool)!.hint}</div>
-          </div>
+<Canvas
+            tool={tool} lines={lines} stations={stations} terrain={terrain} pins={pins} origin={origin} form={form}
+            selSt={selSt} selLn={selLn} selTerr={selTerr} selPin={selPin} draw={draw} pinDraw={pinDraw} track={track}
+            editId={editId} nodeDrag={nodeDrag} lnDrag={lnDrag} hover={hover} paint={paint} terrainKind={terrainKind} pinKind={pinKind}
+            flyLabel={flyLabel} hasFly={hasFly} msg={msg} selLine={selLine} previewPts={previewPts} editColor={editColor}
+            setPaint={setPaint} setTerrainKind={setTerrainKind} setPinKind={setPinKind} setHover={setHover} setCursor={setCursor}
+            setDraw={setDraw} setPinDraw={setPinDraw} setSelTerr={setSelTerr} setSelPin={setSelPin} setTerrDrag={setTerrDrag}
+            setPinDrag={setPinDrag} setTrack={setTrack} setNodeDrag={setNodeDrag} setLnDrag={setLnDrag} setLines={setLines} setOrigDrag={setOrigDrag}
+            svgRef={svgRef} tw={tw} downPt={downPt} drawStart={drawStart} pinDrawStart={pinDrawStart} origGrab={origGrab}
+            toSvg={toSvg} toSvgRaw={toSvgRaw} onCanvasTap={onCanvasTap} onLine={onLine} onStation={onStation}
+            lnColor={lnColor} lnShape={lnShape} commitTerrain={commitTerrain} commitPins={commitPins}
+            pushHistory={pushHistory} finishTrack={finishTrack} cancelTrack={cancelTrack}
+          />
         ) : (
           <div className="adm-list scroll">
             <table><thead><tr><th></th><th>title</th><th>thread</th><th>date</th><th></th></tr></thead>
