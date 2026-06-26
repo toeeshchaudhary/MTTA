@@ -23,8 +23,18 @@ export default function Admin() {
   const [tool, setTool] = useState<Tool>('select');
   const [view, setView] = useState<'build' | 'dashboard'>('build');
   const [paint, setPaint] = useState('#e3000b');
-  const [selSt, setSelSt] = useState<string | null>(null);
-  const [selLn, setSelLn] = useState<string | null>(null);
+  // single source of truth for selection — enforces mutual exclusion (only one thing
+  // selected at a time). The old selSt/selLn/selTerr/selPin names are kept as derived
+  // getters + setters so every call site is unchanged.
+  const [selection, setSelection] = useState<{ type: 'station' | 'line' | 'terrain' | 'pin'; id: string } | null>(null);
+  const selSt = selection?.type === 'station' ? selection.id : null;
+  const selLn = selection?.type === 'line' ? selection.id : null;
+  const selTerr = selection?.type === 'terrain' ? selection.id : null;
+  const selPin = selection?.type === 'pin' ? selection.id : null;
+  const setSelSt = (id: string | null) => setSelection(id == null ? null : { type: 'station', id });
+  const setSelLn = (id: string | null) => setSelection(id == null ? null : { type: 'line', id });
+  const setSelTerr = (id: string | null) => setSelection(id == null ? null : { type: 'terrain', id });
+  const setSelPin = (id: string | null) => setSelection(id == null ? null : { type: 'pin', id });
   const [form, setForm] = useState<St | null>(null);
   const [track, setTrack] = useState<Pt[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
@@ -42,14 +52,12 @@ export default function Admin() {
   // terrain (RCT-style land painting)
   const [terrain, setTerrain] = useState<TerrainFeature[]>([]);
   const [terrainKind, setTerrainKind] = useState<TerrainKind>('water');
-  const [selTerr, setSelTerr] = useState<string | null>(null);
   const [draw, setDraw] = useState<Rect | null>(null);
   const [terrDrag, setTerrDrag] = useState<{ id: string; mode: 'move' | 'resize'; corner?: number } | null>(null);
   const drawStart = useRef<Pt | null>(null);
   // pinboard (notes & photos tacked on the board)
   const [pins, setPins] = useState<Pin[]>([]);
   const [pinKind, setPinKind] = useState<Pin['kind']>('note');
-  const [selPin, setSelPin] = useState<string | null>(null);
   const [pinDraw, setPinDraw] = useState<Rect | null>(null);
   const [pinDrag, setPinDrag] = useState<{ id: string; mode: 'move' | 'resize'; corner?: number; dx?: number; dy?: number } | null>(null);
   const pinDrawStart = useRef<Pt | null>(null);
