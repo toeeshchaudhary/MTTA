@@ -10,6 +10,7 @@ import { TOOLS, PIN_KINDS, SHAPES, PALETTE, GRID, FAR, INK } from '@/components/
 import { snap, isLight, clone, clientToSvg, distToPolyline, projectOnLine, snapTrack } from '@/components/admin/lib/geometry';
 import InfiniteGrid from '@/components/admin/canvas/InfiniteGrid';
 import Marker from '@/components/admin/canvas/Marker';
+import { onDrag } from '@/components/admin/hooks/usePointerDrag';
 
 type Snap = { lines: Ln[]; stations: St[] };
 
@@ -143,8 +144,7 @@ export default function Admin() {
     if (!drag) return;
     const move = (e: PointerEvent) => { const [x, y] = toSvg(e.clientX, e.clientY); setStations((arr) => arr.map((s) => (s.id === drag ? { ...s, x, y } : s))); setForm((f) => (f && f.id === drag ? { ...f, x, y } : f)); };
     const up = () => { const s = stations.find((q) => q.id === drag); if (s && s.id) saveStation(s); setDrag(null); };
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    return onDrag(move, up);
   }, [drag, stations, saveStation]);
 
   // node drag (track edit) — grid + neighbour-axis magnet
@@ -152,8 +152,7 @@ export default function Admin() {
     if (nodeDrag === null) return;
     const move = (e: PointerEvent) => { let [x, y] = toSvg(e.clientX, e.clientY); setTrack((t) => { for (const nb of [t[nodeDrag - 1], t[nodeDrag + 1]]) { if (!nb) continue; if (Math.abs(x - nb[0]) <= GRID) x = nb[0]; if (Math.abs(y - nb[1]) <= GRID) y = nb[1]; } return t.map((p, i) => (i === nodeDrag ? [x, y] : p)); }); };
     const up = () => setNodeDrag(null);
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    return onDrag(move, up);
   }, [nodeDrag]);
 
   // terrain: paint a new piece by dragging on empty canvas
@@ -161,8 +160,7 @@ export default function Admin() {
     if (!draw) return;
     const move = (e: PointerEvent) => { const s = drawStart.current; if (!s) return; const [x, y] = toSvg(e.clientX, e.clientY); setDraw({ x: Math.min(s[0], x), y: Math.min(s[1], y), w: Math.abs(x - s[0]), h: Math.abs(y - s[1]) }); };
     const up = () => { setDraw((d) => { if (d && d.w >= GRID && d.h >= GRID) { const id = `t-${Date.now().toString(36)}`; const feat: TerrainFeature = { id, kind: terrainKind, x: d.x, y: d.y, w: d.w, h: d.h }; commitTerrain([...terrain, feat]); setSelTerr(id); flash(`${terrainKind} placed`); } return null; }); drawStart.current = null; };
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    return onDrag(move, up);
   }, [draw, terrain, terrainKind, commitTerrain]);
 
   // terrain: move / resize an existing piece
@@ -180,8 +178,7 @@ export default function Admin() {
       }));
     };
     const up = () => { setTerrain((arr) => { commitTerrain(arr); return arr; }); setTerrDrag(null); };
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    return onDrag(move, up);
   }, [terrDrag, commitTerrain]);
 
   // pins: place a new note/photo by dragging (or tapping) on empty canvas
@@ -201,8 +198,7 @@ export default function Admin() {
       });
       pinDrawStart.current = null;
     };
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    return onDrag(move, up);
   }, [pinDraw, pins, pinKind, commitPins]);
 
   // pins: move (grab-anchored, no center jump) / resize an existing one
@@ -220,8 +216,7 @@ export default function Admin() {
       }));
     };
     const up = () => { setPins((arr) => { commitPins(arr); return arr; }); setPinDrag(null); };
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    return onDrag(move, up);
   }, [pinDrag, commitPins]);
 
   // origin marker: drag to reposition (grab-anchored), persist on release
@@ -229,8 +224,7 @@ export default function Admin() {
     if (!origDrag) return;
     const move = (e: PointerEvent) => { const [rx, ry] = toSvgRaw(e.clientX, e.clientY); setOrigin([snap(rx - origGrab.current[0]), snap(ry - origGrab.current[1])]); };
     const up = () => { setOrigin((o) => { commitOrigin(o); return o; }); setOrigDrag(false); };
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    return onDrag(move, up);
   }, [origDrag, commitOrigin]);
 
   // live re-route: drag a waypoint of an already-built line (Mini-Metro style) — no mode, no delete.
@@ -247,8 +241,7 @@ export default function Admin() {
       }));
     };
     const up = () => { commitLines(linesRef.current); setLnDrag(null); };
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    return onDrag(move, up);
   }, [lnDrag, commitLines]);
 
   const cancelTrack = () => { setTrack([]); setEditId(null); setNodeDrag(null); };
