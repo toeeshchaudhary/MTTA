@@ -12,7 +12,7 @@ import InfiniteGrid from '@/components/admin/canvas/InfiniteGrid';
 import Marker from '@/components/admin/canvas/Marker';
 import { onDrag } from '@/components/admin/hooks/usePointerDrag';
 
-type Snap = { lines: Ln[]; stations: St[] };
+type Snap = { lines: Ln[]; stations: St[]; terrain: TerrainFeature[]; pins: Pin[]; site: SiteMeta; origin: Pt };
 
 
 export default function Admin() {
@@ -78,18 +78,23 @@ export default function Admin() {
   const toSvg = (cx: number, cy: number): Pt => clientToSvg(svgRef.current!, cx, cy, true);
   const toSvgRaw = (cx: number, cy: number): Pt => clientToSvg(svgRef.current!, cx, cy, false);
 
-  // ---- history ----
-  const pushHistory = () => { past.current.push({ lines: clone(lines), stations: clone(stations) }); if (past.current.length > 60) past.current.shift(); future.current = []; };
+  // ---- history (covers every editable slice, not just lines+stations) ----
+  const takeSnap = (): Snap => ({ lines: clone(lines), stations: clone(stations), terrain: clone(terrain), pins: clone(pins), site: clone(site), origin: clone(origin) });
+  const pushHistory = () => { past.current.push(takeSnap()); if (past.current.length > 60) past.current.shift(); future.current = []; };
   const persistSnap = async (snap: Snap, prevStations: St[]) => {
     setSaving(true);
     await fetch('/api/lines', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lines: snap.lines }) });
     const removed = prevStations.filter((p) => p.id && !snap.stations.find((s) => s.id === p.id));
     for (const s of snap.stations.filter((s) => s.id)) await fetch('/api/stations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(s) });
     for (const r of removed) await fetch('/api/stations', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: r.id }) });
-    await loadLines(); await loadStations(); setSaving(false);
+    await fetch('/api/terrain', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ terrain: snap.terrain }) });
+    await fetch('/api/pins', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pins: snap.pins }) });
+    await fetch('/api/site', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ origin: snap.origin, originLabel: snap.site.originLabel, originCue: snap.site.originCue, about: snap.site.about }) });
+    await loadLines(); await loadStations(); await loadTerrain(); await loadPins(); await loadSite(); setSaving(false);
   };
-  const undo = () => { if (!past.current.length) return; const cur = { lines: clone(lines), stations: clone(stations) }; future.current.push(cur); const snap = past.current.pop()!; setLines(snap.lines); setStations(snap.stations); persistSnap(snap, cur.stations); flash('undo'); };
-  const redo = () => { if (!future.current.length) return; const cur = { lines: clone(lines), stations: clone(stations) }; past.current.push(cur); const snap = future.current.pop()!; setLines(snap.lines); setStations(snap.stations); persistSnap(snap, cur.stations); flash('redo'); };
+  const restore = (snap: Snap) => { setLines(snap.lines); setStations(snap.stations); setTerrain(snap.terrain); setPins(snap.pins); setSite(snap.site); setOrigin(snap.origin); };
+  const undo = () => { if (!past.current.length) return; const cur = takeSnap(); future.current.push(cur); const snap = past.current.pop()!; restore(snap); persistSnap(snap, cur.stations); flash('undo'); };
+  const redo = () => { if (!future.current.length) return; const cur = takeSnap(); past.current.push(cur); const snap = future.current.pop()!; restore(snap); persistSnap(snap, cur.stations); flash('redo'); };
 
   // ---- mutations ----
   const commitLines = useCallback(async (next: Ln[]) => { setSaving(true); setLines(next); await fetch('/api/lines', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lines: next }) }); await loadLines(); setSaving(false); }, [loadLines]);
