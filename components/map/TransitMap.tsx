@@ -68,6 +68,28 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
   for (let x = Math.floor(b.x / GS) * GS; x <= b.x + b.w; x += GS) vx.push(x);
   for (let y = Math.floor(b.y / GS) * GS; y <= b.y + b.h; y += GS) hy.push(y);
 
+  // ---- intro choreography: origin → notes → terrain → line 1 → line 2 → … ----
+  const ORIGIN_T = 0.1, ORIGIN_DUR = 0.5;
+  const NOTES_T = ORIGIN_T + ORIGIN_DUR + 0.15;
+  const NOTE_STAGGER = 0.12, NOTE_DUR = 0.4;
+  const notesEnd = pins.length ? NOTES_T + (pins.length - 1) * NOTE_STAGGER + NOTE_DUR : NOTES_T;
+  const TERR_T = notesEnd + 0.1;
+  const TERR_STAGGER = 0.08, TERR_DUR = 0.4;
+  const terrEnd = terrain.length ? TERR_T + (terrain.length - 1) * TERR_STAGGER + TERR_DUR : TERR_T;
+  const LINES_T = terrEnd + 0.15;
+  const LINE_DUR = 1.0, LINE_GAP = 0.25;
+  const lineStartAt = (i: number) => LINES_T + i * (LINE_DUR + LINE_GAP);
+  const lineEndAt = (i: number) => lineStartAt(i) + LINE_DUR;
+  const lineIndex: Record<string, number> = Object.fromEntries(lines.map((l, i) => [l.id, i]));
+  // each stop appears just after its own line finishes drawing, staggered along the line
+  const stDelay: Record<string, number> = {};
+  const perLine: Record<string, number> = {};
+  for (const s of stations) {
+    const li = lineIndex[s.line] ?? 0;
+    const k = (perLine[s.line] = (perLine[s.line] || 0) + 1) - 1;
+    stDelay[s.id] = lineEndAt(li) + 0.05 + k * 0.06;
+  }
+
   return (
     <svg viewBox={b.viewBox} className="tmap" width={b.w} height={b.h} role="group" aria-label="The network — a map of toeesh">
       <rect x={b.x} y={b.y} width={b.w} height={b.h} fill="var(--canvas)" />
@@ -76,9 +98,10 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
         {vx.map((x) => hy.map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r={1.6} fill="var(--canvas-grid)" />))}
       </g>
 
-      <Terrain features={terrain} />
+      {/* terrain — fades in after the notes, before the lines */}
+      <Terrain features={terrain} started={started} startAt={TERR_T} stagger={TERR_STAGGER} dur={TERR_DUR} />
 
-      {/* lines (draw on after intro) — id'd so trains can ride them */}
+      {/* lines (draw on one after another, after terrain) — id'd so trains can ride them */}
       {lines.map((l, i) => (
         <motion.path
           key={l.id}
@@ -91,27 +114,31 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
           strokeLinejoin="round"
           initial={{ pathLength: 0, opacity: dim(l.id) }}
           animate={{ pathLength: started ? 1 : 0, opacity: dim(l.id) }}
-          transition={{ pathLength: { duration: 1.4, delay: 0.12 * i, ease: [0.65, 0, 0.35, 1] }, opacity: { duration: 0.25 } }}
+          transition={{ pathLength: { duration: LINE_DUR, delay: started ? lineStartAt(i) : 0, ease: [0.65, 0, 0.35, 1] }, opacity: { duration: 0.25 } }}
         />
       ))}
 
-      {/* numbered route bullets at each terminus — like a real line diagram */}
+      {/* numbered route bullets at each terminus — pop in as the line completes */}
       {lines.map((l, i) => {
         const pts = l.pts; if (!pts || !pts.length) return null;
         const [tx, ty] = pts[pts.length - 1];
         return (
-          <g key={`bullet-${l.id}`} transform={`translate(${tx},${ty})`} style={{ opacity: dim(l.id) }}>
+          <motion.g key={`bullet-${l.id}`} transform={`translate(${tx},${ty})`}
+            style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: started ? 1 : 0, opacity: started ? dim(l.id) : 0 }}
+            transition={{ delay: started ? lineEndAt(i) : 0, type: 'spring', stiffness: 320, damping: 16 }}>
             <circle r={14} fill={l.color} />
             <text textAnchor="middle" dominantBaseline="central" fontSize={14} fontWeight={700} fill={l.text || '#fff'} style={{ fontFamily: 'var(--font-mono)' }}>{i + 1}</text>
-          </g>
+          </motion.g>
         );
       })}
 
       {/* trains — JS rAF beads riding the lines (white, high-contrast, always move) */}
       <Trains lines={lines.map((l) => ({ id: l.id, color: l.color }))} run={trains} />
 
-      {/* the pinboard — your stuff, tacked onto the board */}
-      <Pins pins={pins} started={started} />
+      {/* the pinboard — settles in right after the origin */}
+      <Pins pins={pins} started={started} startAt={NOTES_T} stagger={NOTE_STAGGER} dur={NOTE_DUR} />
 
       {/* origin — movable; pops in on intro; click for the About card */}
       <g transform={`translate(${ox},${oy})`}>
@@ -119,10 +146,10 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
           onClick={() => onOrigin?.()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOrigin?.(); } }}
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: started ? 1 : 0, opacity: started ? 1 : 0 }}
-          transition={{ delay: started ? 0.15 : 0, type: 'spring', stiffness: 300, damping: 15 }}>
+          transition={{ delay: started ? ORIGIN_T : 0, type: 'spring', stiffness: 300, damping: 15 }}>
           <circle r={40} fill="transparent" />
           <motion.circle r={30} fill={INK}
-            initial={{ scale: 1 }} animate={{ scale: started ? [1, 1.18, 1] : 1 }} transition={{ delay: 0.3, duration: 0.5 }} />
+            initial={{ scale: 1 }} animate={{ scale: started ? [1, 1.18, 1] : 1 }} transition={{ delay: ORIGIN_T + 0.2, duration: 0.5 }} />
           <circle r={13} fill="var(--canvas)" />
         </motion.g>
       </g>
@@ -144,8 +171,8 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
               role="button"
               aria-label={s.title}
               initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: dim(s.line) }}
-              transition={{ delay: started ? 0.5 + i * 0.04 : 0, type: 'spring', stiffness: 340, damping: 18 }}
+              animate={{ scale: started ? 1 : 0, opacity: started ? dim(s.line) : 0 }}
+              transition={{ delay: started ? (stDelay[s.id] ?? 0.5) : 0, type: 'spring', stiffness: 340, damping: 18 }}
               whileHover={{ scale: 1.18 }}
               whileTap={{ scale: 0.92 }}
               onMouseEnter={() => { setHoverId(s.id); onHoverLine(s.line); }}

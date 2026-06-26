@@ -4,7 +4,7 @@
 import { motion } from 'framer-motion';
 import type { Pin } from '@/lib/content';
 
-export default function Pins({ pins, started = true }: { pins: Pin[]; started?: boolean }) {
+export default function Pins({ pins, started = true, startAt = 0, stagger = 0.12, dur = 0.45 }: { pins: Pin[]; started?: boolean; startAt?: number; stagger?: number; dur?: number }) {
   if (!pins?.length) return null;
   return (
     <g className="tiles" aria-hidden>
@@ -16,8 +16,7 @@ export default function Pins({ pins, started = true }: { pins: Pin[]; started?: 
             style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: started ? 1 : 0, scale: started ? 1 : 0.9 }}
-            // land after the lines have mostly drawn (~1.4s) and the stations spring in
-            transition={{ delay: started ? 1 + i * 0.12 : 0, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ delay: started ? startAt + i * stagger : 0, duration: dur, ease: [0.22, 1, 0.36, 1] }}
           >
             <foreignObject x={p.x} y={p.y} width={p.w} height={p.h} style={{ overflow: 'visible' }}>
               <div className={`tile tile-${p.kind}`} style={{ width: p.w, height: p.h }}>
