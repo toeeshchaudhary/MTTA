@@ -296,8 +296,10 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         .mast-dot { opacity: 0.5; }
         .hud-tl { position: absolute; top: 20px; left: 22px; z-index: 15; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
         .tag { color: var(--ink-soft); letter-spacing: 0.16em; }
-        :global(.mini) { position: absolute !important; right: 70px; bottom: 22px; z-index: 14; background: var(--canvas); border: 3px solid var(--ink) !important; box-shadow: 5px 5px 0 var(--ink); }
-        :global(.mini-vp) { border: 2px solid var(--ink) !important; background: rgba(20,20,20,0.10) !important; }
+        :global(.mini) { position: absolute !important; right: 70px; bottom: 22px; z-index: 14; overflow: hidden; background: var(--canvas); border: 3px solid var(--ink) !important; box-shadow: 5px 5px 0 var(--ink); }
+        /* keep the viewport indicator's "spotlight" contained to the minimap — the library's
+           default box-shadow spreads 10,000,000px and would veil the whole page (grey overlay). */
+        :global(.mini-vp) { border: 2px solid var(--ink) !important; background: rgba(20,20,20,0.08) !important; box-shadow: rgba(20,20,20,0.18) 0 0 0 10000000px !important; }
         .hud-actions { display: flex; gap: 8px; }
         .open-index {
           font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
