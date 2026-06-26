@@ -1,0 +1,34 @@
+---
+import { getCollection, render } from 'astro:content';
+import Page from '../../layouts/Page.astro';
+import { LINES } from '../../lib/lines';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('writing');
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const dateStr = post.data.date.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+---
+
+<Page line={LINES.writing} title={post.data.title} kicker={`the 1 line · ${dateStr}`} description={post.data.description}>
+  {
+    post.data.tags.length > 0 && (
+      <p style="margin:-1rem 0 2rem">
+        {post.data.tags.map((t: string) => <span class="tag" style="margin-right:0.4rem">{t}</span>)}
+      </p>
+    )
+  }
+  <article class="prose">
+    <Content />
+  </article>
+</Page>

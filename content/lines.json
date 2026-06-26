@@ -1,0 +1,15 @@
+[
+  {
+    "id": "central",
+    "label": "central",
+    "color": "#7c6aa6",
+    "text": "#fff",
+    "shape": "circle",
+    "blurb": "the spine",
+    "pts": [
+      [700, 120],
+      [700, 820]
+    ],
+    "d": "M700,120 L700,820"
+  }
+]

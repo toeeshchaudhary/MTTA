@@ -1,0 +1,32 @@
+---
+import Page from '../layouts/Page.astro';
+import { LINES } from '../lib/lines';
+
+// A /now page (nownownow.com style): what's got your attention right now.
+// Update the date + lines whenever life changes.
+const updated = 'June 2026';
+const board = [
+  { label: 'building', detail: 'this very site — a transit-map home for everything.' },
+  { label: 'ricing', detail: 'a grayscale i3 setup, forever one tweak away from done.' },
+  { label: 'reading', detail: 'put what you’re reading here.' },
+  { label: 'chewing on', detail: 'an idea you can’t shake yet.' },
+];
+---
+
+<Page line={LINES.now} kicker={`service board · updated ${updated}`} description="What toeesh is doing right now.">
+  <p style="max-width:52ch;color:var(--ink-soft);margin:0 0 2rem">
+    The current-status board. What's running right now — subject to change
+    without notice, like all good service.
+  </p>
+
+  <div class="board">
+    {
+      board.map((row) => (
+        <section>
+          <h2>▸ {row.label}</h2>
+          <p style="margin:0">{row.detail}</p>
+        </section>
+      ))
+    }
+  </div>
+</Page>

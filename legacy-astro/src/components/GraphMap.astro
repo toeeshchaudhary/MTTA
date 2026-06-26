@@ -1,0 +1,274 @@
+---
+// The home map, reborn as an Obsidian-style connected graph. Build-time we
+// assemble nodes/edges from the sections + content collections + tags; a
+// client island runs a d3-force simulation (drag, hover-highlight, pan/zoom,
+// click-to-open). Nodes are styled as subway route bullets so it still reads
+// "transit", but behaves like a second-brain graph.
+import { getCollection } from 'astro:content';
+import { LINES } from '../lib/lines';
+
+const writing = await getCollection('writing', ({ data }) => (import.meta.env.PROD ? !data.draft : true));
+const projects = await getCollection('projects', ({ data }) => (import.meta.env.PROD ? !data.draft : true));
+
+type GNode = {
+  id: string;
+  label: string;
+  type: 'home' | 'section' | 'entry' | 'tag';
+  href?: string;
+  color: string;
+  glyphText?: string;
+  glyph?: string;
+  r: number;
+};
+type GLink = { source: string; target: string };
+
+const nodes: GNode[] = [];
+const links: GLink[] = [];
+
+// hub
+nodes.push({ id: 'home', label: 'home', type: 'home', href: '/', color: 'var(--mta-shuttle)', glyph: 'S', glyphText: '#fff', r: 22 });
+
+// sections
+const SECTIONS = ['writing', 'projects', 'likes', 'now'] as const;
+for (const key of SECTIONS) {
+  const l = LINES[key];
+  nodes.push({ id: `sec:${key}`, label: l.label, type: 'section', href: l.href, color: l.color, glyph: l.bullet, glyphText: l.text, r: 15 });
+  links.push({ source: 'home', target: `sec:${key}` });
+}
+
+// entries (writing posts + projects) + tag cross-links
+const tagSet = new Set<string>();
+for (const p of writing) {
+  const id = `w:${p.id}`;
+  nodes.push({ id, label: p.data.title, type: 'entry', href: `/writing/${p.id}`, color: LINES.writing.color, r: 7 });
+  links.push({ source: 'sec:writing', target: id });
+  for (const t of p.data.tags) {
+    const tagId = `tag:${t}`;
+    if (!tagSet.has(t)) {
+      tagSet.add(t);
+      nodes.push({ id: tagId, label: `#${t}`, type: 'tag', color: 'var(--ink-faint)', r: 5 });
+    }
+    links.push({ source: id, target: tagId });
+  }
+}
+for (const p of projects) {
+  const id = `p:${p.id}`;
+  nodes.push({ id, label: p.data.title, type: 'entry', href: `/projects/${p.id}`, color: LINES.projects.color, r: 7 });
+  links.push({ source: 'sec:projects', target: id });
+}
+
+const graph = { nodes, links };
+---
+
+<section class="graph-wrap" aria-label="The network — an interactive graph of everything on the site">
+  <p class="graph-cap mono">▸ the network — drag · hover · zoom</p>
+  <svg class="graph" id="graph"></svg>
+  <noscript>
+    <p class="graph-noscript mono">enable javascript for the live graph — or use the sidebar to navigate.</p>
+  </noscript>
+  <script type="application/json" id="graph-data" is:inline set:html={JSON.stringify(graph)}></script>
+</section>
+
+<script>
+  import { forceSimulation, forceManyBody, forceLink, forceCenter, forceCollide, forceX, forceY } from 'd3-force';
+  import { select } from 'd3-selection';
+  import { drag } from 'd3-drag';
+  import { zoom, zoomIdentity } from 'd3-zoom';
+
+  type GNode = {
+    id: string; label: string; type: 'home' | 'section' | 'entry' | 'tag';
+    href?: string; color: string; glyphText?: string; glyph?: string; r: number;
+    x?: number; y?: number; fx?: number | null; fy?: number | null;
+  };
+  type GLink = { source: any; target: any };
+
+  let inited = false;
+  function initGraph() {
+    if (inited) return;
+    const dataEl = document.getElementById('graph-data');
+    const svgEl = document.getElementById('graph') as SVGSVGElement | null;
+    if (!dataEl || !svgEl) return;
+    inited = true;
+    const { nodes, links } = JSON.parse(dataEl.textContent || '{}') as { nodes: GNode[]; links: GLink[] };
+
+    const wrap = svgEl.parentElement as HTMLElement;
+    let W = wrap.clientWidth || 800;
+    let H = wrap.clientHeight || 520;
+
+    // adjacency for hover-highlight
+    const adj = new Map<string, Set<string>>();
+    nodes.forEach((n) => adj.set(n.id, new Set([n.id])));
+    links.forEach((l) => {
+      const s = typeof l.source === 'string' ? l.source : l.source.id;
+      const t = typeof l.target === 'string' ? l.target : l.target.id;
+      adj.get(s)?.add(t);
+      adj.get(t)?.add(s);
+    });
+
+    const svg = select(svgEl).attr('viewBox', `0 0 ${W} ${H}`);
+    const root = svg.append('g');
+
+    const link = root
+      .append('g')
+      .attr('class', 'links')
+      .selectAll('line')
+      .data(links)
+      .join('line')
+      .attr('class', 'link');
+
+    const node = root
+      .append('g')
+      .attr('class', 'nodes')
+      .selectAll('g')
+      .data(nodes)
+      .join('g')
+      .attr('class', (d) => `node node-${d.type}`)
+      .attr('tabindex', 0)
+      .attr('role', 'link')
+      .attr('aria-label', (d) => d.label);
+
+    node.append('circle').attr('r', (d) => d.r).style('fill', (d) => d.color);
+    node
+      .filter((d) => !!d.glyph)
+      .append('text')
+      .attr('class', 'glyph')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '0.34em')
+      .style('fill', (d) => d.glyphText || '#fff')
+      .text((d) => d.glyph || '');
+    node
+      .append('text')
+      .attr('class', 'label')
+      .attr('text-anchor', 'middle')
+      .attr('dy', (d) => d.r + 14)
+      .text((d) => d.label);
+
+    // --- forces ---
+    const sim = forceSimulation(nodes as any)
+      .force('charge', forceManyBody().strength(-340))
+      .force('link', forceLink(links as any).id((d: any) => d.id).distance((l: any) => (l.target.type === 'tag' ? 55 : 95)).strength(0.5))
+      .force('center', forceCenter(W / 2, H / 2))
+      .force('collide', forceCollide().radius((d: any) => d.r + 16))
+      .force('x', forceX(W / 2).strength(0.04))
+      .force('y', forceY(H / 2).strength(0.04));
+
+    const draw = () => {
+      link
+        .attr('x1', (d: any) => d.source.x).attr('y1', (d: any) => d.source.y)
+        .attr('x2', (d: any) => d.target.x).attr('y2', (d: any) => d.target.y);
+      node.attr('transform', (d: any) => `translate(${d.x},${d.y})`);
+    };
+
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      sim.stop();
+      for (let i = 0; i < 320; i++) sim.tick();
+      draw();
+    } else {
+      sim.on('tick', draw);
+    }
+
+    // --- drag (pin where dropped) ---
+    let moved = false;
+    const dragger = drag<SVGGElement, GNode>()
+      .on('start', (event, d) => { if (!event.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; moved = false; })
+      .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; moved = true; })
+      .on('end', (event) => { if (!event.active) sim.alphaTarget(0); /* keep fx/fy → pinned */ });
+    node.call(dragger as any);
+
+    // --- click / keyboard to open ---
+    const open = (d: GNode) => { if (d.href) window.location.href = d.href; };
+    node.on('click', (_e, d) => { if (!moved) open(d); });
+    node.on('keydown', (e: any, d) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(d); } });
+
+    // --- hover / focus highlight (Obsidian behaviour) ---
+    const enter = (_e: any, d: GNode) => {
+      const near = adj.get(d.id)!;
+      svg.classed('dimmed', true);
+      node.classed('hot', (n) => n.id === d.id).classed('adj', (n) => near.has(n.id));
+      link.classed('adj', (l: any) => l.source.id === d.id || l.target.id === d.id);
+    };
+    const leave = () => { svg.classed('dimmed', false); node.classed('hot', false).classed('adj', false); link.classed('adj', false); };
+    node.on('mouseenter', enter).on('mouseleave', leave).on('focus', enter as any).on('blur', leave);
+
+    // --- zoom / pan ---
+    const zoomer = zoom<SVGSVGElement, unknown>().scaleExtent([0.3, 4]).on('zoom', (e) => root.attr('transform', e.transform));
+    svg.call(zoomer as any);
+
+    // reset hook (sidebar/control can dispatch this)
+    window.addEventListener('graph:reset', () => {
+      nodes.forEach((n) => { n.fx = null; n.fy = null; });
+      svg.call(zoomer.transform as any, zoomIdentity);
+      sim.alpha(0.8).restart();
+    });
+
+    // keep centered on resize
+    let raf = 0;
+    window.addEventListener('resize', () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        W = wrap.clientWidth || W; H = wrap.clientHeight || H;
+        svg.attr('viewBox', `0 0 ${W} ${H}`);
+        sim.force('center', forceCenter(W / 2, H / 2));
+        sim.force('x', forceX(W / 2).strength(0.04));
+        sim.force('y', forceY(H / 2).strength(0.04));
+        sim.alpha(0.3).restart();
+      });
+    });
+  }
+
+  // Lazy init: only build the graph once its container is actually visible
+  // (it reads clientWidth — zero while display:none inside the MAP/graph toggle).
+  // An IntersectionObserver covers every path: toggle click, reload-on-graph, etc.
+  const host = document.getElementById('graph');
+  if (host) {
+    if (host.offsetParent !== null) initGraph();
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { initGraph(); io.disconnect(); }
+    });
+    io.observe(host);
+  }
+  window.addEventListener('network:graph-show', () => initGraph());
+</script>
+
+<style>
+  .graph-wrap {
+    position: relative;
+    height: 62vh;
+    min-height: 420px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background-color: var(--panel);
+    background-image:
+      linear-gradient(to right, var(--line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    overflow: hidden;
+  }
+  .graph-cap {
+    position: absolute; top: 0.75rem; left: 0.9rem; z-index: 2; margin: 0;
+    pointer-events: none;
+  }
+  .graph-noscript { position: absolute; inset: auto 0 0.9rem 0.9rem; }
+  .graph { width: 100%; height: 100%; display: block; touch-action: none; }
+
+  /* nodes / links */
+  .graph :global(.link) { stroke: var(--ink-faint); stroke-width: 2.5px; }
+  .graph :global(.link.adj) { stroke: var(--ink); stroke-width: 3.5px; }
+  .graph :global(.node) { cursor: pointer; }
+  .graph :global(.node circle) { stroke: var(--bg); stroke-width: 2px; }
+  .graph :global(.node:focus-visible) { outline: none; }
+  .graph :global(.node:focus-visible circle) { stroke: var(--focus); stroke-width: 3px; }
+  .graph :global(.node .label) {
+    font-family: var(--font-sans); font-size: 11px; fill: var(--ink);
+    paint-order: stroke; stroke: var(--bg); stroke-width: 3px;
+  }
+  .graph :global(.node-home .label), .graph :global(.node-section .label) { font-weight: 700; font-size: 13px; }
+  .graph :global(.node .glyph) { font-family: var(--font-sans); font-weight: 700; font-size: 14px; }
+  .graph :global(.node-home .glyph) { font-size: 17px; }
+  .graph :global(.node-tag .label) { fill: var(--ink-soft); }
+
+  /* hover dimming */
+  .graph.dimmed :global(.node:not(.hot):not(.adj)) { opacity: 0.18; }
+  .graph.dimmed :global(.link:not(.adj)) { opacity: 0.07; }
+</style>

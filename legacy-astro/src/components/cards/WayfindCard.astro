@@ -1,0 +1,37 @@
+---
+// Black wayfinding card (image 4: "Penn Station / 34 St 7 Ave ↘") — directional
+// signage for off-site links. Edit LINKS to your real handles.
+const LINKS = [
+  { label: 'github', href: 'https://github.com/toeesh', arrow: '↗' },
+  { label: 'email', href: 'mailto:nerdsforgaming@gmail.com', arrow: '↘' },
+  { label: 'the rest', href: '/now', arrow: '→' },
+];
+---
+
+<div class="wayfind">
+  <p class="way-head">FIND ME</p>
+  <ul class="way-list">
+    {
+      LINKS.map((l) => (
+        <li>
+          <a href={l.href}>
+            <span class="way-label">{l.label}</span>
+            <span class="way-arrow">{l.arrow}</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+
+  <style>
+    .wayfind { background: #0e0e0e; border: 1px solid #2a2a2a; border-radius: 16px; padding: 1rem 1.1rem; min-height: 132px; display: flex; flex-direction: column; }
+    .way-head { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.16em; color: #8a8a8a; margin: 0 0 0.6rem; }
+    .way-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+    .way-list a { display: flex; align-items: center; justify-content: space-between; text-decoration: none; color: #fff; padding: 0.3rem 0; border-bottom: 1px solid #1c1c1c; }
+    .way-list li:last-child a { border-bottom: 0; }
+    .way-label { font-weight: 700; font-size: 1.25rem; letter-spacing: -0.02em; }
+    .way-arrow { font-size: 1.3rem; color: #8a8a8a; }
+    .way-list a:hover .way-label { text-decoration: underline; }
+    .way-list a:hover .way-arrow { color: #fff; }
+  </style>
+</div>

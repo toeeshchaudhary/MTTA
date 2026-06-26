@@ -1,0 +1,213 @@
+/* =========================================================================
+   toeesh.network — Bauhaus design system
+   primary palette · geometric shapes · RM Neue · playful, experimental
+   ========================================================================= */
+
+@font-face {
+  font-family: "RM Neue";
+  src: url("/fonts/RMNeueVF-Regular.ttf") format("truetype");
+  font-weight: 100 900; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "RM Neue";
+  src: url("/fonts/RMNeueVF-Italic.ttf") format("truetype");
+  font-weight: 100 900; font-style: italic; font-display: swap;
+}
+
+:root {
+  /* Bauhaus primaries */
+  --red: #e3000b;
+  --blue: #0d47a1;
+  --yellow: #ffcf00;
+  --green: #1f8a4c;
+  --black: #141414;
+  --cream: #f4f1e9;
+
+  --font-sans: "RM Neue", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Liberation Mono", monospace;
+
+  /* signature accent — dusty periwinkle pulled from toeesh's Cosmos boards */
+  --accent: #7c6aa6;
+  --accent-soft: #9a8fc0;
+  --plum: #352e4d;
+  /* terrain washes — toeesh's muted board palette (periwinkle, sage, warm taupe) */
+  --water: #e3e5ea;
+  --park: #e8e9e4;
+  --forest: #dadcd5;
+  --sand: #eceae4;
+}
+
+/* theme: whiteboard (default) — bright, airy paper */
+:root, :root[data-theme="light"] {
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --ink: #2b2b33;        /* softened from near-black so the UI reads lighter */
+  --ink-soft: #8a8a95;
+  --line: #ededf2;
+  --canvas: #ffffff;
+  --canvas-grid: #e8e9f0;
+}
+/* theme: night — toeesh's Cosmos mood (near-black + plum + periwinkle) */
+:root[data-theme="dark"] {
+  --bg: #121116;
+  --panel: #1b1922;
+  --ink: #e9e6f0;
+  --ink-soft: #9991ab;
+  --line: #2e2a39;
+  --canvas: #161517;
+  --canvas-grid: #2b2836;
+}
+
+* , *::before, *::after { box-sizing: border-box; }
+html, body { padding: 0; margin: 0; height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden; /* the map owns the viewport */
+}
+a { color: inherit; }
+::selection { background: var(--ink); color: var(--bg); }
+button { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ---- type ---- */
+.mono { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.66rem; }
+.display { font-weight: 800; letter-spacing: -0.04em; line-height: 0.84; }
+
+/* ---- bauhaus bullet shapes ---- */
+.shape { display: inline-block; width: 1em; height: 1em; flex: none; }
+.shape.circle { border-radius: 50%; }
+.shape.square { border-radius: 2px; }
+.shape.triangle { width: 0; height: 0; background: transparent !important; border-left: 0.55em solid transparent; border-right: 0.55em solid transparent; border-bottom: 0.95em solid currentColor; }
+.shape.semi { border-radius: 1em 1em 0 0; }
+
+/* scrollable regions re-enable scroll */
+.scroll { overflow-y: auto; }
+
+/* ---- station drawer + full-screen (global: motion components skip styled-jsx) ---- */
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 30; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 31; overflow: hidden;
+  width: min(560px, 92vw); background: var(--panel); color: var(--ink);
+  border-left: 6px solid var(--line-c, var(--ink));
+}
+.drawer .d-band { position: absolute; inset: 0 0 auto 0; height: 10px; background: var(--line-c); }
+.drawer .d-inner { position: relative; height: 100%; overflow-y: auto; padding: 26px 28px 44px; }
+.drawer .d-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.drawer .d-line { font-weight: 700; color: var(--line-c); }
+.drawer .d-actions { display: flex; gap: 8px; }
+.drawer .d-btn { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 6px 9px; cursor: pointer; }
+.drawer .d-btn:hover { background: var(--line-c); color: #fff; border-color: var(--line-c); }
+.drawer .d-btn.x { width: 34px; }
+.drawer .d-title { font-size: clamp(2rem, 6vw, 3.1rem); font-weight: 800; letter-spacing: -0.035em; line-height: 0.96; margin: 14px 0 10px; position: relative; z-index: 1; }
+.drawer .d-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 28px; border-top: 2px solid var(--line); padding-top: 16px; }
+.drawer .d-nav button { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 8px 12px; cursor: pointer; }
+.drawer .d-nav button:disabled { opacity: 0.3; cursor: default; }
+.drawer .d-nav button:not(:disabled):hover { background: var(--line-c); color: #fff; border-color: var(--line-c); }
+.drawer .d-readmore { background: var(--line-c) !important; color: #fff !important; border-color: var(--line-c) !important; }
+.drawer .prose { font-size: 1.05rem; line-height: 1.66; max-width: 40rem; position: relative; z-index: 1; }
+.drawer .prose p { margin: 0 0 1.05rem; }
+.drawer .prose a { color: var(--line-c); text-underline-offset: 3px; }
+.drawer .prose h2 { font-size: 1.16rem; margin-top: 1.9rem; margin-bottom: 0.4rem; letter-spacing: -0.01em; padding-top: 0.9rem; border-top: 1px solid var(--line); }
+.drawer .prose ul, .drawer .prose ol { margin: 0 0 1.05rem; padding-left: 1.1rem; }
+.drawer .prose li { margin: 0 0 0.3rem; }
+.drawer .d-watermark { display: none; }
+
+/* full-screen takeover — themed in the station's line colour */
+.drawer.full { width: 100vw; left: 0; right: 0; border-left: 0; border-top: 14px solid var(--line-c); }
+.drawer.full .d-band { height: 0; }
+.drawer.full .d-inner { max-width: 860px; margin: 0 auto; padding: 40px 32px 80px; }
+.drawer.full .d-title { font-size: clamp(3rem, 9vw, 7rem); line-height: 0.9; }
+.drawer.full .prose { font-size: 1.2rem; max-width: 42rem; }
+.drawer.full .d-watermark {
+  display: block; position: fixed; right: -2vw; bottom: -6vh; z-index: 0; pointer-events: none;
+  font-weight: 800; font-size: 32vh; line-height: 1; color: var(--line-c); opacity: 0.1;
+  text-transform: lowercase; letter-spacing: -0.05em;
+}
+@media (max-width: 700px) {
+  .drawer { width: 100vw; left: 0; right: 0; border-left: 0; }
+}
+
+/* In paper mode the map surface bleeds into the page so the canvas
+   doesn't read as a cut-off rectangle floating on a different shade. */
+:root[data-theme="light"] .stage { background: var(--canvas); }
+
+/* ---- map terrain (global) ---- */
+.terrain { pointer-events: none; }
+:root[data-theme="dark"] .terrain { opacity: 0.4; }
+
+/* ---- tile layer: curated modules, design-system style (aligned, hairline, mono-labelled) ---- */
+.tiles { pointer-events: none; }
+.tile {
+  box-sizing: border-box; display: flex; flex-direction: column;
+  background: var(--panel); color: var(--ink);
+  border: 1px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
+  font-family: var(--font-sans);
+}
+.tile-tag {
+  font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.tile-note { padding: 14px 14px 12px; gap: 8px; justify-content: flex-start; }
+.tile-note p { margin: 6px 0 0; font-size: 1.02rem; line-height: 1.4; font-weight: 600; letter-spacing: -0.01em; }
+.tile-photo { padding: 0; }
+.tile-photo .tile-frame { flex: 1; min-height: 0; overflow: hidden; }
+.tile-photo img, .tile-photo .tile-ph { width: 100%; height: 100%; object-fit: cover; display: block; background: var(--line); }
+.tile-photo .tile-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--ink); }
+.tile-photo .tile-cap { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.04em; color: var(--ink); }
+.terrain-label {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase;
+}
+
+/* ---- map station tablets + trains (global) ---- */
+.plate-wrap { display: flex; align-items: center; height: 52px; }
+.plate {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 300px;
+  background: #141414; color: #f4f1e9; font-family: var(--font-sans); font-weight: 800;
+  font-size: 18px; letter-spacing: -0.01em; line-height: 1; padding: 8px 12px; white-space: nowrap;
+  border-radius: 4px; box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+}
+.plate.big { font-size: 16px; }
+.plate .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.plate-code { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.06em; opacity: 0.55; }
+.tile-no { font-family: var(--font-mono); margin-right: 8px; opacity: 0.55; }
+.origin-plate { border: 0; cursor: pointer; font-family: var(--font-sans); }
+.origin-plate:hover { background: #333; }
+.origin-cue { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55; margin-left: 8px; }
+
+@keyframes ride { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+.bead { offset-rotate: 0deg; animation-name: ride; animation-timing-function: linear; animation-iteration-count: infinite; will-change: offset-distance; }
+:root.no-motion .bead { animation: none !important; display: none; }
+@media (prefers-reduced-motion: reduce) { .bead { animation: none !important; display: none; } }
+
+/* ---- intro splash (global) ---- */
+.intro { position: fixed; inset: 0; z-index: 100; background: var(--canvas); display: grid; place-items: center; cursor: pointer; overflow: hidden; }
+.i-shape { position: absolute; width: 120px; height: 120px; z-index: 1; }
+.i-shape.tri { width: 0; height: 0; border-left: 70px solid transparent; border-right: 70px solid transparent; border-bottom: 120px solid #b8b8bd; background: transparent; }
+.i-title { position: relative; text-align: center; z-index: 3; color: #141414; }
+.i-wm { font-weight: 800; font-size: clamp(2.5rem, 9vw, 6rem); letter-spacing: -0.05em; line-height: 0.9; }
+.i-sub { color: #5c5a52; margin-top: 10px; font-size: 0.8rem; }
+.i-skip { position: absolute; bottom: 30px; color: #5c5a52; z-index: 2; }
+
+/* ---- index panel (global) ---- */
+.ip-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
+.ip { position: fixed; top: 0; left: 0; bottom: 0; z-index: 41; width: min(380px, 90vw); background: var(--panel); border-right: 4px solid var(--ink); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.ip-head { display: flex; justify-content: space-between; align-items: center; color: var(--ink-soft); }
+.ip-x { background: none; border: 2px solid var(--ink); color: var(--ink); width: 30px; height: 30px; cursor: pointer; }
+.ip-search { font: inherit; padding: 10px 12px; border: 3px solid var(--ink); background: var(--bg); color: var(--ink); }
+.ip-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--line); color: var(--ink); padding: 4px 8px; cursor: pointer; }
+.chip.on { background: var(--ink); color: var(--bg); }
+.ip-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.ip-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; color: var(--ink); padding: 9px 6px; cursor: pointer; border-bottom: 1px solid var(--line); }
+.ip-item:hover { background: var(--ink); color: var(--bg); }
+.ip-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.ip-t { font-weight: 700; flex: 1; }
+.ip-line { color: var(--ink-soft); }
+.ip-item:hover .ip-line { color: #111; }
+.ip-empty { color: var(--ink-soft); padding: 12px 0; }

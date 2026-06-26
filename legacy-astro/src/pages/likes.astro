@@ -1,0 +1,48 @@
+---
+import Page from '../layouts/Page.astro';
+import RouteBullet from '../components/RouteBullet.astro';
+import { LINES } from '../lib/lines';
+
+// Edit these lists freely — they're the stuff toeesh is into.
+const boards = [
+  {
+    title: 'sound',
+    items: ['put your favorite albums here', 'a track on repeat', 'a band nobody else likes'],
+  },
+  {
+    title: 'screen',
+    items: ['Girls’ Last Tour', 'a film you rewatch', 'a show you defend'],
+  },
+  {
+    title: 'tools',
+    items: ['i3 + a grayscale rice', 'the terminal', 'whatever you can’t stop tinkering with'],
+  },
+  {
+    title: 'ideas',
+    items: ['good signage', 'systems that get out of the way', 'minimalism that still has a pulse'],
+  },
+];
+---
+
+<Page line={LINES.likes} kicker="the N line · the good stuff" description="What toeesh is into.">
+  <p style="max-width:52ch;color:var(--ink-soft);margin:0 0 2rem">
+    A standing list of things worth caring about. Not ranked, not exhaustive,
+    always changing. Swap any of these out — it's your board.
+  </p>
+
+  <div class="board">
+    {
+      boards.map((b) => (
+        <section>
+          <h2>
+            <RouteBullet glyph={LINES.likes.bullet} color={LINES.likes.color} text={LINES.likes.text} size="1.2rem" />
+            {b.title}
+          </h2>
+          <ul>
+            {b.items.map((i) => <li>{i}</li>)}
+          </ul>
+        </section>
+      ))
+    }
+  </div>
+</Page>

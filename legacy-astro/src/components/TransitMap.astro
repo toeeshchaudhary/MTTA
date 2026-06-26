@@ -1,0 +1,110 @@
+---
+// The hand-laid transit map — thick colored lines + bold stations + black
+// signage name-plates, rendered from src/lib/transitmap.ts. Section stations
+// are links. Plates use <foreignObject> so they're real HTML signage (RM Neue
+// + route bullets), pixel-perfect and auto-sized.
+import { LINES } from '../lib/lines';
+import { MAP_VIEWBOX, MAP_LINES, MAP_STATIONS, RIBBON, type MapStation, type MapBullet } from '../lib/transitmap';
+
+function bulletsFor(s: MapStation): MapBullet[] {
+  if (s.bullets) return s.bullets;
+  if (s.section) {
+    const l = LINES[s.section];
+    return [{ glyph: l.bullet, color: l.color, text: l.text }];
+  }
+  return [];
+}
+// plate placement: returns foreignObject x / width / flex justify
+function plate(s: MapStation) {
+  const W = 420;
+  if (s.anchor === 'end') return { x: s.x - W - 20, y: s.y - 30, w: W, justify: 'flex-end' };
+  if (s.anchor === 'middle') return { x: s.x - W / 2, y: s.y + 22, w: W, justify: 'center' };
+  return { x: s.x + 22, y: s.y - 30, w: W, justify: 'flex-start' };
+}
+---
+
+<div class="tmap-wrap">
+  <svg class="tmap" viewBox={MAP_VIEWBOX} role="group" aria-label="The toeesh transit map — click a station to travel.">
+    {/* lines */}
+    {
+      MAP_LINES.map((l) => (
+        <path d={l.d} fill="none" stroke={l.color} stroke-width={l.width ?? RIBBON} stroke-linecap="round" stroke-linejoin="round" />
+      ))
+    }
+
+    {/* stations */}
+    {
+      MAP_STATIONS.map((s) => {
+        const bl = bulletsFor(s);
+        const p = plate(s);
+        const marker =
+          s.kind === 'interchange' ? (
+            <>
+              <circle cx={s.x} cy={s.y} r="20" fill="#fff" stroke="#0a0a0a" stroke-width="6" />
+              <circle cx={s.x} cy={s.y} r="9" fill="#0a0a0a" />
+            </>
+          ) : s.kind === 'station' ? (
+            <circle cx={s.x} cy={s.y} r="12" fill="#fff" stroke="#0a0a0a" stroke-width="5" />
+          ) : (
+            <circle cx={s.x} cy={s.y} r="8" fill="#fff" stroke="#0a0a0a" stroke-width="4" />
+          );
+
+        const plateEl =
+          s.label && (
+            <foreignObject x={p.x} y={p.y} width={p.w} height="60">
+              <div class="plate-row" style={`justify-content:${p.justify}`}>
+                <span class="plate">
+                  {bl.map((b) => (
+                    <span class="bullet" style={`background:${b.color};color:${b.text ?? '#fff'}`}>{b.glyph}</span>
+                  ))}
+                  <span class="pname">{s.label}</span>
+                </span>
+              </div>
+            </foreignObject>
+          );
+
+        if (s.section) {
+          return (
+            <a class="tstation" href={LINES[s.section].href} aria-label={s.label}>
+              {marker}
+              {plateEl}
+            </a>
+          );
+        }
+        return (
+          <g class="tstation static">
+            {marker}
+            {plateEl}
+          </g>
+        );
+      })
+    }
+  </svg>
+</div>
+
+<style>
+  .tmap-wrap { background: #0a0a0a; border-radius: 12px; overflow: hidden; }
+  .tmap { width: 100%; height: auto; display: block; }
+
+  .tstation { cursor: pointer; }
+  .tstation.static { cursor: default; }
+  .tstation:focus-visible { outline: none; }
+  .tstation:focus-visible circle:first-of-type { stroke: var(--focus); }
+
+  /* signage plates (HTML in foreignObject) */
+  .plate-row { display: flex; align-items: center; height: 60px; }
+  .plate {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(8, 8, 8, 0.92);
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 6px 11px;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+  .plate .pname {
+    font-family: var(--font-sans); font-weight: 700; color: #fff;
+    font-size: 24px; letter-spacing: -0.015em; white-space: nowrap; line-height: 1;
+  }
+  .tstation:hover .pname { text-decoration: underline; }
+  .plate .bullet { width: 1.6em; height: 1.6em; font-size: 0.92em; }
+</style>

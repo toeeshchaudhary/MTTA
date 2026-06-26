@@ -1,0 +1,35 @@
+---
+// The MetroCard — the gold card with the rainbow swoosh + "INSERT THIS WAY".
+// Pure decorative brand piece (image 4). Spans two columns in the bento.
+---
+
+<div class="metro span2" aria-hidden="true">
+  <svg class="metro-swoosh" viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice">
+    <path d="M-20,150 C120,150 160,40 440,40 L440,78 C190,78 150,188 -20,188 Z" fill="#0a64c4" />
+    <path d="M-20,176 C140,176 180,66 440,66 L440,104 C200,104 170,214 -20,214 Z" fill="#ff6319" />
+  </svg>
+  <div class="metro-top">
+    <span class="metro-word">MetroCard</span>
+    <span class="metro-mta">▣ MTA</span>
+  </div>
+  <div class="metro-bottom">
+    <span>‹‹‹‹‹‹‹</span>
+    <span class="metro-insert">INSERT THIS WAY</span>
+  </div>
+</div>
+
+<style>
+  .metro {
+    position: relative; overflow: hidden;
+    border-radius: 16px; min-height: 132px; padding: 1rem 1.1rem;
+    background: #f6b40e;
+    display: flex; flex-direction: column; justify-content: space-between;
+    color: #111;
+  }
+  .metro-swoosh { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+  .metro-top, .metro-bottom { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; }
+  .metro-word { font-family: var(--font-sans); font-weight: 700; font-size: clamp(1.4rem, 3vw, 2.1rem); letter-spacing: -0.03em; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+  .metro-mta { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; color: #111; background: #f6b40e; padding: 0.1rem 0.3rem; border-radius: 4px; }
+  .metro-bottom { font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.1em; color: #111; }
+  .metro-insert { font-weight: 700; }
+</style>

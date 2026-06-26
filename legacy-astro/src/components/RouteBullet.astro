@@ -1,0 +1,19 @@
+---
+// An MTA-style route bullet: a colored disc with a bold glyph.
+interface Props {
+  glyph: string;
+  color: string;
+  text?: string;
+  size?: string; // any CSS length, scales the whole bullet
+}
+const { glyph, color, text = '#fff', size } = Astro.props;
+const style = [
+  `background:${color}`,
+  `color:${text}`,
+  size ? `width:${size};height:${size};font-size:calc(${size} * 0.55)` : '',
+]
+  .filter(Boolean)
+  .join(';');
+---
+
+<span class="bullet" style={style} aria-hidden="true">{glyph}</span>
