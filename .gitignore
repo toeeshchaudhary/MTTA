@@ -5,6 +5,7 @@ out/
 # generated types
 .astro/
 next-env.d.ts
+*.tsbuildinfo
 # content backups (created on resets)
 content/_stations.bak.*
 content/*.bak.*.json
