@@ -408,6 +408,13 @@ export default function Admin() {
         {view === 'build' ? (
           <div className="adm-canvas">
             {flyout && <div className="adm-flybar">{flyout}</div>}
+            {(track.length > 0 || editId) && (
+              <div className="adm-trackbar">
+                <span className="mono">{editId && editId !== '__new' ? 're-routing' : 'laying track'} · {track.length} {track.length === 1 ? 'point' : 'points'}{track.length < 2 ? ' · tap the map' : ''}</span>
+                <button className="tbtn solid" onClick={finishTrack}>✓ {editId && editId !== '__new' ? 're-route' : 'finish'}</button>
+                <button className="tbtn" onClick={cancelTrack}>✗ cancel</button>
+              </div>
+            )}
             <div className="adm-stage">
             <TransformWrapper ref={tw} initialScale={0.7} minScale={0.3} maxScale={4} centerOnInit limitToBounds={false} doubleClick={{ disabled: true }} panning={{ allowLeftClickPan: tool !== 'terrain' && tool !== 'note', excluded: ['rt-drag'] }} wheel={{ step: 0.08 }}>
               <TransformComponent wrapperStyle={{ width: '100%', height: '100%', background: 'var(--canvas)' }} contentStyle={{ width: 1400, height: 940 }}>
@@ -438,10 +445,13 @@ export default function Admin() {
                   </g>
 
                   {lines.map((l) => (editId && editId !== '__new' && editId === l.id ? null : (
-                    <path key={l.id} d={l.d} fill="none" stroke={l.color} strokeWidth={RIBBON} strokeLinecap="round" strokeLinejoin="round"
-                      opacity={(selLn && selLn !== l.id) || (hover && hover !== 'L' + l.id && tool === 'paint') ? 0.4 : 0.92}
-                      style={{ cursor: tool === 'select' || tool === 'paint' || tool === 'bulldoze' ? 'pointer' : 'crosshair' }}
-                      onPointerDown={(e) => { if (tool === 'station' || tool === 'track') return; e.stopPropagation(); onLine(l); }} onPointerEnter={() => setHover('L' + l.id)} onPointerLeave={() => setHover(null)} />
+                    <g key={l.id} style={{ cursor: tool === 'select' || tool === 'paint' || tool === 'bulldoze' ? 'pointer' : 'crosshair' }}
+                      onPointerDown={(e) => { if (tool === 'station' || tool === 'track') return; e.stopPropagation(); onLine(l); }} onPointerEnter={() => setHover('L' + l.id)} onPointerLeave={() => setHover(null)}>
+                      {/* fat invisible hit area so thin threads are easy to click (paint/select/bulldoze) */}
+                      <path d={l.d} fill="none" stroke="transparent" strokeWidth={28} strokeLinecap="round" strokeLinejoin="round" />
+                      <path d={l.d} fill="none" stroke={l.color} strokeWidth={RIBBON} strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}
+                        opacity={(selLn && selLn !== l.id) || (hover && hover !== 'L' + l.id && tool === 'paint') ? 0.4 : 0.92} />
+                    </g>
                   )))}
 
                   {/* live re-route handles for the selected thread (Mini-Metro style) */}
@@ -714,6 +724,9 @@ export default function Admin() {
         .rail-tool.on { background: var(--ink); color: var(--bg); border-color: var(--ink); box-shadow: 2px 2px 0 var(--line); }
         /* contextual options float over the canvas (bottom-left) so the rail never has to grow/clip */
         .adm-flybar { position: absolute; left: 12px; bottom: 12px; z-index: 6; background: var(--panel); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 7px; }
+        /* prominent on-canvas finish/cancel while laying or re-routing a thread */
+        .adm-trackbar { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 7; display: flex; align-items: center; gap: 8px; background: var(--panel); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 6px 10px; }
+        .adm-trackbar .mono { color: var(--ink-soft); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; }
         .rail-fly { display: flex; align-items: center; gap: 6px; }
         .picker-scrim { position: fixed; inset: 0; z-index: 40; }
         .picker { position: fixed; top: 58px; left: 80px; z-index: 41; width: 260px; background: var(--panel); border: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
