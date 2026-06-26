@@ -347,13 +347,10 @@ export default function Admin() {
   const { theme, toggle: toggleTheme } = useAdminTheme();
   const editColor = editId && editId !== '__new' ? (lines.find((l) => l.id === editId)?.color ?? paint) : paint;
   const previewPts = cursor && tool === 'track' && editId === '__new' ? [...track, snapTrack(track[track.length - 1], cursor)] : track;
-  const flyout = tool === 'terrain'
-    ? <div className="rail-fly kinds">{TERRAIN_KINDS.map((k) => <button key={k.id} className={`kind ${terrainKind === k.id ? 'on' : ''}`} onClick={() => setTerrainKind(k.id)} title={k.label}><span className="k-sw" style={{ background: k.fill }} />{k.label}</button>)}</div>
-    : tool === 'note'
-    ? <div className="rail-fly kinds">{PIN_KINDS.map((k) => <button key={k.id} className={`kind ${pinKind === k.id ? 'on' : ''}`} onClick={() => setPinKind(k.id)} title={k.label}><span className="k-ic">{k.id === 'photo' ? '▣' : '✎'}</span>{k.label}</button>)}</div>
-    : (tool === 'paint' || tool === 'track')
-    ? <div className="rail-fly swatches">{PALETTE.map((c) => <button key={c} className={`sw ${paint === c ? 'on' : ''}`} style={{ background: c }} onClick={() => setPaint(c)} aria-label={c} />)}</div>
-    : null;
+  // NOTE: the flyout markup is inlined in the return below — styled-jsx only scopes JSX
+  // written inside the return, so extracting it to a const left .rail-fly/.sw unstyled.
+  const flyLabel = tool === 'terrain' ? 'land' : tool === 'note' ? 'pin kind' : (tool === 'paint' ? 'paint colour — pick one, then click a thread' : tool === 'track' ? 'thread colour' : '');
+  const hasFly = tool === 'paint' || tool === 'track' || tool === 'terrain' || tool === 'note';
 
   return (
     <div className="adm">
@@ -407,7 +404,19 @@ export default function Admin() {
 
         {view === 'build' ? (
           <div className="adm-canvas">
-            {flyout && <div className="adm-flybar">{flyout}</div>}
+            {hasFly && (
+              <div className="adm-flybar">
+                <span className="fly-h mono">{flyLabel}</span>
+                {(tool === 'paint' || tool === 'track') && (
+                  <div className="rail-fly swatches">
+                    {PALETTE.map((c) => <button key={c} className={`sw ${paint === c ? 'on' : ''}`} style={{ background: c }} onClick={() => setPaint(c)} aria-label={c} />)}
+                    <label className="cpick" title="custom colour"><input type="color" value={paint} onChange={(e) => setPaint(e.target.value)} /></label>
+                  </div>
+                )}
+                {tool === 'terrain' && <div className="rail-fly kinds">{TERRAIN_KINDS.map((k) => <button key={k.id} className={`kind ${terrainKind === k.id ? 'on' : ''}`} onClick={() => setTerrainKind(k.id)} title={k.label}><span className="k-sw" style={{ background: k.fill }} />{k.label}</button>)}</div>}
+                {tool === 'note' && <div className="rail-fly kinds">{PIN_KINDS.map((k) => <button key={k.id} className={`kind ${pinKind === k.id ? 'on' : ''}`} onClick={() => setPinKind(k.id)} title={k.label}><span className="k-ic">{k.id === 'photo' ? '▣' : '✎'}</span>{k.label}</button>)}</div>}
+              </div>
+            )}
             {(track.length > 0 || editId) && (
               <div className="adm-trackbar">
                 <span className="mono">{editId && editId !== '__new' ? 're-routing' : 'laying track'} · {track.length} {track.length === 1 ? 'point' : 'points'}{track.length < 2 ? ' · tap the map' : ''}</span>
@@ -723,7 +732,8 @@ export default function Admin() {
         .rail-tool:hover { border-color: var(--ink); }
         .rail-tool.on { background: var(--ink); color: var(--bg); border-color: var(--ink); box-shadow: 2px 2px 0 var(--line); }
         /* contextual options float over the canvas (bottom-left) so the rail never has to grow/clip */
-        .adm-flybar { position: absolute; left: 12px; bottom: 12px; z-index: 6; background: var(--panel); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 7px; }
+        .adm-flybar { position: absolute; left: 12px; bottom: 12px; z-index: 6; display: flex; flex-direction: column; gap: 7px; max-width: 240px; background: var(--panel); border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); padding: 9px 11px; }
+        .fly-h { color: var(--ink-soft); font-size: 0.56rem; letter-spacing: 0.07em; text-transform: uppercase; }
         /* prominent on-canvas finish/cancel while laying or re-routing a thread */
         .adm-trackbar { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 7; display: flex; align-items: center; gap: 8px; background: var(--panel); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 6px 10px; }
         .adm-trackbar .mono { color: var(--ink-soft); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; }
@@ -737,12 +747,13 @@ export default function Admin() {
         .picker-row b { font-size: 0.95rem; }
         .picker-row .dimk { margin-left: auto; }
         .swatches, .swrow { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
-        .rail-fly.swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
-        .cpick { padding: 0; }
+        .rail-fly.swatches { display: grid; grid-template-columns: repeat(5, 36px); gap: 6px; }
+        .cpick { padding: 0; display: inline-flex; }
         .cpick input { width: 26px; height: 26px; padding: 0; border: 2px solid var(--ink); background: none; cursor: pointer; }
         .sw { width: 22px; height: 22px; border: 2px solid var(--ink); cursor: pointer; }
-        .rail-fly .sw { width: 27px; height: 27px; }
-        .sw.on { outline: 3px solid var(--yellow); outline-offset: 1px; }
+        .rail-fly .sw { width: 36px; height: 36px; border-width: 3px; }
+        .rail-fly .cpick input { width: 36px; height: 36px; border-width: 3px; }
+        .sw.on { outline: 3px solid var(--yellow); outline-offset: 2px; }
         .kinds { display: flex; gap: 4px; }
         .kind { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.05em; background: none; border: 2px solid var(--line); color: var(--ink); padding: 5px 8px; cursor: pointer; }
         .rail-fly .kind { flex-direction: column; gap: 3px; width: 62px; padding: 5px 2px; font-size: 0.44rem; letter-spacing: 0.02em; text-align: center; }
@@ -851,3 +862,4 @@ export default function Admin() {
     </div>
   );
 }
+
