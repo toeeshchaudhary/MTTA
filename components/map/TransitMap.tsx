@@ -111,14 +111,20 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
       <Trains lines={lines.map((l) => ({ id: l.id, color: l.color }))} run={trains} />
 
       {/* the pinboard — your stuff, tacked onto the board */}
-      <Pins pins={pins} />
+      <Pins pins={pins} started={started} />
 
-      {/* origin — movable; click for the About card */}
-      <g transform={`translate(${ox},${oy})`} role="button" tabIndex={0} aria-label="About toeesh" style={{ cursor: onOrigin ? 'pointer' : 'default' }}
-        onClick={() => onOrigin?.()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOrigin?.(); } }}>
-        <circle r={40} fill="transparent" />
-        <circle r={30} fill={INK} />
-        <circle r={13} fill="var(--canvas)" />
+      {/* origin — movable; pops in on intro; click for the About card */}
+      <g transform={`translate(${ox},${oy})`}>
+        <motion.g role="button" tabIndex={0} aria-label="About toeesh" style={{ cursor: onOrigin ? 'pointer' : 'default' }}
+          onClick={() => onOrigin?.()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOrigin?.(); } }}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: started ? 1 : 0, opacity: started ? 1 : 0 }}
+          transition={{ delay: started ? 0.15 : 0, type: 'spring', stiffness: 300, damping: 15 }}>
+          <circle r={40} fill="transparent" />
+          <motion.circle r={30} fill={INK}
+            initial={{ scale: 1 }} animate={{ scale: started ? [1, 1.18, 1] : 1 }} transition={{ delay: 0.3, duration: 0.5 }} />
+          <circle r={13} fill="var(--canvas)" />
+        </motion.g>
       </g>
       <foreignObject x={ox + 36} y={oy - 28} width={340} height={44} style={{ overflow: 'visible' }}>
         <button className="plate big origin-plate" onClick={() => onOrigin?.()}><span className="dot" style={{ background: '#141414' }} />the origin — toeesh<span className="origin-cue">about ↗</span></button>

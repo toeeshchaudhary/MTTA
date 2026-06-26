@@ -145,7 +145,7 @@ button { font-family: inherit; }
 .tile {
   box-sizing: border-box; display: flex; flex-direction: column;
   background: var(--panel); color: var(--ink);
-  border: 1px solid var(--line); box-shadow: 3px 3px 0 rgba(43,43,51,0.12);
+  border: 1px solid var(--ink-soft); box-shadow: 4px 4px 0 rgba(43,43,51,0.20);
   font-family: var(--font-sans);
 }
 .tile-tag {
