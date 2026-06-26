@@ -586,18 +586,32 @@ export default function Admin() {
 
                   {/* pins — notes & photos tacked on the board, editable in the note tool */}
                   <g>
-                    {pins.map((p) => {
+                    {pins.map((p, i) => {
                       const isSel = selPin === p.id; const active = tool === 'note' || tool === 'bulldoze';
+                      const no = `T·${String(i + 1).padStart(2, '0')}`;
                       return (
                         <g key={p.id}>
-                          <rect className="rt-drag" data-hit={active ? '' : undefined} x={p.x} y={p.y} width={p.w} height={p.h} rx={3} ry={3}
-                            fill="var(--panel)" stroke={isSel ? INK : 'var(--line)'} strokeWidth={isSel ? 3 : 2} strokeDasharray={isSel ? '7 6' : undefined}
+                          {/* WYSIWYG preview — identical markup/CSS to the public board so sizing matches */}
+                          <foreignObject x={p.x} y={p.y} width={p.w} height={p.h} style={{ overflow: 'visible', pointerEvents: 'none' }}>
+                            <div className={`tile tile-${p.kind}`} style={{ width: p.w, height: p.h }}>
+                              {p.kind === 'photo' ? (
+                                <>
+                                  <div className="tile-frame">{p.src ? <img src={p.src} alt={p.caption || ''} draggable={false} /> : <span className="tile-ph" />}</div>
+                                  <div className="tile-meta"><span className="tile-tag"><span className="tile-no">{no}</span>{p.tag || 'photo'}</span>{p.caption && <span className="tile-cap">{p.caption}</span>}</div>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="tile-tag"><span className="tile-no">{no}</span>{p.tag || 'note'}</span>
+                                  <p>{p.text}</p>
+                                </>
+                              )}
+                            </div>
+                          </foreignObject>
+                          {/* transparent hit + selection outline on top */}
+                          <rect className="rt-drag" data-hit={active ? '' : undefined} x={p.x} y={p.y} width={p.w} height={p.h}
+                            fill="transparent" stroke={isSel ? INK : 'transparent'} strokeWidth={isSel ? 3 : 0} strokeDasharray={isSel ? '7 6' : undefined}
                             style={{ cursor: tool === 'note' ? 'move' : tool === 'bulldoze' ? 'not-allowed' : 'default' }}
                             onPointerDown={(e) => { if (!active) return; e.stopPropagation(); if (tool === 'bulldoze') { commitPins(pins.filter((q) => q.id !== p.id)); if (selPin === p.id) setSelPin(null); } else { setSelPin(p.id); const [rx, ry] = toSvgRaw(e.clientX, e.clientY); setPinDrag({ id: p.id, mode: 'move', dx: rx - p.x, dy: ry - p.y }); } }} />
-                          {p.kind === 'photo' && p.src && <image href={p.src} x={p.x + 6} y={p.y + 6} width={Math.max(0, p.w - 12)} height={Math.max(0, p.h - 30)} preserveAspectRatio="xMidYMid slice" style={{ pointerEvents: 'none' }} />}
-                          <text x={p.x + 8} y={p.y + 15} style={{ pointerEvents: 'none', fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.08em', fontWeight: 700, fill: 'var(--ink-soft)' }}>{(p.tag || p.kind).toUpperCase()}</text>
-                          {p.kind === 'note' && <foreignObject x={p.x + 6} y={p.y + 20} width={Math.max(0, p.w - 12)} height={Math.max(0, p.h - 26)} style={{ pointerEvents: 'none', overflow: 'hidden' }}><div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.35, color: 'var(--ink)' }}>{p.text}</div></foreignObject>}
-                          {p.kind === 'photo' && p.caption && <text x={p.x + 8} y={p.y + p.h - 8} style={{ pointerEvents: 'none', fontFamily: 'var(--font-sans)', fontSize: 11, fill: 'var(--ink)' }}>{p.caption}</text>}
                           {isSel && tool === 'note' && [[p.x, p.y], [p.x + p.w, p.y], [p.x + p.w, p.y + p.h], [p.x, p.y + p.h]].map((c, ci) => (
                             <rect key={ci} className="rt-drag" data-hit x={c[0] - 10} y={c[1] - 10} width={20} height={20} fill="#fff" stroke={INK} strokeWidth={3} style={{ cursor: ci === 0 || ci === 2 ? 'nwse-resize' : 'nesw-resize' }}
                               onPointerDown={(e) => { e.stopPropagation(); setSelPin(p.id); setPinDrag({ id: p.id, mode: 'resize', corner: ci }); }} />
