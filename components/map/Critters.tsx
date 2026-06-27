@@ -12,8 +12,9 @@ export default function Critters({ lines, run }: { lines: { id: string; color: s
   const [crit, setCrit] = useState<{ key: number; pizza: boolean } | null>(null);
 
   useEffect(() => {
+    // gated by `run` (play.critters + the in-app MOTION toggle) — deliberately NOT by
+    // prefers-reduced-motion, which is 'reduce' on the owner's setup and would hide it.
     if (!run || !lines.length) return;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     let alive = true, first = true;
 
     // first rat shows up quickly so you actually catch one; then it's occasional

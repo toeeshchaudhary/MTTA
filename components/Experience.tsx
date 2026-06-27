@@ -517,7 +517,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         .leg-live { width: 7px; height: 7px; border-radius: 50%; background: #6fe08a; flex: none; animation: leg-pulse 2.2s ease-out infinite; }
         .leg-status.touring .leg-live { background: #ffcf00; }
         @keyframes leg-pulse { 0% { box-shadow: 0 0 0 0 rgba(111,224,138,0.5); } 70% { box-shadow: 0 0 0 6px rgba(111,224,138,0); } 100% { box-shadow: 0 0 0 0 rgba(111,224,138,0); } }
-        @media (prefers-reduced-motion: reduce) { .leg-live { animation: none; } }
+        /* .leg-live pulse is paused by the MOTION toggle (.no-motion), not prefers-reduced-motion */
         .leg-list { list-style: none; margin: 0; padding: 0; max-height: 46vh; overflow: auto; }
         .leg-list li + li { border-top: 1px solid var(--line); }
         .leg-li { display: flex; align-items: stretch; }

@@ -257,7 +257,7 @@ button { font-family: inherit; }
 /* station arrival ping — a ring that blooms when a train dwells at a stop */
 .mta-ping { fill: none; stroke-width: 3; pointer-events: none; animation: mta-ping 0.72s ease-out forwards; }
 @keyframes mta-ping { from { r: 6px; opacity: 0.8; } to { r: 32px; opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .mta-ping { display: none; } }
+/* hidden only via the MOTION toggle (the .no-motion global freeze), not prefers-reduced-motion */
 
 /* night-owl easter egg (Konami) — neon map + slow disco hue drift */
 :root.night-owl { --bg: #06060e; --canvas: #0a0a16; --canvas-grid: #1a1a2e; }
@@ -267,7 +267,6 @@ button { font-family: inherit; }
 :root.night-owl .train rect, :root.night-owl .train circle, :root.night-owl .train path { filter: drop-shadow(0 0 3px rgba(255,255,255,0.45)); }
 :root.night-owl:not(.no-motion) .react-transform-component { animation: disco 14s linear infinite; }
 @keyframes disco { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { :root.night-owl .react-transform-component { animation: none; } }
 
 /* ---- intro splash (global) ---- */
 .intro { position: fixed; inset: 0; z-index: 100; background: var(--canvas); display: grid; place-items: center; cursor: pointer; overflow: hidden; }

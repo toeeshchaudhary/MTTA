@@ -103,10 +103,10 @@ export default function Trains({ lines, stations = [], run, stationPulse = true,
     return () => cancelAnimationFrame(raf);
   }, [run, lines, stations, stationPulse]);
 
-  // rare express run on a random line — no stops, full speed
+  // rare express run on a random line — no stops, full speed.
+  // gated by the MOTION toggle (via `run`), not prefers-reduced-motion (see Trains note).
   useEffect(() => {
     if (!run || !expressTrain || !lines.length) return;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     let alive = true, raf = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const exp = gref.current?.querySelector('g.train.express') as SVGGElement | null;

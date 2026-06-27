@@ -2,7 +2,7 @@
 // A station departures board — top-centre, amber-LED style. Shows the next few real stops
 // with track numbers + a "DUE / N min" countdown, a live clock, and a split-flap flip when
 // the board updates. Pure ambience that sells the metaphor; click any row to jump to it.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Line } from '@/content/lines';
 import type { Station } from '@/lib/content';
 
@@ -23,13 +23,11 @@ export default function DepartureBoard({ lines, stations, focusLine = null, quip
 
   const [head, setHead] = useState(0);    // index of the top ("DUE") row in the rotation
   const [hhmm, setHhmm] = useState('');
-  const [colon, setColon] = useState(true);
+  const [colon, setColon] = useState(true);   // clock colon blink
   const [open, setOpen] = useState(true);  // minimised / maximised (click the header)
   const [quip, setQuip] = useState<string | null>(null);  // occasional witty service message
-  const reduced = useRef(false);
 
   useEffect(() => {
-    reduced.current = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     try { const v = localStorage.getItem('depboard-open'); if (v != null) setOpen(v === '1'); } catch {}
   }, []);
   const toggle = () => setOpen((o) => { const n = !o; try { localStorage.setItem('depboard-open', n ? '1' : '0'); } catch {} return n; });
@@ -59,7 +57,7 @@ export default function DepartureBoard({ lines, stations, focusLine = null, quip
     const tick = () => {
       const d = new Date();
       setHhmm(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
-      setColon((c) => (reduced.current ? true : !c));
+      setColon((c) => !c);   // always blink (MOTION toggle pauses the whole board's animations)
     };
     tick();
     const t = setInterval(tick, 1000);
@@ -153,10 +151,8 @@ export default function DepartureBoard({ lines, stations, focusLine = null, quip
         @keyframes dep-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
         @media (max-width: 680px) { .depboard { width: 86vw; } .dep-row { grid-template-columns: 18px 10px 1fr auto; }
           .dep-line { display: none; } }
-        @media (prefers-reduced-motion: reduce) {
-          .dep-dest { animation: none; } .dep-live i { animation: none; } .dep-colon { transition: none; }
-          .dep-rows { transition: none; } .dep-row.quip { animation: none; } .dep-quip-led { animation: none; }
-        }
+        /* motion is controlled by the in-app MOTION toggle (.no-motion freezes all of this),
+           not prefers-reduced-motion — which is 'reduce' on the owner's setup. */
       `}</style>
     </div>
   );
