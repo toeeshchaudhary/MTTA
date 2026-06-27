@@ -156,8 +156,7 @@ export default function Inspector(p: InspectorProps) {
           <div className="ed-h"><span className="mono">land · {selFeat.kind}</span><div className="ed-act"><button className="tbtn sm" onClick={() => { commitTerrain(terrain.filter((q) => q.id !== selFeat.id)); setSelTerr(null); }}>delete</button><button className="tbtn sm" onClick={() => setSelTerr(null)}>✕</button></div></div>
           <label>kind<select value={selFeat.kind} onChange={(e) => { const next = terrain.map((f) => (f.id === selFeat.id ? { ...f, kind: e.target.value as TerrainKind } : f)); commitTerrain(next); }}>{TERRAIN_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}</select></label>
           <label>label <span className="dimk" style={{ textTransform: 'none', letterSpacing: 0 }}>(optional)</span><input value={selFeat.label || ''} placeholder="e.g. the harbour" onChange={(e) => updTerr(selFeat.id, { label: e.target.value })} onBlur={() => commitTerrain(terrain)} /></label>
-          <div className="row2"><label>width<input type="number" value={selFeat.w} onChange={(e) => updTerr(selFeat.id, { w: Math.max(GRID, Number(e.target.value) || GRID) })} onBlur={() => commitTerrain(terrain)} /></label><label>height<input type="number" value={selFeat.h} onChange={(e) => updTerr(selFeat.id, { h: Math.max(GRID, Number(e.target.value) || GRID) })} onBlur={() => commitTerrain(terrain)} /></label></div>
-          <p className="mono dimk foot">drag the piece to move · grab a corner to resize · {terrain.length} pieces of land</p>
+          <p className="mono dimk foot">{selFeat.points ? `${selFeat.points.length}-point shape · drag a point to reshape · double-click a point to remove` : 'rectangle · drag a corner to resize'} · drag the body to move · {terrain.length} pieces of land</p>
         </div>
       ) : (
         <div className="ed">

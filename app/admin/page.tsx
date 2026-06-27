@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { MAP_VIEWBOX, RIBBON, roundedPath, type Pt } from '@/content/lines';
 import { TERRAIN_KINDS, KIND_BY_ID, type TerrainKind, type TerrainFeature } from '@/components/map/terrain-kinds';
+import { bboxOf } from '@/components/map/terrain-shape';
 import type { Media, St, Ln, Pin, AboutLink, SiteMeta, PlayMeta, Rect, Tool } from '@/components/admin/types';
 import { TOOLS, PIN_KINDS, SHAPES, PALETTE, GRID, FAR, INK } from '@/components/admin/lib/constants';
 import { snap, isLight, clone, clientToSvg, distToPolyline, projectOnLine, snapTrack } from '@/components/admin/lib/geometry';
@@ -52,11 +53,13 @@ export default function Admin() {
   // write-first add-stop flow
   const [pickStop, setPickStop] = useState(false);
   const [pendingLine, setPendingLine] = useState<{ id: string; prevPts: Pt[] } | null>(null);
-  // terrain (RCT-style land painting)
+  // terrain — freehand coastline pen: tap to drop polygon vertices, close to finish
   const [terrain, setTerrain] = useState<TerrainFeature[]>([]);
   const [terrainKind, setTerrainKind] = useState<TerrainKind>('water');
-  const [draw, setDraw] = useState<Rect | null>(null);
+  const [draw, setDraw] = useState<Rect | null>(null); // legacy rect draw (unused by the pen; kept for prop shape)
   const [terrDrag, setTerrDrag] = useState<{ id: string; mode: 'move' | 'resize'; corner?: number } | null>(null);
+  const [landDraft, setLandDraft] = useState<Pt[]>([]); // in-progress polygon
+  const [landNode, setLandNode] = useState<{ id: string; i: number } | null>(null); // dragging a saved polygon's vertex
   const drawStart = useRef<Pt | null>(null);
   // pinboard (notes & photos tacked on the board)
   const [pins, setPins] = useState<Pin[]>([]);
@@ -174,23 +177,34 @@ export default function Admin() {
     return onDrag(move, up);
   }, [nodeDrag]);
 
-  // terrain: paint a new piece by dragging on empty canvas
+  // terrain: drag a vertex of a saved polygon (Mini-Metro style, no grid lock — coastlines are organic)
   useEffect(() => {
-    if (!draw) return;
-    const move = (e: PointerEvent) => { const s = drawStart.current; if (!s) return; const [x, y] = toSvg(e.clientX, e.clientY); setDraw({ x: Math.min(s[0], x), y: Math.min(s[1], y), w: Math.abs(x - s[0]), h: Math.abs(y - s[1]) }); };
-    const up = () => { setDraw((d) => { if (d && d.w >= GRID && d.h >= GRID) { const id = `t-${Date.now().toString(36)}`; const feat: TerrainFeature = { id, kind: terrainKind, x: d.x, y: d.y, w: d.w, h: d.h }; commitTerrain([...terrain, feat]); setSelTerr(id); flash(`${terrainKind} placed`); } return null; }); drawStart.current = null; };
+    if (!landNode) return;
+    const move = (e: PointerEvent) => {
+      const [x, y] = toSvgRaw(e.clientX, e.clientY);
+      setTerrain((arr) => arr.map((f) => {
+        if (f.id !== landNode.id || !f.points) return f;
+        const pts = f.points.slice(); pts[landNode.i] = [x, y];
+        return { ...f, points: pts, ...bboxOf(pts) };
+      }));
+    };
+    const up = () => { setTerrain((arr) => { commitTerrain(arr); return arr; }); setLandNode(null); };
     return onDrag(move, up);
-  }, [draw, terrain, terrainKind, commitTerrain]);
+  }, [landNode, commitTerrain]);
 
-  // terrain: move / resize an existing piece
+  // terrain: move a whole piece (centre it under the cursor — works for polygons + legacy rects) / resize a legacy rect
   useEffect(() => {
     if (!terrDrag) return;
     const move = (e: PointerEvent) => {
       const [x, y] = toSvg(e.clientX, e.clientY);
       setTerrain((arr) => arr.map((f) => {
         if (f.id !== terrDrag.id) return f;
-        if (terrDrag.mode === 'move') return { ...f, x: x - Math.round(f.w / 2), y: y - Math.round(f.h / 2) };
-        const x2 = f.x + f.w, y2 = f.y + f.h; // resize: corner 0=tl 1=tr 2=br 3=bl
+        if (terrDrag.mode === 'move') {
+          const dx = x - (f.x + Math.round(f.w / 2)), dy = y - (f.y + Math.round(f.h / 2));
+          if (f.points) { const pts = f.points.map(([px, py]) => [px + dx, py + dy] as Pt); return { ...f, points: pts, ...bboxOf(pts) }; }
+          return { ...f, x: x - Math.round(f.w / 2), y: y - Math.round(f.h / 2) };
+        }
+        const x2 = f.x + f.w, y2 = f.y + f.h; // resize (legacy rect only): corner 0=tl 1=tr 2=br 3=bl
         let nx = f.x, ny = f.y, nx2 = x2, ny2 = y2;
         if (terrDrag.corner === 0) { nx = x; ny = y; } else if (terrDrag.corner === 1) { nx2 = x; ny = y; } else if (terrDrag.corner === 2) { nx2 = x; ny2 = y; } else { nx = x; ny2 = y; }
         return { ...f, x: Math.min(nx, nx2), y: Math.min(ny, ny2), w: Math.max(GRID, Math.abs(nx2 - nx)), h: Math.max(GRID, Math.abs(ny2 - ny)) };
@@ -275,6 +289,17 @@ export default function Admin() {
 
   const paintLine = (id: string) => { const l = lines.find((q) => q.id === id); if (!l) return; pushHistory(); commitLines(lines.map((q) => (q.id === id ? { ...q, color: paint, text: isLight(paint) ? '#111' : '#fff' } : q))); flash(`recoloured “${l.label || id}” → ${paint}`); };
 
+  // terrain pen — close the in-progress polygon into a saved piece
+  const cancelLand = () => setLandDraft([]);
+  const finishLand = () => {
+    if (landDraft.length < 3) { setLandDraft([]); return; }
+    pushHistory();
+    const id = `t-${Date.now().toString(36)}`;
+    const feat: TerrainFeature = { id, kind: terrainKind, points: landDraft, ...bboxOf(landDraft) };
+    commitTerrain([...terrain, feat]);
+    setSelTerr(id); setLandDraft([]); flash(`${terrainKind} drawn`);
+  };
+
   // canvas tap (place / lay track) — distinguished from a pan-drag
   const onCanvasTap = (cx: number, cy: number) => {
     const [x, y] = toSvg(cx, cy);
@@ -289,6 +314,12 @@ export default function Admin() {
       }
     }
     else if (tool === 'track') { setTrack((t) => [...t, snapTrack(t[t.length - 1], [x, y])]); }
+    else if (tool === 'terrain') {
+      // pen: drop an (organic, unsnapped) vertex; clicking near the first point closes the shape
+      const [rx, ry] = toSvgRaw(cx, cy);
+      if (landDraft.length >= 3 && Math.hypot(rx - landDraft[0][0], ry - landDraft[0][1]) < 16) { finishLand(); return; }
+      setSelTerr(null); setLandDraft((d) => [...d, [rx, ry]]);
+    }
     else if (tool === 'select') { setSelLn(null); } // tap empty space → deselect the thread (hides its re-route handles)
   };
 
@@ -337,9 +368,9 @@ export default function Admin() {
       if (el && /INPUT|TEXTAREA|SELECT/.test(el.tagName)) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
-      if (e.key === 'Escape') { cancelTrack(); closeForm(); setSelLn(null); setSelTerr(null); setSelPin(null); setDraw(null); setPinDraw(null); setPickStop(false); setLnDrag(null); setOrigDrag(false); drawStart.current = null; pinDrawStart.current = null; return; }
+      if (e.key === 'Escape') { cancelTrack(); cancelLand(); setLandNode(null); closeForm(); setSelLn(null); setSelTerr(null); setSelPin(null); setDraw(null); setPinDraw(null); setPickStop(false); setLnDrag(null); setOrigDrag(false); drawStart.current = null; pinDrawStart.current = null; return; }
       const t = TOOLS.find((x) => x.key === e.key.toLowerCase());
-      if (t) { setTool(t.id); if (t.id === 'track') { setEditId('__new'); setTrack([]); } else cancelTrack(); }
+      if (t) { setTool(t.id); if (t.id === 'track') { setEditId('__new'); setTrack([]); } else { cancelTrack(); } if (t.id !== 'terrain') cancelLand(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -409,7 +440,7 @@ export default function Admin() {
           </div>
           <div className="rail-div" />
           {TOOLS.map((t) => (
-            <button key={t.id} className={`rail-tool ${tool === t.id ? 'on' : ''}`} title={`${t.label} (${t.key})`} onClick={() => { setTool(t.id); if (t.id === 'track') { setEditId('__new'); setTrack([]); setSelLn(null); setForm(null); } else cancelTrack(); }}>
+            <button key={t.id} className={`rail-tool ${tool === t.id ? 'on' : ''}`} title={`${t.label} (${t.key})`} onClick={() => { setTool(t.id); if (t.id === 'track') { setEditId('__new'); setTrack([]); setSelLn(null); setForm(null); } else cancelTrack(); if (t.id !== 'terrain') cancelLand(); }}>
               <span className="t-ic">{t.icon}</span><span className="t-lab">{t.label}</span><kbd>{t.key}</kbd>
             </button>
           ))}
@@ -424,6 +455,7 @@ export default function Admin() {
             setPaint={setPaint} setTerrainKind={setTerrainKind} setPinKind={setPinKind} setHover={setHover} setCursor={setCursor}
             setDraw={setDraw} setPinDraw={setPinDraw} setSelTerr={setSelTerr} setSelPin={setSelPin} setTerrDrag={setTerrDrag}
             setPinDrag={setPinDrag} setTrack={setTrack} setNodeDrag={setNodeDrag} setLnDrag={setLnDrag} setLines={setLines} setOrigDrag={setOrigDrag}
+            cursor={cursor} landDraft={landDraft} landNode={landNode} setTerrain={setTerrain} setLandNode={setLandNode} finishLand={finishLand} cancelLand={cancelLand}
             svgRef={svgRef} tw={tw} downPt={downPt} drawStart={drawStart} pinDrawStart={pinDrawStart} origGrab={origGrab}
             toSvg={toSvg} toSvgRaw={toSvgRaw} onCanvasTap={onCanvasTap} onLine={onLine} onStation={onStation}
             lnColor={lnColor} lnShape={lnShape} commitTerrain={commitTerrain} commitPins={commitPins}

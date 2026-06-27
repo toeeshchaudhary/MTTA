@@ -30,11 +30,13 @@
   --accent: #7c6aa6;
   --accent-soft: #9a8fc0;
   --plum: #352e4d;
-  /* terrain washes — toeesh's muted board palette (periwinkle, sage, warm taupe) */
-  --water: #e3e5ea;
-  --park: #e8e9e4;
-  --forest: #dadcd5;
-  --sand: #eceae4;
+  /* terrain — Mini-Metro water: light-blue body, soft bank, lighter inner current line */
+  --water: #bfe2f1;       --water-line: #93c8e1;       --water-coast: #e8f5fc;
+  --terrain-label: rgba(43,80,106,0.5);
+  /* bridges — deck blends with the line crossing the water */
+  --bridge-deck: #e9f2f7;
+  --bridge-rail: rgba(43,80,106,0.30);
+  --bridge-plank: rgba(43,80,106,0.14);
 }
 
 /* theme: whiteboard (default) — bright, airy paper */
@@ -56,6 +58,13 @@
   --line: #2e2a39;
   --canvas: #161517;
   --canvas-grid: #2b2836;
+  /* terrain — Mini-Metro water, muted for night so it sits under the dark canvas */
+  --water: #1f3a4a;       --water-line: #356881;       --water-coast: #4d8aa6;
+  --terrain-label: rgba(190,225,240,0.55);
+  /* bridges — deck reads on the dark water */
+  --bridge-deck: #2c4a5a;
+  --bridge-rail: rgba(233,230,240,0.46);
+  --bridge-plank: rgba(233,230,240,0.18);
 }
 
 /* admin editor chrome — handle/stroke inks that resolve per theme so the map editor
@@ -197,7 +206,6 @@ button { font-family: inherit; }
 
 /* ---- map terrain (global) ---- */
 .terrain { pointer-events: none; }
-:root[data-theme="dark"] .terrain { opacity: 0.4; }
 
 /* ---- tile layer: curated modules, design-system style (aligned, hairline, mono-labelled) ---- */
 .tiles { pointer-events: none; }
@@ -219,8 +227,8 @@ button { font-family: inherit; }
 .tile-photo .tile-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--ink); }
 .tile-photo .tile-cap { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.04em; color: var(--ink); }
 .terrain-label {
-  font-family: var(--font-mono); font-size: 13px; font-weight: 600;
-  letter-spacing: 0.18em; text-transform: uppercase;
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  letter-spacing: 0.22em; text-transform: uppercase;
 }
 
 /* ---- map station tablets + trains (global) ---- */

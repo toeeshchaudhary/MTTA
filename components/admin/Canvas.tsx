@@ -5,6 +5,8 @@
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { MAP_VIEWBOX, RIBBON, roundedPath, type Pt } from '@/content/lines';
 import { TERRAIN_KINDS, KIND_BY_ID, type TerrainKind, type TerrainFeature } from '@/components/map/terrain-kinds';
+import { terrainPath, pathForPoints, smoothClosedPath, offsetInward, bboxOf } from '@/components/map/terrain-shape';
+import Bridges from '@/components/map/Bridges';
 import { TOOLS, PALETTE, PIN_KINDS, FAR, INK } from '@/components/admin/lib/constants';
 import { snap } from '@/components/admin/lib/geometry';
 import InfiniteGrid from '@/components/admin/canvas/InfiniteGrid';
@@ -28,6 +30,9 @@ export type CanvasProps = {
   setPinDrag: (v: { id: string; mode: 'move' | 'resize'; corner?: number; dx?: number; dy?: number } | null) => void;
   setTrack: Dispatch<Pt[]>; setNodeDrag: (v: number | null) => void;
   setLnDrag: (v: { id: string; i: number } | null) => void; setLines: Dispatch<Ln[]>; setOrigDrag: (v: boolean) => void;
+  cursor: Pt | null; landDraft: Pt[]; landNode: { id: string; i: number } | null;
+  setTerrain: Dispatch<TerrainFeature[]>; setLandNode: (v: { id: string; i: number } | null) => void;
+  finishLand: () => void; cancelLand: () => void;
   svgRef: React.RefObject<SVGSVGElement | null>; tw: React.RefObject<ReactZoomPanPinchRef | null>;
   downPt: React.MutableRefObject<{ x: number; y: number } | null>;
   drawStart: React.MutableRefObject<Pt | null>; pinDrawStart: React.MutableRefObject<Pt | null>; origGrab: React.MutableRefObject<Pt>;
@@ -46,6 +51,7 @@ export default function Canvas(p: CanvasProps) {
     setSelPin, setTerrDrag, setPinDrag, setTrack, setNodeDrag, setLnDrag, setLines, setOrigDrag, svgRef, tw, downPt,
     drawStart, pinDrawStart, origGrab, toSvg, toSvgRaw, onCanvasTap, onLine, onStation, lnColor, lnShape,
     commitTerrain, commitPins, pushHistory, finishTrack, cancelTrack,
+    cursor, landDraft, landNode, setTerrain, setLandNode, finishLand, cancelLand,
   } = p;
   return (
     <div className="adm-canvas">
@@ -69,34 +75,71 @@ export default function Canvas(p: CanvasProps) {
           <button className="tbtn" onClick={cancelTrack}>✗ cancel</button>
         </div>
       )}
+      {tool === 'terrain' && landDraft.length > 0 && (
+        <div className="adm-trackbar">
+          <span className="mono">drawing {terrainKind} · {landDraft.length} {landDraft.length === 1 ? 'point' : 'points'}{landDraft.length < 3 ? ' · tap to add' : ' · tap the first point to close'}</span>
+          <button className="tbtn solid" onClick={finishLand}>✓ close</button>
+          <button className="tbtn" onClick={cancelLand}>✗ cancel</button>
+        </div>
+      )}
       <div className="adm-stage">
         <TransformWrapper ref={tw} initialScale={0.7} minScale={0.3} maxScale={4} centerOnInit limitToBounds={false} doubleClick={{ disabled: true }} panning={{ allowLeftClickPan: tool !== 'terrain' && tool !== 'note', excluded: ['rt-drag'] }} wheel={{ step: 0.08 }}>
           <TransformComponent wrapperStyle={{ width: '100%', height: '100%', background: 'var(--canvas)' }} contentStyle={{ width: 1400, height: 940 }}>
             <svg ref={svgRef} viewBox={MAP_VIEWBOX} width={1400} height={940} className={`svg tool-${tool}`}
-              onPointerDown={(e) => { downPt.current = { x: e.clientX, y: e.clientY }; const onHit = (e.target as Element).closest('[data-hit]'); if (tool === 'terrain' && !onHit) { const pt = toSvg(e.clientX, e.clientY); drawStart.current = pt; setSelTerr(null); setDraw({ x: pt[0], y: pt[1], w: 0, h: 0 }); } else if (tool === 'note' && !onHit) { const pt = toSvg(e.clientX, e.clientY); pinDrawStart.current = pt; setSelPin(null); setPinDraw({ x: pt[0], y: pt[1], w: 0, h: 0 }); } }}
+              onPointerDown={(e) => { downPt.current = { x: e.clientX, y: e.clientY }; const onHit = (e.target as Element).closest('[data-hit]'); if (tool === 'note' && !onHit) { const pt = toSvg(e.clientX, e.clientY); pinDrawStart.current = pt; setSelPin(null); setPinDraw({ x: pt[0], y: pt[1], w: 0, h: 0 }); } }}
               onPointerUp={(e) => { const d = downPt.current; downPt.current = null; if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6 && !(e.target as Element).closest('[data-hit]')) onCanvasTap(e.clientX, e.clientY); }}
-              onPointerMove={(e) => { if (tool === 'track') setCursor(toSvg(e.clientX, e.clientY)); }}>
+              onPointerMove={(e) => { if (tool === 'track') setCursor(toSvg(e.clientX, e.clientY)); else if (tool === 'terrain') setCursor(toSvgRaw(e.clientX, e.clientY)); }}>
               <rect x={-FAR} y={-FAR} width={FAR * 2} height={FAR * 2} fill="var(--canvas)" />
               <InfiniteGrid svgRef={svgRef} />
 
-              {/* terrain — editable in the terrain tool, static otherwise */}
+              {/* terrain — flat cartographic shapes; pen-editable in the terrain tool */}
               <g>
                 {terrain.map((f) => { const k = KIND_BY_ID[f.kind] ?? KIND_BY_ID.block; const isSel = selTerr === f.id; const active = tool === 'terrain' || tool === 'bulldoze';
+                  const d = terrainPath(f, k);
+                  const hasPoly = !!(f.points && f.points.length >= 3);
+                  const coast = hasPoly && Math.min(f.w, f.h) > 44 ? smoothClosedPath(offsetInward(f.points!, 8)) : null;
                   return (
                     <g key={f.id}>
-                      <rect data-hit={active ? '' : undefined} x={f.x} y={f.y} width={f.w} height={f.h} rx={k.round} ry={k.round} fill={k.fill} stroke={isSel ? INK : k.stroke} strokeWidth={isSel ? 3 : 2} strokeDasharray={isSel ? '7 6' : undefined}
+                      <path data-hit={active ? '' : undefined} d={d} fill={k.fill} stroke={isSel ? INK : k.line} strokeWidth={isSel ? 2.5 : 1.5} strokeDasharray={isSel ? '7 6' : undefined} strokeLinejoin="round"
                         style={{ cursor: tool === 'terrain' ? 'move' : tool === 'bulldoze' ? 'not-allowed' : 'default' }}
                         onPointerDown={(e) => { if (!active) return; e.stopPropagation(); if (tool === 'bulldoze') { commitTerrain(terrain.filter((q) => q.id !== f.id)); if (selTerr === f.id) setSelTerr(null); } else { setSelTerr(f.id); setTerrDrag({ id: f.id, mode: 'move' }); } }} />
-                      {f.label && <text x={f.x + f.w / 2} y={f.y + f.h / 2} textAnchor="middle" dominantBaseline="middle" className="terrain-label" fill="rgba(20,20,20,0.30)" style={{ pointerEvents: 'none' }}>{f.label}</text>}
-                      {isSel && tool === 'terrain' && [[f.x, f.y], [f.x + f.w, f.y], [f.x + f.w, f.y + f.h], [f.x, f.y + f.h]].map((c, ci) => (
+                      {coast && <path d={coast} fill="none" stroke={k.coast} strokeWidth={2.5} style={{ pointerEvents: 'none' }} />}
+                      {f.label && <text x={f.x + f.w / 2} y={f.y + f.h / 2} textAnchor="middle" dominantBaseline="middle" className="terrain-label" fill="var(--terrain-label, rgba(20,20,20,0.34))" style={{ pointerEvents: 'none' }}>{f.label}</text>}
+                      {/* vertex handles for a selected polygon (drag to reshape · dbl-click to remove · mid-dots insert) */}
+                      {isSel && tool === 'terrain' && hasPoly && (() => { const pts = f.points!; return (<g>
+                        {pts.map((pt, i) => (
+                          <circle key={'tm' + i} className="rt-drag" data-hit cx={(pt[0] + pts[(i + 1) % pts.length][0]) / 2} cy={(pt[1] + pts[(i + 1) % pts.length][1]) / 2} r={5} fill="var(--canvas)" stroke={INK} strokeWidth={2} style={{ cursor: 'copy' }}
+                            onPointerDown={(e) => { e.stopPropagation(); pushHistory(); const mid: Pt = [(pts[i][0] + pts[(i + 1) % pts.length][0]) / 2, (pts[i][1] + pts[(i + 1) % pts.length][1]) / 2]; const np = [...pts.slice(0, i + 1), mid, ...pts.slice(i + 1)]; setTerrain(terrain.map((q) => (q.id === f.id ? { ...q, points: np, ...bboxOf(np) } : q))); setLandNode({ id: f.id, i: i + 1 }); }} />
+                        ))}
+                        {pts.map((pt, i) => (
+                          <circle key={'tn' + i} className="rt-drag" data-hit cx={pt[0]} cy={pt[1]} r={8} fill="var(--ed-face)" stroke={INK} strokeWidth={3} style={{ cursor: 'move' }}
+                            onPointerDown={(e) => { e.stopPropagation(); pushHistory(); setLandNode({ id: f.id, i }); }}
+                            onDoubleClick={(e) => { e.stopPropagation(); if (pts.length > 3) { pushHistory(); const np = pts.filter((_, k2) => k2 !== i); commitTerrain(terrain.map((q) => (q.id === f.id ? { ...q, points: np, ...bboxOf(np) } : q))); } }} />
+                        ))}
+                      </g>); })()}
+                      {/* legacy rect corner handles (features with no polygon yet) */}
+                      {isSel && tool === 'terrain' && !hasPoly && [[f.x, f.y], [f.x + f.w, f.y], [f.x + f.w, f.y + f.h], [f.x, f.y + f.h]].map((c, ci) => (
                         <rect key={ci} data-hit x={c[0] - 8} y={c[1] - 8} width={16} height={16} fill="var(--ed-face)" stroke={INK} strokeWidth={3} style={{ cursor: ci === 0 || ci === 2 ? 'nwse-resize' : 'nesw-resize' }}
                           onPointerDown={(e) => { e.stopPropagation(); setSelTerr(f.id); setTerrDrag({ id: f.id, mode: 'resize', corner: ci }); }} />
                       ))}
                     </g>
                   );
                 })}
-                {draw && draw.w > 0 && draw.h > 0 && (() => { const k = KIND_BY_ID[terrainKind]; return <rect x={draw.x} y={draw.y} width={draw.w} height={draw.h} rx={k.round} ry={k.round} fill={k.fill} stroke={INK} strokeWidth={3} strokeDasharray="8 6" opacity={0.8} style={{ pointerEvents: 'none' }} />; })()}
+                {/* live pen draft — the shape under construction + its vertices */}
+                {tool === 'terrain' && landDraft.length > 0 && (() => {
+                  const k = KIND_BY_ID[terrainKind]; const prev = cursor ? [...landDraft, cursor] : landDraft;
+                  return (<g>
+                    <path d={pathForPoints(prev, k)} fill={landDraft.length >= 2 ? k.fill : 'none'} fillOpacity={0.45} stroke={INK} strokeWidth={2} strokeDasharray="8 6" style={{ pointerEvents: 'none' }} />
+                    {landDraft.map((pt, i) => (
+                      <circle key={i} className="rt-drag" data-hit cx={pt[0]} cy={pt[1]} r={i === 0 ? 8 : 5} fill={i === 0 ? INK : 'var(--ed-face)'} stroke={INK} strokeWidth={2} style={{ cursor: i === 0 && landDraft.length >= 3 ? 'pointer' : 'default' }}
+                        onPointerDown={(e) => { e.stopPropagation(); if (i === 0 && landDraft.length >= 3) finishLand(); }} />
+                    ))}
+                  </g>);
+                })()}
               </g>
+
+              {/* bridge preview — auto-decks wherever a thread crosses water, same as the public map */}
+              <Bridges lines={lines} terrain={terrain} />
 
               {lines.map((l) => (editId && editId !== '__new' && editId === l.id ? null : (
                 <g key={l.id} style={{ cursor: tool === 'select' || tool === 'paint' || tool === 'bulldoze' ? 'pointer' : 'crosshair' }}

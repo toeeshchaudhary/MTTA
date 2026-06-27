@@ -13,6 +13,7 @@ export type Line = {
   shape: Shape;
   blurb: string;
   pts: Pt[]; // waypoints (source of truth)
+  under?: number[]; // indices of segments that run underground (tunnels); segment i = pts[i]→pts[i+1]
   d?: string; // derived; filled by lineD()/getLines()
 };
 

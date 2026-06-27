@@ -7,6 +7,7 @@ import type { TerrainFeature } from './terrain-kinds';
 import Trains from './Trains';
 import Critters from './Critters';
 import Terrain from './Terrain';
+import Bridges from './Bridges';
 import Pins from './Pins';
 
 const R = 11;
@@ -26,16 +27,35 @@ function ShapeMarker({ shape, sel }: { shape: Station['shape']; sel: boolean }) 
   return <circle r={r} fill="#fff" stroke={stroke} strokeWidth={sw} />;
 }
 
-// Interchange / joint stop — a white disc with a thick ink ring and a colour tick
-// per line that meets here (London-style), so it reads as a transfer between threads.
+// Interchange / joint stop — where threads merge. A raised white hub wrapped by a
+// segmented colour ring (one arc per line that meets here), so it reads instantly as
+// a transfer between exactly those threads. The hub casts a soft shadow for depth.
 function InterchangeMarker({ colors, sel }: { colors: string[]; sel: boolean }) {
-  const r = (sel ? RSEL : R) + 5;
-  const gap = 8.5, dotR = 4;
-  const start = -((colors.length - 1) * gap) / 2;
+  const base = sel ? RSEL : R;
+  const ringR = base + 8;   // radius of the colour ring
+  const hubR = base + 1;    // white hub inside it
+  const n = Math.max(colors.length, 1);
+  const seg = 360 / n;
+  const gapDeg = n > 1 ? 18 : 0; // breathing room between arcs
+  const toXY = (deg: number, rad: number) => { const a = ((deg - 90) * Math.PI) / 180; return [Math.cos(a) * rad, Math.sin(a) * rad]; };
   return (
     <g>
-      <circle r={r} fill="#fff" stroke={INK} strokeWidth={sel ? 4 : 3} />
-      {colors.map((c, i) => <circle key={i} cx={start + i * gap} cy={0} r={dotR} fill={c} />)}
+      {/* canvas halo so the crossing rails don't kiss the marker */}
+      <circle r={ringR + 4} fill="var(--canvas)" />
+      {/* colour ring — one arc segment per line meeting here */}
+      {n === 1
+        ? <circle r={ringR} fill="none" stroke={colors[0]} strokeWidth={5.5} />
+        : colors.map((c, i) => {
+            const a0 = i * seg + gapDeg / 2, a1 = (i + 1) * seg - gapDeg / 2;
+            const [x0, y0] = toXY(a0, ringR), [x1, y1] = toXY(a1, ringR);
+            const large = a1 - a0 > 180 ? 1 : 0;
+            return <path key={i} d={`M ${x0} ${y0} A ${ringR} ${ringR} 0 ${large} 1 ${x1} ${y1}`} fill="none" stroke={c} strokeWidth={5.5} strokeLinecap="round" />;
+          })}
+      {/* raised white hub */}
+      <g filter="url(#term-shadow)">
+        <circle r={hubR} fill="#fff" stroke={INK} strokeWidth={sel ? 3 : 2.5} />
+        <circle r={hubR * 0.42} fill={INK} />
+      </g>
     </g>
   );
 }
@@ -116,6 +136,12 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
   return (
     <svg viewBox={b.viewBox} className="tmap" width={b.w} height={b.h} role="group" aria-label="The network — a map of toeesh">
       <rect x={b.x} y={b.y} width={b.w} height={b.h} fill="var(--canvas)" />
+      <defs>
+        {/* soft shadow that lifts the terminus roundels off the canvas */}
+        <filter id="term-shadow" x="-60%" y="-60%" width="220%" height="220%">
+          <feDropShadow dx="0" dy="2.5" stdDeviation="3.5" floodColor="var(--terrain-shadow, rgba(20,20,20,0.22))" floodOpacity="1" />
+        </filter>
+      </defs>
       {/* celestial dot grid — a nod to toeesh's starfield boards */}
       <g opacity={0.75}>
         {vx.map((x) => hy.map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r={1.6} fill="var(--canvas-grid)" />))}
@@ -123,6 +149,8 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
 
       {/* terrain — fades in after the notes, before the lines */}
       <Terrain features={terrain} started={started} startAt={TERR_T} stagger={TERR_STAGGER} dur={TERR_DUR} />
+      {/* bridges — auto-placed where a route crosses water; drawn before the lines so the ribbon rides over the deck */}
+      <Bridges lines={lines} terrain={terrain} started={started} startAt={terrEnd} dur={LINE_DUR} />
 
       {/* lines (draw on one after another, after terrain) — id'd so trains can ride them */}
       {lines.map((l, i) => (
