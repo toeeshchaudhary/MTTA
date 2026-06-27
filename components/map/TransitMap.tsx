@@ -136,7 +136,7 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
       ))}
 
       {/* trains — JS rAF beads riding the lines (white, high-contrast, always move) */}
-      <Trains lines={lines.map((l) => ({ id: l.id, color: l.color }))} run={trains} />
+      <Trains lines={lines.map((l) => ({ id: l.id, color: l.color }))} stations={stations} run={trains} />
 
       {/* the pinboard — settles in right after the origin */}
       <Pins pins={pins} started={started} startAt={NOTES_T} stagger={NOTE_STAGGER} dur={NOTE_DUR} />
