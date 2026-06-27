@@ -65,6 +65,8 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
 
   // frame the map to whatever has been drawn — no fixed cut-off rectangle (origin included)
   const b = useMemo(() => contentBounds(lines, [...stations, { x: ox, y: oy }], terrain), [lines, stations, terrain, ox, oy]);
+  // stable identity so <Trains> doesn't restart every render (e.g. when a station is selected)
+  const trainLines = useMemo(() => lines.map((l) => ({ id: l.id, color: l.color })), [lines]);
   const GS = 80;
   const vx: number[] = [], hy: number[] = [];
   for (let x = Math.floor(b.x / GS) * GS; x <= b.x + b.w; x += GS) vx.push(x);
@@ -136,7 +138,7 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
       ))}
 
       {/* trains — JS rAF beads riding the lines (white, high-contrast, always move) */}
-      <Trains lines={lines.map((l) => ({ id: l.id, color: l.color }))} stations={stations} run={trains} onBoard={onSelect} />
+      <Trains lines={trainLines} stations={stations} run={trains} onBoard={onSelect} />
 
       {/* the pinboard — settles in right after the origin */}
       <Pins pins={pins} started={started} startAt={NOTES_T} stagger={NOTE_STAGGER} dur={NOTE_DUR} />
