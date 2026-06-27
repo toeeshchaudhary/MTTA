@@ -53,7 +53,15 @@ export default function Trains({ lines, stations = [], run }: { lines: { id: str
         const a = d.kf[j], b = d.kf[Math.min(j + 1, d.kf.length - 1)];
         const f = (b.t - a.t) > 0 ? Math.min(1, Math.max(0, (tt - a.t) / (b.t - a.t))) : 0;
         const dist = a.d + (b.d - a.d) * f;
-        try { const p = d.path.getPointAtLength(dist); d.car.setAttribute('transform', `translate(${p.x},${p.y})`); d.car.style.opacity = '1'; } catch {}
+        try {
+          const p = d.path.getPointAtLength(dist);
+          // tangent from two straddling points so the car aligns with the track
+          const pa = d.path.getPointAtLength(Math.min(dist + 6, d.len));
+          const pb = d.path.getPointAtLength(Math.max(dist - 6, 0));
+          const angle = Math.atan2(pa.y - pb.y, pa.x - pb.x) * 180 / Math.PI;
+          d.car.setAttribute('transform', `translate(${p.x},${p.y}) rotate(${angle})`);
+          d.car.style.opacity = '1';
+        } catch {}
       }
       raf = requestAnimationFrame(tick);
     };
@@ -66,9 +74,14 @@ export default function Trains({ lines, stations = [], run }: { lines: { id: str
   return (
     <g ref={gref} aria-hidden="true">
       {lines.map((l) => (
+        // a little train car, centred on its track point; rotated to the tangent at runtime.
+        // white body + line-colour border/windows so it reads as a vehicle ON its own line.
         <g key={l.id} className="train" data-line={l.id} style={{ opacity: 0 }}>
-          <circle r={12} fill="#fff" stroke={l.color} strokeWidth={6} />
-          <circle r={3.5} fill={l.color} />
+          <rect x={-17} y={-8.5} width={34} height={17} rx={7} fill="#fff" stroke={l.color} strokeWidth={3} />
+          <rect x={-11.5} y={-4} width={5.5} height={8} rx={1.5} fill={l.color} />
+          <rect x={-2.75} y={-4} width={5.5} height={8} rx={1.5} fill={l.color} />
+          <rect x={6} y={-4} width={5.5} height={8} rx={1.5} fill={l.color} />
+          <circle cx={14.5} cy={0} r={1.8} fill={l.color} />
         </g>
       ))}
     </g>

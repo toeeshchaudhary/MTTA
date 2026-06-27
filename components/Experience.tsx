@@ -5,6 +5,7 @@ import { contentBounds, RIBBON, type Line } from '@/content/lines';
 import type { Station, Pin } from '@/lib/content';
 import { KIND_BY_ID, type TerrainFeature } from '@/components/map/terrain-kinds';
 import TransitMap from './map/TransitMap';
+import DepartureBoard from './map/DepartureBoard';
 import Controls from './map/Controls';
 import StationDrawer from './StationDrawer';
 import IndexPanel from './IndexPanel';
@@ -120,6 +121,31 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
     });
   }, [stations, flyTo]);
 
+  // ride-the-line tour: step the camera through a thread's stops, opening each card
+  const tourTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [touring, setTouring] = useState<string | null>(null);
+  const stopTour = useCallback(() => { if (tourTimer.current) clearTimeout(tourTimer.current); tourTimer.current = null; setTouring(null); }, []);
+  const rideLineTour = useCallback((lineId: string) => {
+    if (tourTimer.current) clearTimeout(tourTimer.current);
+    const stops = stations.filter((s) => (s.lines && s.lines.length ? s.lines : [s.line]).includes(lineId));
+    if (!stops.length) { stopTour(); return; }
+    setFocusLine(lineId); setTouring(lineId); setExpanded(false);
+    let i = 0;
+    const step = () => {
+      if (i >= stops.length) { setTouring(null); tourTimer.current = setTimeout(() => { try { tw.current?.resetTransform(1200, 'easeOut'); } catch {} }, 300); return; }
+      select(stops[i].id); i += 1;
+      tourTimer.current = setTimeout(step, 2600);
+    };
+    step();
+  }, [stations, select, stopTour]);
+  // hand control back to the visitor if they scroll or hit a key mid-tour
+  useEffect(() => {
+    if (!touring) return;
+    const cancel = () => stopTour();
+    window.addEventListener('wheel', cancel); window.addEventListener('keydown', cancel);
+    return () => { window.removeEventListener('wheel', cancel); window.removeEventListener('keydown', cancel); };
+  }, [touring, stopTour]);
+
   const toggleMotion = () => {
     setMotionOff((m) => {
       const next = !m;
@@ -191,6 +217,8 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
       </TransformWrapper>
 
       {/* HUD — masthead pinned top-right, like the title block of a published map */}
+      {started && <DepartureBoard lines={lines} stations={stations} onPick={(id) => { setExpanded(false); select(id); }} />}
+
       <header className="masthead">
         <button className="brandmark" onClick={() => setAboutOpen(true)} aria-label="About toeesh">toeesh<span className="bm-net">.network</span></button>
         <div className="mast-desc mono"><span>a wayfinding system</span><span className="mast-dot">·</span><span>slowly living</span></div>
@@ -212,7 +240,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         </div>
         <ol className="leg-list">
           {lines.map((l, i) => (
-            <li key={l.id}>
+            <li key={l.id} className="leg-li">
               <button
                 className={`leg ${focusLine === l.id ? 'leg-on' : ''}`}
                 style={{ opacity: activeLine && activeLine !== l.id ? 0.32 : 1 }}
@@ -226,6 +254,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
                 <span className="leg-blurb">{l.blurb}</span>
                 <span className="leg-n mono">{countByLine[l.id] || 0}</span>
               </button>
+              <button className={`leg-ride ${touring === l.id ? 'on' : ''}`} title={touring === l.id ? 'stop the tour' : `ride the ${l.label} line`} aria-label={touring === l.id ? 'stop tour' : `ride the ${l.label} line`} onClick={() => (touring === l.id ? stopTour() : rideLineTour(l.id))}>{touring === l.id ? '■' : '▶'}</button>
             </li>
           ))}
         </ol>
@@ -370,6 +399,11 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         .legend-count { color: var(--ink-soft); font-size: 0.54rem; letter-spacing: 0.1em; }
         .leg-list { list-style: none; margin: 0; padding: 0; }
         .leg-list li + li { border-top: 1px solid var(--line); }
+        .leg-li { display: flex; align-items: stretch; }
+        .leg-li .leg { flex: 1; min-width: 0; }
+        .leg-ride { flex: none; width: 30px; background: none; border: 0; border-left: 1px solid var(--line); color: var(--ink-soft); cursor: pointer; font-size: 0.7rem; }
+        .leg-ride:hover { background: var(--ink); color: var(--bg); }
+        .leg-ride.on { background: var(--yellow); color: #111; }
         .leg { display: grid; grid-template-columns: auto 15px auto 1fr auto; align-items: center; column-gap: 10px; width: 100%; background: none; border: 0; cursor: pointer; color: var(--ink); padding: 9px 14px; text-align: left; }
         .leg:hover, .leg-on { background: var(--ink); color: var(--bg); }
         .leg-no { font-size: 0.58rem; letter-spacing: 0.05em; color: var(--ink-soft); }
