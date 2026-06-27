@@ -4,13 +4,23 @@ import { useEffect, useRef } from 'react';
 // One train per line: it shuttles from one end of the line to the other, pausing at
 // every station, then runs back — a small bit of life on each thread. JS rAF driven
 // (no SMIL/offset-path questions); position via getPointAtLength on the line path.
-type Stop = { x: number; y: number; line: string; lines?: string[] };
+type Stop = { id: string; x: number; y: number; line: string; lines?: string[] };
 
 const SPEED = 130;   // map units / second between stops
 const DWELL = 0.7;   // seconds paused at each station / terminus
 
-export default function Trains({ lines, stations = [], run }: { lines: { id: string; color: string }[]; stations?: Stop[]; run: boolean }) {
+export default function Trains({ lines, stations = [], run, onBoard }: { lines: { id: string; color: string }[]; stations?: Stop[]; run: boolean; onBoard?: (id: string) => void }) {
   const gref = useRef<SVGGElement>(null);
+  const posRef = useRef<Record<string, { x: number; y: number }>>({});
+
+  // click a moving train -> hop on at the station it's nearest to
+  const board = (lineId: string) => {
+    const pos = posRef.current[lineId]; if (!pos || !onBoard) return;
+    const onLine = stations.filter((s) => (s.lines && s.lines.length ? s.lines : [s.line]).includes(lineId));
+    let best = Infinity, id = '';
+    for (const s of onLine) { const dd = (s.x - pos.x) ** 2 + (s.y - pos.y) ** 2; if (dd < best) { best = dd; id = s.id; } }
+    if (id) onBoard(id);
+  };
 
   useEffect(() => {
     if (!run) return;
@@ -39,7 +49,7 @@ export default function Trains({ lines, stations = [], run }: { lines: { id: str
         time += Math.abs(seq[i] - seq[i - 1]) / SPEED; kf.push({ t: time, d: seq[i] });
         time += DWELL; kf.push({ t: time, d: seq[i] });
       }
-      return { car, path, len, kf, cycle: time };
+      return { id, car, path, len, kf, cycle: time };
     });
 
     let raf = 0;
@@ -61,6 +71,7 @@ export default function Trains({ lines, stations = [], run }: { lines: { id: str
           const angle = Math.atan2(pa.y - pb.y, pa.x - pb.x) * 180 / Math.PI;
           d.car.setAttribute('transform', `translate(${p.x},${p.y}) rotate(${angle})`);
           d.car.style.opacity = '1';
+          posRef.current[d.id] = { x: p.x, y: p.y };
         } catch {}
       }
       raf = requestAnimationFrame(tick);
@@ -76,7 +87,7 @@ export default function Trains({ lines, stations = [], run }: { lines: { id: str
       {lines.map((l) => (
         // a little train car, centred on its track point; rotated to the tangent at runtime.
         // white body + line-colour border/windows so it reads as a vehicle ON its own line.
-        <g key={l.id} className="train" data-line={l.id} style={{ opacity: 0 }}>
+        <g key={l.id} className="train" data-line={l.id} style={{ opacity: 0, cursor: onBoard ? 'pointer' : 'default' }} onPointerDown={(e) => { e.stopPropagation(); board(l.id); }}>
           <rect x={-17} y={-8.5} width={34} height={17} rx={7} fill="#fff" stroke={l.color} strokeWidth={3} />
           <rect x={-11.5} y={-4} width={5.5} height={8} rx={1.5} fill={l.color} />
           <rect x={-2.75} y={-4} width={5.5} height={8} rx={1.5} fill={l.color} />

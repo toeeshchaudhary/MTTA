@@ -160,15 +160,30 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [byId]);
 
-  // keyboard: "/" opens index, esc closes things
+  // keyboard: "/" or ⌘K opens index, arrows ride stop-to-stop, esc closes things
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === '/' && !indexOpen) { e.preventDefault(); setIndexOpen(true); }
-      if (e.key === 'Escape') { setIndexOpen(false); setAboutOpen(false); setFocusLine(null); }
+      const el = e.target as HTMLElement | null;
+      const typing = !!el && /INPUT|TEXTAREA|SELECT/.test(el.tagName);
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setIndexOpen((v) => !v); return; }
+      if (typing) return;
+      if (e.key === '/' && !indexOpen) { e.preventDefault(); setIndexOpen(true); return; }
+      if (e.key === 'Escape') { setIndexOpen(false); setAboutOpen(false); setFocusLine(null); stopTour(); return; }
+      if (['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'].includes(e.key)) {
+        const dir = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
+        const list = focusLine
+          ? stations.filter((s) => (s.lines && s.lines.length ? s.lines : [s.line]).includes(focusLine))
+          : selected ? stations.filter((s) => s.line === selected.line) : stations;
+        if (!list.length) return;
+        e.preventDefault();
+        const cur = selected ? list.findIndex((s) => s.id === selected.id) : -1;
+        const next = cur < 0 ? (dir > 0 ? 0 : list.length - 1) : (cur + dir + list.length) % list.length;
+        select(list[next].id);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [indexOpen]);
+  }, [indexOpen, focusLine, selected, stations, select, stopTour]);
 
   return (
     <div className="stage">
@@ -238,6 +253,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
           <span className="mono legend-title">the network</span>
           <span className="mono legend-count">{pad2(lines.length)} threads · {pad2(stations.length)} stops</span>
         </div>
+        <div className="leg-status mono"><span className="leg-live" />{touring ? 'now touring · enjoy the ride' : 'all lines running · slowly living'}</div>
         <ol className="leg-list">
           {lines.map((l, i) => (
             <li key={l.id} className="leg-li">
@@ -397,7 +413,11 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         .legend-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 11px 14px 10px; border-bottom: 1.5px solid var(--ink); }
         .legend-title { color: var(--ink); font-size: 0.62rem; letter-spacing: 0.18em; }
         .legend-count { color: var(--ink-soft); font-size: 0.54rem; letter-spacing: 0.1em; }
-        .leg-list { list-style: none; margin: 0; padding: 0; }
+        .leg-status { display: flex; align-items: center; gap: 7px; padding: 7px 14px; color: var(--ink-soft); font-size: 0.52rem; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--line); }
+        .leg-live { width: 7px; height: 7px; border-radius: 50%; background: #1f8a4c; flex: none; animation: leg-pulse 2.2s ease-out infinite; }
+        @keyframes leg-pulse { 0% { box-shadow: 0 0 0 0 rgba(31,138,76,0.5); } 70% { box-shadow: 0 0 0 6px rgba(31,138,76,0); } 100% { box-shadow: 0 0 0 0 rgba(31,138,76,0); } }
+        @media (prefers-reduced-motion: reduce) { .leg-live { animation: none; } }
+        .leg-list { list-style: none; margin: 0; padding: 0; max-height: 46vh; overflow: auto; }
         .leg-list li + li { border-top: 1px solid var(--line); }
         .leg-li { display: flex; align-items: stretch; }
         .leg-li .leg { flex: 1; min-width: 0; }
@@ -427,8 +447,12 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
           .hud-actions { gap: 5px; }
           .open-index, .start-here { font-size: 0.55rem; padding: 6px 8px; border-width: 2px; box-shadow: 3px 3px 0 rgba(0,0,0,0.3); }
           .open-index .mono { display: none; }
-          .legend { left: 12px; right: auto; bottom: 12px; width: auto; max-width: calc(100vw - 84px); }
+          .legend { left: 12px; right: 12px; bottom: 12px; width: auto; max-width: none; }
           .leg-blurb { display: none; }
+          .leg-list { max-height: 34vh; }
+          .leg { padding: 12px 14px; } /* bigger tap targets */
+          .leg-ride { width: 44px; font-size: 0.85rem; }
+          .leg-status, .colophon { display: none; }
           .legend-links { flex-wrap: wrap; }
           .onboard { top: 64px; bottom: auto; left: 12px; right: 12px; width: auto; transform: none; }
         }

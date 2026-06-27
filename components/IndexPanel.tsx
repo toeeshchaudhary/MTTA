@@ -22,14 +22,17 @@ export default function IndexPanel({ open, lines, stations, onClose, onSelect }:
   }, [open]);
 
   const lineById = useMemo(() => Object.fromEntries(lines.map((l) => [l.id, l])), [lines]);
-  const results = useMemo(
-    () =>
-      stations
-        .filter((s) => (filter ? s.line === filter : true))
-        .filter((s) => s.title.toLowerCase().includes(q.toLowerCase()))
-        .sort((a, b) => a.line.localeCompare(b.line) || a.title.localeCompare(b.title)),
-    [stations, q, filter]
-  );
+  const results = useMemo(() => {
+    const toks = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    return stations
+      .filter((s) => (filter ? s.line === filter : true))
+      .filter((s) => {
+        if (!toks.length) return true;
+        const hay = `${s.title} ${lineById[s.line]?.label ?? s.line} ${s.date ?? ''} ${s.body ?? ''}`.toLowerCase();
+        return toks.every((t) => hay.includes(t)); // every word must match, across title/line/date/body
+      })
+      .sort((a, b) => a.line.localeCompare(b.line) || a.title.localeCompare(b.title));
+  }, [stations, q, filter, lineById]);
 
   return (
     <AnimatePresence>
@@ -48,7 +51,7 @@ export default function IndexPanel({ open, lines, stations, onClose, onSelect }:
               <span className="mono">index · {stations.length} stops</span>
               <button className="ip-x" onClick={onClose} aria-label="Close">✕</button>
             </div>
-            <input ref={inputRef} className="ip-search" placeholder="search stops…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input ref={inputRef} className="ip-search" placeholder="search stops…  (⌘K)" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && results[0]) { e.preventDefault(); onSelect(results[0].id); } }} />
             <div className="ip-chips">
               <button className={`chip ${!filter ? 'on' : ''}`} onClick={() => setFilter(null)}>all</button>
               {lines.map((l) => (
