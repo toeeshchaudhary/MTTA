@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { MAP_VIEWBOX, RIBBON, roundedPath, type Pt } from '@/content/lines';
 import { TERRAIN_KINDS, KIND_BY_ID, type TerrainKind, type TerrainFeature } from '@/components/map/terrain-kinds';
-import type { Media, St, Ln, Pin, AboutLink, SiteMeta, Rect, Tool } from '@/components/admin/types';
+import type { Media, St, Ln, Pin, AboutLink, SiteMeta, PlayMeta, Rect, Tool } from '@/components/admin/types';
 import { TOOLS, PIN_KINDS, SHAPES, PALETTE, GRID, FAR, INK } from '@/components/admin/lib/constants';
 import { snap, isLight, clone, clientToSvg, distToPolyline, projectOnLine, snapTrack } from '@/components/admin/lib/geometry';
 import InfiniteGrid from '@/components/admin/canvas/InfiniteGrid';
@@ -15,6 +15,9 @@ import { onDrag } from '@/components/admin/hooks/usePointerDrag';
 import { useAdminTheme } from '@/components/admin/hooks/useAdminTheme';
 
 type Snap = { lines: Ln[]; stations: St[]; terrain: TerrainFeature[]; pins: Pin[]; site: SiteMeta; origin: Pt };
+
+const PLAY_DEFAULT: PlayMeta = { critters: true, stationPulse: true, expressTrain: true, serviceQuips: true, sounds: false, nightOwl: true, quips: [] };
+const normPlay = (p: Partial<PlayMeta> | undefined): PlayMeta => ({ ...PLAY_DEFAULT, ...(p || {}), quips: Array.isArray(p?.quips) ? p!.quips : [] });
 
 
 export default function Admin() {
@@ -65,7 +68,7 @@ export default function Admin() {
   const [origin, setOrigin] = useState<Pt>([700, 96]);
   const [origDrag, setOrigDrag] = useState(false);
   const origGrab = useRef<Pt>([0, 0]);
-  const [site, setSite] = useState<SiteMeta>({ originLabel: 'the origin — toeesh', originCue: 'about ↗', about: { name: '', role: '', blurb: '', links: [] } });
+  const [site, setSite] = useState<SiteMeta>({ originLabel: 'the origin — toeesh', originCue: 'about ↗', about: { name: '', role: '', blurb: '', links: [] }, play: PLAY_DEFAULT });
   const svgRef = useRef<SVGSVGElement>(null);
   const linesRef = useRef<Ln[]>([]);
   const tw = useRef<ReactZoomPanPinchRef>(null);
@@ -79,7 +82,7 @@ export default function Admin() {
   const loadStations = useCallback(async () => { const r = await fetch('/api/stations'); setStations((await r.json()).stations || []); }, []);
   const loadTerrain = useCallback(async () => { const r = await fetch('/api/terrain'); setTerrain((await r.json()).terrain || []); }, []);
   const loadPins = useCallback(async () => { const r = await fetch('/api/pins'); setPins((await r.json()).pins || []); }, []);
-  const loadSite = useCallback(async () => { const r = await fetch('/api/site'); const j = await r.json(); const s = j.site; if (!s) return; if (Array.isArray(s.origin)) setOrigin(s.origin as Pt); setSite({ originLabel: s.originLabel ?? '', originCue: s.originCue ?? '', about: { name: s.about?.name ?? '', role: s.about?.role ?? '', blurb: s.about?.blurb ?? '', links: Array.isArray(s.about?.links) ? s.about.links : [] } }); }, []);
+  const loadSite = useCallback(async () => { const r = await fetch('/api/site'); const j = await r.json(); const s = j.site; if (!s) return; if (Array.isArray(s.origin)) setOrigin(s.origin as Pt); setSite({ originLabel: s.originLabel ?? '', originCue: s.originCue ?? '', about: { name: s.about?.name ?? '', role: s.about?.role ?? '', blurb: s.about?.blurb ?? '', links: Array.isArray(s.about?.links) ? s.about.links : [] }, play: normPlay(s.play) }); }, []);
   useEffect(() => { loadLines(); loadStations(); loadTerrain(); loadPins(); loadSite(); }, [loadLines, loadStations, loadTerrain, loadPins, loadSite]);
 
   linesRef.current = lines;
@@ -99,7 +102,7 @@ export default function Admin() {
     for (const r of removed) await fetch('/api/stations', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: r.id }) });
     await fetch('/api/terrain', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ terrain: snap.terrain }) });
     await fetch('/api/pins', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pins: snap.pins }) });
-    await fetch('/api/site', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ origin: snap.origin, originLabel: snap.site.originLabel, originCue: snap.site.originCue, about: snap.site.about }) });
+    await fetch('/api/site', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ origin: snap.origin, originLabel: snap.site.originLabel, originCue: snap.site.originCue, about: snap.site.about, play: snap.site.play }) });
     await loadLines(); await loadStations(); await loadTerrain(); await loadPins(); await loadSite(); setSaving(false);
   };
   const restore = (snap: Snap) => { setLines(snap.lines); setStations(snap.stations); setTerrain(snap.terrain); setPins(snap.pins); setSite(snap.site); setOrigin(snap.origin); };
@@ -115,8 +118,9 @@ export default function Admin() {
   const commitPins = useCallback(async (next: Pin[]) => { setSaving(true); setPins(next); await fetch('/api/pins', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pins: next }) }); setSaving(false); }, []);
   const updPin = (id: string, patch: Partial<Pin>) => setPins((arr) => arr.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   const commitOrigin = useCallback(async (o: Pt) => { setSaving(true); setOrigin(o); await fetch('/api/site', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ origin: o }) }); setSaving(false); }, []);
-  const commitSite = useCallback(async (next: SiteMeta) => { setSaving(true); setSite(next); await fetch('/api/site', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ originLabel: next.originLabel, originCue: next.originCue, about: next.about }) }); setSaving(false); }, []);
+  const commitSite = useCallback(async (next: SiteMeta) => { setSaving(true); setSite(next); await fetch('/api/site', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ originLabel: next.originLabel, originCue: next.originCue, about: next.about, play: next.play }) }); setSaving(false); }, []);
   const setSiteAbout = (patch: Partial<SiteMeta['about']>) => setSite((s) => ({ ...s, about: { ...s.about, ...patch } }));
+  const setSitePlay = (patch: Partial<PlayMeta>) => setSite((s) => ({ ...s, play: { ...s.play, ...patch } }));
   const setSiteLink = (i: number, patch: Partial<AboutLink>) => setSite((s) => ({ ...s, about: { ...s.about, links: s.about.links.map((l, k) => (k === i ? { ...l, ...patch } : l)) } }));
 
   // which threads pass within reach of a point — drives joint-station suggestions
@@ -445,7 +449,7 @@ export default function Admin() {
           commitTerrain={commitTerrain} updTerr={updTerr} setSelTerr={setSelTerr}
           addThread={addThread} moveThread={moveThread} upLine={upLine}
           setTool={setTool} setEditId={setEditId} setTrack={setTrack} flash={flash}
-          setSite={setSite} commitSite={commitSite} setSiteAbout={setSiteAbout} setSiteLink={setSiteLink}
+          setSite={setSite} commitSite={commitSite} setSiteAbout={setSiteAbout} setSiteLink={setSiteLink} setSitePlay={setSitePlay}
         />
       </div>
 

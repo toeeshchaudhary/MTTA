@@ -12,11 +12,13 @@ import StationDrawer from './StationDrawer';
 import IndexPanel from './IndexPanel';
 import Intro from './Intro';
 import ThemeToggle from './ThemeToggle';
+import { PLAY_DEFAULTS, type Play } from '@/lib/play';
+import { setSfxEnabled, chimeOpen, chimeClose } from '@/lib/sfx';
 
 type AboutData = { name: string; role: string; blurb: string; links: { label: string; url: string }[] };
 const DEFAULT_ABOUT: AboutData = { name: 'Toeesh Chaudhary', role: '', blurb: '', links: [] };
 
-export default function Experience({ lines, stations, terrain = [], pins = [], origin = [700, 96], originLabel = 'the origin — toeesh', originCue = 'about ↗', about = DEFAULT_ABOUT, initialStop }: { lines: Line[]; stations: Station[]; terrain?: TerrainFeature[]; pins?: Pin[]; origin?: [number, number]; originLabel?: string; originCue?: string; about?: AboutData; initialStop?: string }) {
+export default function Experience({ lines, stations, terrain = [], pins = [], origin = [700, 96], originLabel = 'the origin — toeesh', originCue = 'about ↗', about = DEFAULT_ABOUT, play = PLAY_DEFAULTS, initialStop }: { lines: Line[]; stations: Station[]; terrain?: TerrainFeature[]; pins?: Pin[]; origin?: [number, number]; originLabel?: string; originCue?: string; about?: AboutData; play?: Play; initialStop?: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoveredLine, setHoveredLine] = useState<string | null>(null);
   const [focusLine, setFocusLine] = useState<string | null>(null);
@@ -33,6 +35,8 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
   // on prefers-reduced-motion — they'd silently never show on motion-averse setups; the
   // "motion: off" toggle is the explicit opt-out.)
   const trains = started && !motionOff;
+  const crittersRun = started && !motionOff && play.critters;
+  const [nightOwl, setNightOwl] = useState(false);
 
   useEffect(() => { try { setReduced(matchMedia('(prefers-reduced-motion: reduce)').matches); } catch {} }, []);
 
@@ -106,6 +110,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
   const pushedRef = useRef(false);
   const select = useCallback((id: string | null, fly = true) => {
     setSelectedId(id);
+    if (id) chimeOpen(); else if (pushedRef.current) chimeClose();   // subway door chime (no-op unless sounds on)
     // canonical, shareable URL per stop — /s/<id> is a real SSG route with its own OG card.
     // First open pushes a history entry (Back closes it); switching stops replaces in place.
     try {
@@ -123,6 +128,24 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
     } catch {}
     if (id && fly) setTimeout(() => flyTo(id), 30);
   }, [flyTo]);
+
+  // sound kit follows the admin's play.sounds flag
+  useEffect(() => { setSfxEnabled(play.sounds); }, [play.sounds]);
+
+  // night-owl easter egg — the Konami code flips a neon mode (if enabled in admin)
+  useEffect(() => { document.documentElement.classList.toggle('night-owl', nightOwl); }, [nightOwl]);
+  useEffect(() => {
+    if (!play.nightOwl) return;
+    const seq = ['arrowup', 'arrowup', 'arrowdown', 'arrowdown', 'arrowleft', 'arrowright', 'arrowleft', 'arrowright', 'b', 'a'];
+    let i = 0;
+    const onKey = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      i = k === seq[i] ? i + 1 : (k === seq[0] ? 1 : 0);
+      if (i === seq.length) { i = 0; setNightOwl((v) => !v); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [play.nightOwl]);
 
   // browser Back/Forward ↔ open stop
   useEffect(() => {
@@ -241,6 +264,9 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
             activeLine={activeLine}
             started={started}
             trains={trains}
+            stationPulse={play.stationPulse}
+            expressTrain={play.expressTrain}
+            crittersRun={crittersRun}
             onHoverLine={setHoveredLine}
             onSelect={(id) => { setExpanded(false); select(id); }}
             onOrigin={() => setAboutOpen(true)}
@@ -263,7 +289,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
       </TransformWrapper>
 
       {/* HUD — masthead pinned top-right, like the title block of a published map */}
-      {started && <DepartureBoard lines={lines} stations={stations} focusLine={focusLine} onPick={(id) => { setExpanded(false); select(id); }} />}
+      {started && <DepartureBoard lines={lines} stations={stations} focusLine={focusLine} quips={play.serviceQuips ? play.quips : []} onPick={(id) => { setExpanded(false); select(id); }} />}
 
       <header className="masthead">
         <button className="brandmark" onClick={() => setAboutOpen(true)} aria-label="About toeesh">toeesh<span className="bm-net">.network</span></button>

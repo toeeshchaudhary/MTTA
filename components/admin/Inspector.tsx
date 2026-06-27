@@ -7,7 +7,7 @@ import remarkGfm from 'remark-gfm';
 import { TERRAIN_KINDS, type TerrainKind, type TerrainFeature } from '@/components/map/terrain-kinds';
 import { SHAPES, PALETTE, PIN_KINDS, GRID } from '@/components/admin/lib/constants';
 import { isLight } from '@/components/admin/lib/geometry';
-import type { Media, St, Ln, Pin, SiteMeta, AboutLink } from '@/components/admin/types';
+import type { Media, St, Ln, Pin, SiteMeta, PlayMeta, AboutLink } from '@/components/admin/types';
 
 export type InspectorProps = {
   form: St | null; setForm: React.Dispatch<React.SetStateAction<St | null>>;
@@ -45,6 +45,7 @@ export type InspectorProps = {
   commitSite: (next: SiteMeta) => void;
   setSiteAbout: (patch: Partial<SiteMeta['about']>) => void;
   setSiteLink: (i: number, patch: Partial<AboutLink>) => void;
+  setSitePlay: (patch: Partial<PlayMeta>) => void;
 };
 
 export default function Inspector(p: InspectorProps) {
@@ -54,8 +55,18 @@ export default function Inspector(p: InspectorProps) {
     setMedia, upload, uploadPin, wrapSel, prefixLine, linesNear, pushHistory, commitLines,
     saveStation, delStation, closeForm, pendingLine, setPendingLine, setSelSt, commitPins, updPin,
     setSelPin, commitTerrain, updTerr, setSelTerr, addThread, moveThread, upLine, setTool, setEditId,
-    setTrack, flash, setSite, commitSite, setSiteAbout, setSiteLink,
+    setTrack, flash, setSite, commitSite, setSiteAbout, setSiteLink, setSitePlay,
   } = p;
+  // play (playful extras) toggles — commit the computed next so we never read stale state
+  const PLAY_TOGGLES: { k: keyof PlayMeta; label: string; hint: string }[] = [
+    { k: 'critters', label: 'track critters', hint: 'a subway rat scurries the lines (rare pizza-rat)' },
+    { k: 'stationPulse', label: 'arrival pulse', hint: 'stops ping when a train dwells' },
+    { k: 'expressTrain', label: 'express train', hint: 'a rare express blows through non-stop' },
+    { k: 'serviceQuips', label: 'service quips', hint: 'witty messages on the departures board' },
+    { k: 'sounds', label: 'sounds', hint: 'door chime on open/close, swipe on share' },
+    { k: 'nightOwl', label: 'night-owl egg', hint: 'enable the Konami-code neon mode' },
+  ];
+  const togglePlay = (k: keyof PlayMeta) => commitSite({ ...site, play: { ...site.play, [k]: !site.play[k] } });
   return (
     <aside className={`adm-inspector scroll ${form ? 'wide' : ''}`} onDragOver={(e) => { if (form) e.preventDefault(); }} onDrop={(e) => { if (form && e.dataTransfer.files[0]) { e.preventDefault(); upload(e.dataTransfer.files[0]); } }}>
       {form ? (
@@ -185,6 +196,21 @@ export default function Inspector(p: InspectorProps) {
                 <button className="tbtn sm" onClick={() => commitSite({ ...site, about: { ...site.about, links: site.about.links.filter((_, k) => k !== i) } })}>✕</button>
               </div>
             ))}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '2px solid var(--line)', marginTop: 12, paddingTop: 12 }}>
+            <div className="ed-h"><span className="mono">playful extras</span></div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {PLAY_TOGGLES.map((t) => (
+                <button key={t.k} className={`tbtn sm ${site.play[t.k] ? 'on' : ''}`} title={t.hint} onClick={() => togglePlay(t.k)}>
+                  {site.play[t.k] ? '◉' : '○'} {t.label}
+                </button>
+              ))}
+            </div>
+            <label>service quips <span className="dimk" style={{ textTransform: 'none', letterSpacing: 0 }}>(one per line)</span>
+              <textarea className="bodyta" style={{ minHeight: 92, resize: 'vertical' }} value={site.play.quips.join('\n')}
+                onChange={(e) => setSitePlay({ quips: e.target.value.split('\n') })}
+                onBlur={() => commitSite({ ...site, play: { ...site.play, quips: site.play.quips.filter((q) => q.trim()) } })} />
+            </label>
           </div>
           <p className="mono dimk foot">{stations.length} stops · {lines.length} threads · dev-only writes</p>
         </div>

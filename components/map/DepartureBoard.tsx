@@ -9,7 +9,7 @@ import type { Station } from '@/lib/content';
 const ROWS = 3;
 const ROTATE_MS = 3200;
 
-export default function DepartureBoard({ lines, stations, focusLine = null, onPick }: { lines: Line[]; stations: Station[]; focusLine?: string | null; onPick?: (id: string) => void }) {
+export default function DepartureBoard({ lines, stations, focusLine = null, quips = [], onPick }: { lines: Line[]; stations: Station[]; focusLine?: string | null; quips?: string[]; onPick?: (id: string) => void }) {
   const byId = useMemo(() => Object.fromEntries(lines.map((l) => [l.id, l])), [lines]);
   const onLine = (s: Station, id: string) => (s.lines && s.lines.length ? s.lines : [s.line]).includes(id);
   const entries = useMemo(() => stations
@@ -25,6 +25,7 @@ export default function DepartureBoard({ lines, stations, focusLine = null, onPi
   const [hhmm, setHhmm] = useState('');
   const [colon, setColon] = useState(true);
   const [open, setOpen] = useState(true);  // minimised / maximised (click the header)
+  const [quip, setQuip] = useState<string | null>(null);  // occasional witty service message
   const reduced = useRef(false);
 
   useEffect(() => {
@@ -40,6 +41,18 @@ export default function DepartureBoard({ lines, stations, focusLine = null, onPi
     return () => clearInterval(t);
   }, [entries.length]);
   useEffect(() => { setHead(0); }, [focusLine]);   // restart the window when the filter changes
+
+  // every so often, flash a witty "service message" in place of the top departure
+  useEffect(() => {
+    if (!quips.length) { setQuip(null); return; }
+    let n = 0;
+    const t = setInterval(() => {
+      const q = quips[n % quips.length]; n += 1;
+      setQuip(q);
+      setTimeout(() => setQuip(null), 4200);
+    }, 13000);
+    return () => clearInterval(t);
+  }, [quips]);
 
   // live clock with a blinking colon (steady under reduced-motion)
   useEffect(() => {
@@ -73,7 +86,13 @@ export default function DepartureBoard({ lines, stations, focusLine = null, onPi
         </span>
       </button>
       <div className="dep-rows">
-        {rows.map((r, k) => (
+        {quip && (
+          <div className="dep-row quip" aria-live="polite">
+            <span className="dep-quip-led" />
+            <span className="dep-quip-text">{quip}</span>
+          </div>
+        )}
+        {(quip ? rows.slice(0, Math.max(1, ROWS - 1)) : rows).map((r, k) => (
           <button key={`${r.id}-${k}`} className={`dep-row ${r.due ? 'due' : ''}`} onClick={() => onPick?.(r.id)} title={`jump to ${r.title}`} aria-label={`${r.title} on ${r.label}, ${r.mins}`}>
             <span className="dep-trk">{String(r.trk).padStart(2, '0')}</span>
             <span className="dep-dot" style={{ background: r.color }} />
@@ -124,6 +143,11 @@ export default function DepartureBoard({ lines, stations, focusLine = null, onPi
           animation: dep-flip 0.42s cubic-bezier(0.2,0.7,0.2,1) both; }
         .dep-min { justify-self: end; color: #9a9aa0; font-size: 0.66rem; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .dep-min.now { color: #ffcf00; font-weight: 700; letter-spacing: 0.1em; }
+        .dep-row.quip { grid-template-columns: 14px 1fr; cursor: default; border-left-color: #ffcf00; background: rgba(255,207,0,0.08);
+          animation: dep-flip 0.42s cubic-bezier(0.2,0.7,0.2,1) both; }
+        .dep-quip-led { width: 8px; height: 8px; border-radius: 50%; background: #ffcf00; box-shadow: 0 0 6px #ffcf00aa;
+          animation: dep-pulse 1.4s ease-in-out infinite; }
+        .dep-quip-text { color: #ffcf00; font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         @keyframes dep-flip { 0% { opacity: 0; transform: translateY(-8px) scaleY(0.55); transform-origin: top; }
           60% { opacity: 1; } 100% { opacity: 1; transform: none; } }
         @keyframes dep-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
@@ -131,7 +155,7 @@ export default function DepartureBoard({ lines, stations, focusLine = null, onPi
           .dep-line { display: none; } }
         @media (prefers-reduced-motion: reduce) {
           .dep-dest { animation: none; } .dep-live i { animation: none; } .dep-colon { transition: none; }
-          .dep-rows { transition: none; }
+          .dep-rows { transition: none; } .dep-row.quip { animation: none; } .dep-quip-led { animation: none; }
         }
       `}</style>
     </div>

@@ -6,7 +6,8 @@ export type St = { id: string; title: string; line: string; lines?: string[]; da
 export type Ln = { id: string; label: string; color: string; text: string; shape: string; blurb: string; d: string; pts?: Pt[] };
 export type Pin = { id: string; kind: 'note' | 'photo'; x: number; y: number; w: number; h: number; tag?: string; text?: string; src?: string; caption?: string };
 export type AboutLink = { label: string; url: string };
-export type SiteMeta = { originLabel: string; originCue: string; about: { name: string; role: string; blurb: string; links: AboutLink[] } };
+export type PlayMeta = { critters: boolean; stationPulse: boolean; expressTrain: boolean; serviceQuips: boolean; sounds: boolean; nightOwl: boolean; quips: string[] };
+export type SiteMeta = { originLabel: string; originCue: string; about: { name: string; role: string; blurb: string; links: AboutLink[] }; play: PlayMeta };
 export type Rect = { x: number; y: number; w: number; h: number };
 export type Tool = 'select' | 'station' | 'track' | 'paint' | 'terrain' | 'note' | 'bulldoze';
 // undo/redo snapshot — covers every editable slice (history used to drop terrain/pins/site)

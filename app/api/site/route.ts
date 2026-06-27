@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { getSite, type Site, type AboutLink } from '@/lib/content';
+import { getSite, normalizePlay, type Site, type AboutLink } from '@/lib/content';
 
 const FILE = path.join(process.cwd(), 'content', 'site.json');
 const isDev = process.env.NODE_ENV !== 'production';
@@ -28,6 +28,7 @@ export async function POST(req: Request) {
       blurb: typeof body.about.blurb === 'string' ? body.about.blurb : cur.about.blurb,
       links: Array.isArray(body.about.links) ? body.about.links.filter((l: AboutLink) => l && typeof l.label === 'string').map((l: AboutLink) => ({ label: String(l.label), url: String(l.url || '') })) : cur.about.links,
     } : cur.about,
+    play: body.play && typeof body.play === 'object' ? normalizePlay({ ...cur.play, ...body.play }) : cur.play,
   };
   await fs.writeFile(FILE, JSON.stringify(site, null, 2) + '\n', 'utf8');
   return NextResponse.json({ ok: true, site });

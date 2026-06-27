@@ -5,6 +5,7 @@ import { RIBBON, contentBounds, type Line } from '@/content/lines';
 import type { Station, Pin } from '@/lib/content';
 import type { TerrainFeature } from './terrain-kinds';
 import Trains from './Trains';
+import Critters from './Critters';
 import Terrain from './Terrain';
 import Pins from './Pins';
 
@@ -48,6 +49,9 @@ type Props = {
   activeLine: string | null; // hovered or focused thread
   started: boolean; // intro finished → run draw-on
   trains: boolean; // run the moving beads
+  stationPulse?: boolean; // pulse a stop when a train dwells
+  expressTrain?: boolean; // allow the rare express run
+  crittersRun?: boolean; // allow the track rat
   onHoverLine: (id: string | null) => void;
   onSelect: (id: string) => void;
   onOrigin?: () => void; // click the origin marker → About card
@@ -58,7 +62,7 @@ type Props = {
   codeOf?: Record<string, string>; // station id → system code (e.g. 02·01)
 };
 
-export default function TransitMap({ lines, stations, terrain, pins = [], selectedId, activeLine, started, trains, onHoverLine, onSelect, onOrigin, origin = [700, 96], originLabel = 'the origin — toeesh', originCue = 'about ↗', featured = [], codeOf = {} }: Props) {
+export default function TransitMap({ lines, stations, terrain, pins = [], selectedId, activeLine, started, trains, stationPulse = true, expressTrain = true, crittersRun = false, onHoverLine, onSelect, onOrigin, origin = [700, 96], originLabel = 'the origin — toeesh', originCue = 'about ↗', featured = [], codeOf = {} }: Props) {
   const [hoverId, setHoverId] = useState<string | null>(null);
   const dim = (lineId: string) => (activeLine && activeLine !== lineId ? 0.14 : 1);
   const [ox, oy] = origin;
@@ -138,7 +142,8 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
       ))}
 
       {/* trains — JS rAF beads riding the lines (white, high-contrast, always move) */}
-      <Trains lines={trainLines} stations={stations} run={trains} onBoard={onSelect} />
+      <Trains lines={trainLines} stations={stations} run={trains} stationPulse={stationPulse} expressTrain={expressTrain} onBoard={onSelect} />
+      <Critters lines={trainLines} run={crittersRun} />
 
       {/* the pinboard — settles in right after the origin */}
       <Pins pins={pins} started={started} startAt={NOTES_T} stagger={NOTE_STAGGER} dur={NOTE_DUR} />

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getLines, getStations, getTerrain, getPins } from '@/lib/content';
+import { getLines, getStations, getTerrain, getPins, getSite } from '@/lib/content';
 import Experience from '@/components/Experience';
 
 export function generateStaticParams() {
@@ -28,5 +28,6 @@ export default async function StopPage({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const stations = getStations();
   if (!stations.find((s) => s.id === id)) notFound();
-  return <Experience lines={getLines()} stations={stations} terrain={getTerrain()} pins={getPins()} initialStop={id} />;
+  const site = getSite();
+  return <Experience lines={getLines()} stations={stations} terrain={getTerrain()} pins={getPins()} origin={site.origin} originLabel={site.originLabel} originCue={site.originCue} about={site.about} play={site.play} initialStop={id} />;
 }

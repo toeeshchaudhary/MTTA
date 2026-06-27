@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { swipe } from '@/lib/sfx';
 import type { Line } from '@/content/lines';
 import type { Station } from '@/lib/content';
 import MediaBlock from './media/MediaBlock';
@@ -34,10 +35,12 @@ export default function StationDrawer({ station, code, line, expanded, hasPrev, 
   const passSrc = station ? `/s/${station.id}/opengraph-image` : '';
 
   const copyLink = async () => {
+    swipe();   // MetroCard swipe (no-op unless sounds on)
     try { await navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch {}
   };
   const nativeShare = async () => {
     if (!station) return;
+    swipe();
     if (navigator.share) { try { await navigator.share({ title: `${station.title} · toeesh.network`, text: `A stop on toeesh.network: ${station.title}`, url: shareUrl }); } catch {} }
     else copyLink();
   };

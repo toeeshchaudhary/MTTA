@@ -29,11 +29,14 @@ const PINS_FILE = path.join(process.cwd(), 'content', 'pins.json');
 const SITE_FILE = path.join(process.cwd(), 'content', 'site.json');
 
 export type AboutLink = { label: string; url: string };
+import { PLAY_DEFAULTS, normalizePlay, type Play } from './play';
+export { PLAY_DEFAULTS, normalizePlay, type Play };
 export type Site = {
   origin: [number, number];
   originLabel: string;   // the pill text next to the origin dot
   originCue: string;     // the small "about ↗" cue/button on the pill
   about: { name: string; role: string; blurb: string; links: AboutLink[] };
+  play: Play;
 };
 
 const DEFAULTS: Site = {
@@ -50,6 +53,7 @@ const DEFAULTS: Site = {
       { label: 'email ↗', url: 'mailto:thesonofdevilhunter1@gmail.com' },
     ],
   },
+  play: PLAY_DEFAULTS,
 };
 
 export function getSite(): Site {
@@ -68,6 +72,7 @@ export function getSite(): Site {
         blurb: typeof a.blurb === 'string' ? a.blurb : DEFAULTS.about.blurb,
         links: Array.isArray(a.links) ? a.links.filter((l: AboutLink) => l && typeof l.label === 'string').map((l: AboutLink) => ({ label: String(l.label), url: String(l.url || '') })) : DEFAULTS.about.links,
       },
+      play: normalizePlay(raw?.play),
     };
   } catch {}
   return DEFAULTS;

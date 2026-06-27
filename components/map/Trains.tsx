@@ -1,17 +1,21 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // One train per line: it shuttles from one end of the line to the other, pausing at
 // every station, then runs back — a small bit of life on each thread. JS rAF driven
 // (no SMIL/offset-path questions); position via getPointAtLength on the line path.
+// Extras (admin-toggleable): a pulse ring when a train dwells at a stop, and a rare
+// express that blows down a random line without stopping.
 type Stop = { id: string; x: number; y: number; line: string; lines?: string[] };
 
 const SPEED = 130;   // map units / second between stops
 const DWELL = 0.7;   // seconds paused at each station / terminus
 
-export default function Trains({ lines, stations = [], run, onBoard }: { lines: { id: string; color: string }[]; stations?: Stop[]; run: boolean; onBoard?: (id: string) => void }) {
+export default function Trains({ lines, stations = [], run, stationPulse = true, expressTrain = true, onBoard }: { lines: { id: string; color: string }[]; stations?: Stop[]; run: boolean; stationPulse?: boolean; expressTrain?: boolean; onBoard?: (id: string) => void }) {
   const gref = useRef<SVGGElement>(null);
   const posRef = useRef<Record<string, { x: number; y: number }>>({});
+  const [pings, setPings] = useState<{ key: number; x: number; y: number; color: string }[]>([]);
+  const pingKey = useRef(0);
 
   // click a moving train -> hop on at the station it's nearest to
   const board = (lineId: string) => {
@@ -22,11 +26,17 @@ export default function Trains({ lines, stations = [], run, onBoard }: { lines: 
     if (id) onBoard(id);
   };
 
+  const ping = (x: number, y: number, color: string) => {
+    const key = ++pingKey.current;
+    setPings((ps) => [...ps, { key, x, y, color }]);
+    setTimeout(() => setPings((ps) => ps.filter((p) => p.key !== key)), 720);
+  };
+
   useEffect(() => {
     if (!run) return;
     const g = gref.current;
     if (!g) return;
-    const cars = Array.from(g.querySelectorAll<SVGGElement>('g.train'));
+    const cars = Array.from(g.querySelectorAll<SVGGElement>('g.train:not(.express)'));
 
     const data = cars.map((car) => {
       const id = car.dataset.line!;
@@ -39,7 +49,11 @@ export default function Trains({ lines, stations = [], run, onBoard }: { lines: 
       if (path && len) for (let i = 0; i <= N; i++) { const d = (len * i) / N; const p = path.getPointAtLength(d); samples.push({ d, x: p.x, y: p.y }); }
       const onLine = stations.filter((s) => (s.lines && s.lines.length ? s.lines : [s.line]).includes(id));
       const dists = new Set<number>();
-      for (const s of onLine) { let best = Infinity, bd = 0; for (const sm of samples) { const dd = (sm.x - s.x) ** 2 + (sm.y - s.y) ** 2; if (dd < best) { best = dd; bd = sm.d; } } dists.add(Math.round(bd)); }
+      const stopsMap: { d: number; x: number; y: number }[] = [];
+      for (const s of onLine) {
+        let best = Infinity, bd = 0; for (const sm of samples) { const dd = (sm.x - s.x) ** 2 + (sm.y - s.y) ** 2; if (dd < best) { best = dd; bd = sm.d; } }
+        dists.add(Math.round(bd)); stopsMap.push({ d: Math.round(bd), x: s.x, y: s.y });
+      }
       const stops = Array.from(new Set<number>([0, ...dists, len])).sort((a, b) => a - b);
       // forward through the stops, then back — dwelling at each. Keyframes of {t, dist}.
       const seq = [...stops, ...[...stops].reverse().slice(1)];
@@ -49,7 +63,8 @@ export default function Trains({ lines, stations = [], run, onBoard }: { lines: 
         time += Math.abs(seq[i] - seq[i - 1]) / SPEED; kf.push({ t: time, d: seq[i] });
         time += DWELL; kf.push({ t: time, d: seq[i] });
       }
-      return { id, car, path, len, kf, cycle: time };
+      const color = lines.find((l) => l.id === id)?.color ?? '#888';
+      return { id, car, path, len, kf, cycle: time, stopsMap, color, lastDwell: null as number | null };
     });
 
     let raf = 0;
@@ -72,26 +87,83 @@ export default function Trains({ lines, stations = [], run, onBoard }: { lines: 
           d.car.setAttribute('transform', `translate(${p.x},${p.y}) rotate(${angle})`);
           d.car.style.opacity = '1';
           posRef.current[d.id] = { x: p.x, y: p.y };
+          // dwell pulse: when sitting still (a.d === b.d) near a real station, ping it once
+          if (stationPulse) {
+            const dwelling = a.d === b.d;
+            if (dwelling) {
+              const stop = d.stopsMap.find((s) => Math.abs(s.d - a.d) < 2);
+              if (stop && d.lastDwell !== stop.d) { d.lastDwell = stop.d; ping(stop.x, stop.y, d.color); }
+            } else { d.lastDwell = null; }
+          }
         } catch {}
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [run, lines, stations]);
+  }, [run, lines, stations, stationPulse]);
+
+  // rare express run on a random line — no stops, full speed
+  useEffect(() => {
+    if (!run || !expressTrain || !lines.length) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    let alive = true, raf = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const exp = gref.current?.querySelector('g.train.express') as SVGGElement | null;
+    const next = () => { timer = setTimeout(go, 22000 + Math.random() * 30000); };
+    const go = () => {
+      if (!alive || !exp) return;
+      const line = lines[Math.floor(Math.random() * lines.length)];
+      const path = document.getElementById(`line-${line.id}`) as unknown as SVGPathElement | null;
+      let len = 0; try { len = path?.getTotalLength?.() ?? 0; } catch {}
+      if (!path || !len) { next(); return; }
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      const dur = len / 470;             // express: ~470 u/s
+      const start = performance.now();
+      const step = (now: number) => {
+        if (!alive) return;
+        const f = Math.min(1, (now - start) / 1000 / dur);
+        const d = dir > 0 ? len * f : len * (1 - f);
+        try {
+          const p = path.getPointAtLength(d);
+          const pa = path.getPointAtLength(Math.min(d + 6, len));
+          const pb = path.getPointAtLength(Math.max(d - 6, 0));
+          let ang = Math.atan2(pa.y - pb.y, pa.x - pb.x) * 180 / Math.PI; if (dir < 0) ang += 180;
+          exp.setAttribute('transform', `translate(${p.x},${p.y}) rotate(${ang})`);
+          exp.style.opacity = f < 0.07 ? String(f / 0.07) : f > 0.9 ? String((1 - f) / 0.1) : '1';
+        } catch {}
+        if (f < 1) raf = requestAnimationFrame(step);
+        else { exp.style.opacity = '0'; next(); }
+      };
+      raf = requestAnimationFrame(step);
+    };
+    next();
+    return () => { alive = false; if (timer) clearTimeout(timer); cancelAnimationFrame(raf); };
+  }, [run, expressTrain, lines]);
 
   if (!run) return null;
 
   return (
     <g ref={gref} aria-hidden="true">
+      {pings.map((p) => (
+        <circle key={p.key} className="mta-ping" cx={p.x} cy={p.y} r={4} style={{ stroke: p.color }} />
+      ))}
       {lines.map((l, i) => (
         // a little train car, centred on its track point; rotated to the tangent at runtime.
-        // white body + line-colour detail so it reads as a vehicle ON its own line.
         // each line gets one of three rolling-stock designs so the network feels varied.
         <g key={l.id} className="train" data-line={l.id} style={{ opacity: 0, cursor: onBoard ? 'pointer' : 'default' }} onPointerDown={(e) => { e.stopPropagation(); board(l.id); }}>
           <Car color={l.color} variant={i % 3} />
         </g>
       ))}
+      {/* the rare express — a single transient car, positioned by the express effect */}
+      <g className="train express" style={{ opacity: 0 }} aria-hidden="true">
+        <rect x={-20} y={-8} width={40} height={16} rx={5} fill="#16161a" stroke="#ffcf00" strokeWidth={2.5} />
+        <rect x={-13} y={-3.5} width={6} height={7} rx={1.2} fill="#ffcf00" />
+        <rect x={-4} y={-3.5} width={6} height={7} rx={1.2} fill="#ffcf00" />
+        <rect x={5} y={-3.5} width={6} height={7} rx={1.2} fill="#ffcf00" />
+        <circle cx={17} cy={0} r={1.9} fill="#fff" />
+        <path d="M -19 -10.5 l 4 -3 l 4 3 l -4 3 Z" fill="#ffcf00" />
+      </g>
     </g>
   );
 }
