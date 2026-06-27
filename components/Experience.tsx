@@ -10,8 +10,10 @@ import DepartureBoard from './map/DepartureBoard';
 import Controls from './map/Controls';
 import StationDrawer from './StationDrawer';
 import IndexPanel from './IndexPanel';
+import TripPlanner, { type TripResult } from './TripPlanner';
 import Intro from './Intro';
 import ThemeToggle from './ThemeToggle';
+import { planTrip } from '@/lib/route';
 import { PLAY_DEFAULTS, type Play } from '@/lib/play';
 import { setSfxEnabled, chimeOpen, chimeClose } from '@/lib/sfx';
 
@@ -37,6 +39,8 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
   const trains = started && !motionOff;
   const crittersRun = started && !motionOff && play.critters;
   const [nightOwl, setNightOwl] = useState(false);
+  const [tripOpen, setTripOpen] = useState(false);
+  const [tripResult, setTripResult] = useState<TripResult>(null);
 
   useEffect(() => { try { setReduced(matchMedia('(prefers-reduced-motion: reduce)').matches); } catch {} }, []);
 
@@ -191,6 +195,37 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
     };
     step();
   }, [stations, select, stopTour]);
+
+  // ride an explicit list of stops (used by the trip planner) — camera steps through each
+  const rideStops = useCallback((ids: string[]) => {
+    if (tourTimer.current) clearTimeout(tourTimer.current);
+    if (!ids.length) { stopTour(); return; }
+    setTouring('trip'); setExpanded(false);
+    let i = 0;
+    const step = () => {
+      if (i >= ids.length) { setTouring(null); tourTimer.current = setTimeout(() => { try { tw.current?.resetTransform(1200, 'easeOut'); } catch {} }, 500); return; }
+      select(ids[i]); i += 1;
+      tourTimer.current = setTimeout(step, 1600);
+    };
+    step();
+  }, [select, stopTour]);
+
+  // "surprise me" — hop to a random stop (skip the current one)
+  const surprise = useCallback(() => {
+    stopTour(); setExpanded(false); setTripOpen(false);
+    const pool = stations.filter((s) => s.id !== selectedId);
+    if (!pool.length) return;
+    select(pool[Math.floor(Math.random() * pool.length)].id);
+  }, [stations, selectedId, select, stopTour]);
+
+  // plan + ride a trip between two stops
+  const doPlan = useCallback((fromId: string, toId: string) => {
+    const r = planTrip(lines, stations, fromId, toId);
+    if (!r) { setTripResult({ stops: [], changes: 0, minutes: 0, error: true }); return; }
+    setTripResult({ stops: r.stops, changes: r.changes, minutes: r.minutes });
+    rideStops(r.stops.map((s) => s.id));
+  }, [lines, stations, rideStops]);
+
   // hand control back to the visitor if they scroll or hit a key mid-tour
   useEffect(() => {
     if (!touring) return;
@@ -223,6 +258,9 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
       if (e.key === '/' && !indexOpen) { e.preventDefault(); setIndexOpen(true); return; }
       if (e.key === 'Escape') { setIndexOpen(false); setAboutOpen(false); setFocusLine(null); stopTour(); return; }
       if (['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'].includes(e.key)) {
+        // only ride stops when already viewing one / focused on a line — leaves arrows
+        // free on the bare map (so the Konami code doesn't open stops as you type it)
+        if (!selected && !focusLine) return;
         const dir = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
         const list = focusLine
           ? stations.filter((s) => (s.lines && s.lines.length ? s.lines : [s.line]).includes(focusLine))
@@ -335,6 +373,10 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
           <ThemeToggle />
           <button className="tt" onClick={toggleMotion}>motion: {motionOff ? 'off' : 'on'}</button>
         </div>
+        <div className="legend-ctl">
+          <button className="tt" onClick={surprise}>🎲 surprise me</button>
+          <button className={`tt ${tripOpen ? 'on' : ''}`} onClick={() => setTripOpen((v) => !v)}>🚉 plan a trip</button>
+        </div>
         <div className="legend-links">
           <a className="tt" href="https://github.com/NerdsForGaming" target="_blank" rel="noreferrer">github ↗</a>
           <a className="tt" href="https://www.cosmos.so/toeeshchaudhary" target="_blank" rel="noreferrer">cosmos ↗</a>
@@ -387,6 +429,8 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
       )}
 
       <IndexPanel open={indexOpen} lines={lines} stations={stations} onClose={() => setIndexOpen(false)} onSelect={pickFromIndex} />
+
+      {tripOpen && <TripPlanner lines={lines} stations={stations} result={tripResult} onPlan={doPlan} onClose={() => { setTripOpen(false); setTripResult(null); }} />}
 
       <StationDrawer
         station={selected}
@@ -491,9 +535,11 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         .leg:hover .leg-blurb, .leg-on .leg-blurb, .leg:hover .leg-n, .leg-on .leg-n { color: var(--bg); }
         .leg .shape { width: 15px; height: 15px; }
         .legend-ctl { display: flex; gap: 6px; margin: 0 14px; border-top: 1.5px solid var(--ink); padding: 10px 0 0; }
+        .legend-ctl + .legend-ctl { border-top: 0; padding-top: 6px; }
         .colophon { color: var(--ink-soft); font-size: 0.5rem; letter-spacing: 0.14em; opacity: 0.7; padding: 10px 14px 12px; }
         :global(.tt) { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 5px 8px; cursor: pointer; }
         :global(.tt:hover) { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+        :global(.tt.on) { background: var(--ink); color: var(--bg); border-color: var(--ink); }
         @media (max-width: 700px) {
           :global(.mini) { display: none !important; }
           .masthead { top: 12px; right: 12px; }

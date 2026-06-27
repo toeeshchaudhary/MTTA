@@ -137,6 +137,22 @@ button { font-family: inherit; }
   .drawer { width: 100vw; left: 0; right: 0; border-left: 0; }
 }
 
+/* trip planner panel */
+.trip-panel { position: fixed; left: 22px; bottom: 20px; z-index: 24; width: 250px;
+  background: var(--panel); color: var(--ink); border: 3px solid var(--ink); box-shadow: 8px 8px 0 var(--ink);
+  padding: 12px 13px 13px; display: flex; flex-direction: column; gap: 9px; font-family: var(--font-mono); }
+.trip-head { display: flex; align-items: center; justify-content: space-between; }
+.trip-head .mono { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
+.trip-x { background: none; border: 2px solid var(--ink); color: var(--ink); width: 26px; height: 26px; cursor: pointer; font-size: 0.7rem; }
+.trip-x:hover { background: var(--ink); color: var(--bg); }
+.trip-f { display: flex; flex-direction: column; gap: 4px; font-size: 0.54rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-soft); }
+.trip-f select { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink); background: var(--bg); border: 2px solid var(--ink); padding: 6px 7px; cursor: pointer; }
+.trip-go { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: var(--ink); color: var(--bg); border: 2px solid var(--ink); padding: 8px; cursor: pointer; }
+.trip-go:disabled { opacity: 0.4; cursor: default; }
+.trip-res { font-size: 0.72rem; border-left: 3px solid var(--ink); padding: 6px 0 6px 9px; }
+.trip-res.err { color: #b5402e; border-left-color: #b5402e; }
+@media (max-width: 700px) { .trip-panel { left: 12px; right: 12px; width: auto; } }
+
 /* about card (origin window) — global so framer-motion components are styled */
 .about-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(10,10,10,0.45); display: grid; place-items: center; padding: 24px; }
 .about-card { position: relative; width: min(560px, 92vw); background: var(--panel); color: var(--ink); border: 3px solid var(--ink); box-shadow: 10px 10px 0 var(--ink); padding: 30px 32px 28px; }
@@ -234,6 +250,9 @@ button { font-family: inherit; }
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
 }
+
+/* the express car glows a little as it tears past */
+.train.express { filter: drop-shadow(0 0 3px rgba(255,207,0,0.55)); }
 
 /* station arrival ping — a ring that blooms when a train dwells at a stop */
 .mta-ping { fill: none; stroke-width: 3; pointer-events: none; animation: mta-ping 0.72s ease-out forwards; }

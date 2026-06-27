@@ -155,14 +155,25 @@ export default function Trains({ lines, stations = [], run, stationPulse = true,
           <Car color={l.color} variant={i % 3} />
         </g>
       ))}
-      {/* the rare express — a single transient car, positioned by the express effect */}
+      {/* the rare express — longer, dark, pointed, with speed streaks + a route diamond,
+          so it reads as a totally different beast from the white local cars */}
       <g className="train express" style={{ opacity: 0 }} aria-hidden="true">
-        <rect x={-20} y={-8} width={40} height={16} rx={5} fill="#16161a" stroke="#ffcf00" strokeWidth={2.5} />
-        <rect x={-13} y={-3.5} width={6} height={7} rx={1.2} fill="#ffcf00" />
-        <rect x={-4} y={-3.5} width={6} height={7} rx={1.2} fill="#ffcf00" />
-        <rect x={5} y={-3.5} width={6} height={7} rx={1.2} fill="#ffcf00" />
-        <circle cx={17} cy={0} r={1.9} fill="#fff" />
-        <path d="M -19 -10.5 l 4 -3 l 4 3 l -4 3 Z" fill="#ffcf00" />
+        {/* motion streaks trailing behind (-x) */}
+        <rect x={-46} y={-5.5} width={12} height={2} rx={1} fill="#fff" opacity={0.5} />
+        <rect x={-50} y={-0.5} width={16} height={2} rx={1} fill="#ffcf00" opacity={0.5} />
+        <rect x={-44} y={4.5} width={10} height={2} rx={1} fill="#fff" opacity={0.4} />
+        {/* pointed bullet body */}
+        <path d="M -24 -8 L 14 -8 C 20 -8 25 -4 25 0 C 25 4 20 8 14 8 L -24 8 Q -27 8 -27 5 L -27 -5 Q -27 -8 -24 -8 Z" fill="#191920" stroke="#ffcf00" strokeWidth={2.5} strokeLinejoin="round" />
+        <rect x={-27} y={-1.2} width={52} height={2.4} fill="#ffcf00" opacity={0.32} />
+        {/* dark windshield + side windows */}
+        <path d="M 8 -5 L 15 -3.5 L 15 3.5 L 8 5 Z" fill="#0c0c10" />
+        <rect x={-7} y={-4} width={5} height={8} rx={1.2} fill="#0c0c10" />
+        <rect x={-16} y={-4} width={5} height={8} rx={1.2} fill="#0c0c10" />
+        {/* express route diamond (NYC marker) */}
+        <path d="M -19 -4.5 L -13 0 L -19 4.5 L -25 0 Z" fill="#ffcf00" stroke="#0c0c10" strokeWidth={1.1} strokeLinejoin="round" />
+        {/* headlight + glow */}
+        <circle cx={22} cy={0} r={5} fill="#fff" opacity={0.25} />
+        <circle cx={21} cy={0} r={2.3} fill="#fff" />
       </g>
     </g>
   );
