@@ -255,7 +255,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
           <span className="mono legend-title">the network</span>
           <span className="mono legend-count">{pad2(lines.length)} threads · {pad2(stations.length)} stops</span>
         </div>
-        <div className="leg-status mono"><span className="leg-live" />{touring ? 'now touring · enjoy the ride' : 'all lines running · slowly living'}</div>
+        <div className={`leg-status mono ${touring ? 'touring' : ''}`}><span className="leg-live" />{touring ? 'now touring · enjoy the ride' : 'all lines running · slowly living'}</div>
         <ol className="leg-list">
           {lines.map((l, i) => (
             <li key={l.id} className="leg-li">
@@ -410,9 +410,14 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         .legend-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 11px 14px 10px; border-bottom: 1.5px solid var(--ink); }
         .legend-title { color: var(--ink); font-size: 0.62rem; letter-spacing: 0.18em; }
         .legend-count { color: var(--ink-soft); font-size: 0.54rem; letter-spacing: 0.1em; }
-        .leg-status { display: flex; align-items: center; gap: 7px; padding: 7px 14px; color: var(--ink-soft); font-size: 0.52rem; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--line); }
-        .leg-live { width: 7px; height: 7px; border-radius: 50%; background: #1f8a4c; flex: none; animation: leg-pulse 2.2s ease-out infinite; }
-        @keyframes leg-pulse { 0% { box-shadow: 0 0 0 0 rgba(31,138,76,0.5); } 70% { box-shadow: 0 0 0 6px rgba(31,138,76,0); } 100% { box-shadow: 0 0 0 0 rgba(31,138,76,0); } }
+        /* LED status readout — inset dark strip, matches the departures board "LIVE" pill */
+        .leg-status { display: flex; align-items: center; gap: 7px; margin: 9px 12px; padding: 6px 10px;
+          background: #0e0e10; border: 1.5px solid var(--ink); color: #6fe08a;
+          font-size: 0.52rem; letter-spacing: 0.12em; text-transform: uppercase; }
+        .leg-status.touring { color: #ffcf00; }
+        .leg-live { width: 7px; height: 7px; border-radius: 50%; background: #6fe08a; flex: none; animation: leg-pulse 2.2s ease-out infinite; }
+        .leg-status.touring .leg-live { background: #ffcf00; }
+        @keyframes leg-pulse { 0% { box-shadow: 0 0 0 0 rgba(111,224,138,0.5); } 70% { box-shadow: 0 0 0 6px rgba(111,224,138,0); } 100% { box-shadow: 0 0 0 0 rgba(111,224,138,0); } }
         @media (prefers-reduced-motion: reduce) { .leg-live { animation: none; } }
         .leg-list { list-style: none; margin: 0; padding: 0; max-height: 46vh; overflow: auto; }
         .leg-list li + li { border-top: 1px solid var(--line); }

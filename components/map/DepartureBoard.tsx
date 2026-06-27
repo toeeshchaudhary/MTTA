@@ -20,9 +20,14 @@ export default function DepartureBoard({ lines, stations, onPick }: { lines: Lin
   const [head, setHead] = useState(0);    // index of the top ("DUE") row in the rotation
   const [hhmm, setHhmm] = useState('');
   const [colon, setColon] = useState(true);
+  const [open, setOpen] = useState(true);  // minimised / maximised (click the header)
   const reduced = useRef(false);
 
-  useEffect(() => { reduced.current = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false; }, []);
+  useEffect(() => {
+    reduced.current = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    try { const v = localStorage.getItem('depboard-open'); if (v != null) setOpen(v === '1'); } catch {}
+  }, []);
+  const toggle = () => setOpen((o) => { const n = !o; try { localStorage.setItem('depboard-open', n ? '1' : '0'); } catch {} return n; });
 
   // rotate the visible window so the board feels live (trains "depart", next ones roll up)
   useEffect(() => {
@@ -53,14 +58,15 @@ export default function DepartureBoard({ lines, stations, onPick }: { lines: Lin
   const [hh, mm] = hhmm.split(':');
 
   return (
-    <div className="depboard" role="group" aria-label="Departures board">
-      <div className="dep-top">
-        <span className="dep-title"><i className="dep-led" />departures</span>
+    <div className={`depboard ${open ? '' : 'min'}`} role="group" aria-label="Departures board">
+      <button className="dep-top" onClick={toggle} aria-expanded={open} aria-label={open ? 'Minimise departures board' : 'Expand departures board'}>
+        <span className="dep-title"><i className="dep-led" />departures<span className="dep-chev">{open ? '▾' : '▸'}</span></span>
+        {!open && <span className="dep-peek">{rows[0]?.title}</span>}
         <span className="dep-clock" aria-label={`Time ${hhmm}`}>
           <span>{hh}</span><span className={`dep-colon ${colon ? '' : 'off'}`}>:</span><span>{mm}</span>
           <span className="dep-live"><i />live</span>
         </span>
-      </div>
+      </button>
       <div className="dep-rows">
         {rows.map((r, k) => (
           <button key={`${r.id}-${k}`} className={`dep-row ${r.due ? 'due' : ''}`} onClick={() => onPick?.(r.id)} title={`jump to ${r.title}`} aria-label={`${r.title} on ${r.label}, ${r.mins}`}>
@@ -77,10 +83,19 @@ export default function DepartureBoard({ lines, stations, onPick }: { lines: Lin
           width: min(430px, 62vw); background: #0e0e10; color: #f4f1e9;
           border: 2px solid var(--ink); box-shadow: 5px 5px 0 var(--ink);
           font-family: var(--font-mono); overflow: hidden; }
-        .dep-top { display: flex; align-items: center; justify-content: space-between;
-          padding: 6px 11px; background: #161616; border-bottom: 1px solid #2a2a2a; }
+        .dep-top { width: 100%; display: flex; align-items: center; justify-content: space-between;
+          padding: 6px 11px; background: #161616; border: 0; border-bottom: 1px solid #2a2a2a;
+          color: inherit; font: inherit; cursor: pointer; }
+        .dep-top:hover { background: #1d1d1d; }
+        .depboard.min .dep-top { border-bottom-color: transparent; }
         .dep-title { display: flex; align-items: center; gap: 7px; color: #ffcf00;
           text-transform: uppercase; font-size: 0.6rem; letter-spacing: 0.22em; font-weight: 700; }
+        .dep-chev { color: #6c6c72; font-size: 0.55rem; letter-spacing: 0; margin-left: 1px; }
+        .dep-peek { color: #c9c6bd; font-size: 0.66rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          flex: 1; text-align: left; margin: 0 12px; }
+        /* collapse the rows when minimised */
+        .dep-rows { max-height: 220px; transition: max-height 0.32s cubic-bezier(0.2,0.7,0.2,1), opacity 0.2s ease; }
+        .depboard.min .dep-rows { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; overflow: hidden; pointer-events: none; }
         .dep-led { width: 7px; height: 7px; background: #ffcf00; box-shadow: 0 0 6px #ffcf00aa; flex: none; }
         .dep-clock { display: flex; align-items: center; gap: 1px; color: #ffcf00;
           font-size: 0.72rem; letter-spacing: 0.05em; font-variant-numeric: tabular-nums; }
@@ -89,7 +104,7 @@ export default function DepartureBoard({ lines, stations, onPick }: { lines: Lin
         .dep-live { display: inline-flex; align-items: center; gap: 4px; margin-left: 9px;
           color: #6fe08a; font-size: 0.52rem; letter-spacing: 0.14em; text-transform: uppercase; }
         .dep-live i { width: 6px; height: 6px; border-radius: 50%; background: #6fe08a; animation: dep-pulse 1.8s ease-in-out infinite; }
-        .dep-rows { padding: 3px 0;
+        .dep-rows { padding: 3px 0; overflow: hidden;
           background-image: repeating-linear-gradient(0deg, transparent 0, transparent 27px, rgba(255,255,255,0.025) 27px, rgba(255,255,255,0.025) 28px); }
         .dep-row { width: 100%; display: grid; grid-template-columns: 22px 11px 78px 1fr auto; align-items: center; gap: 8px;
           padding: 7px 11px; background: none; border: 0; border-left: 3px solid transparent;
@@ -111,6 +126,7 @@ export default function DepartureBoard({ lines, stations, onPick }: { lines: Lin
           .dep-line { display: none; } }
         @media (prefers-reduced-motion: reduce) {
           .dep-dest { animation: none; } .dep-live i { animation: none; } .dep-colon { transition: none; }
+          .dep-rows { transition: none; }
         }
       `}</style>
     </div>
