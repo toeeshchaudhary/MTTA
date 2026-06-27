@@ -9,13 +9,17 @@ import type { Station } from '@/lib/content';
 const ROWS = 3;
 const ROTATE_MS = 3200;
 
-export default function DepartureBoard({ lines, stations, onPick }: { lines: Line[]; stations: Station[]; onPick?: (id: string) => void }) {
+export default function DepartureBoard({ lines, stations, focusLine = null, onPick }: { lines: Line[]; stations: Station[]; focusLine?: string | null; onPick?: (id: string) => void }) {
   const byId = useMemo(() => Object.fromEntries(lines.map((l) => [l.id, l])), [lines]);
-  const entries = useMemo(() => stations.map((s) => {
-    const l = byId[s.line];
-    const trk = Math.max(1, lines.findIndex((x) => x.id === s.line) + 1);
-    return { id: s.id, title: s.title, label: l?.label ?? s.line, color: l?.color ?? '#888', trk };
-  }), [lines, stations, byId]);
+  const onLine = (s: Station, id: string) => (s.lines && s.lines.length ? s.lines : [s.line]).includes(id);
+  const entries = useMemo(() => stations
+    .filter((s) => !focusLine || onLine(s, focusLine))
+    .map((s) => {
+      const l = byId[s.line];
+      const trk = Math.max(1, lines.findIndex((x) => x.id === s.line) + 1);
+      return { id: s.id, title: s.title, label: l?.label ?? s.line, color: l?.color ?? '#888', trk };
+    }), [lines, stations, byId, focusLine]);
+  const focusColor = focusLine ? byId[focusLine]?.color : null;
 
   const [head, setHead] = useState(0);    // index of the top ("DUE") row in the rotation
   const [hhmm, setHhmm] = useState('');
@@ -35,6 +39,7 @@ export default function DepartureBoard({ lines, stations, onPick }: { lines: Lin
     const t = setInterval(() => setHead((v) => (v + 1) % entries.length), ROTATE_MS);
     return () => clearInterval(t);
   }, [entries.length]);
+  useEffect(() => { setHead(0); }, [focusLine]);   // restart the window when the filter changes
 
   // live clock with a blinking colon (steady under reduced-motion)
   useEffect(() => {
@@ -60,7 +65,7 @@ export default function DepartureBoard({ lines, stations, onPick }: { lines: Lin
   return (
     <div className={`depboard ${open ? '' : 'min'}`} role="group" aria-label="Departures board">
       <button className="dep-top" onClick={toggle} aria-expanded={open} aria-label={open ? 'Minimise departures board' : 'Expand departures board'}>
-        <span className="dep-title"><i className="dep-led" />departures<span className="dep-chev">{open ? '▾' : '▸'}</span></span>
+        <span className="dep-title" style={focusColor ? { color: focusColor } : undefined}><i className="dep-led" style={focusColor ? { background: focusColor, boxShadow: `0 0 6px ${focusColor}aa` } : undefined} />{focusColor ? entries[0]?.label ?? 'departures' : 'departures'}<span className="dep-chev">{open ? '▾' : '▸'}</span></span>
         {!open && <span className="dep-peek">{rows[0]?.title}</span>}
         <span className="dep-clock" aria-label={`Time ${hhmm}`}>
           <span>{hh}</span><span className={`dep-colon ${colon ? '' : 'off'}`}>:</span><span>{mm}</span>

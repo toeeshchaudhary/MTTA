@@ -228,6 +228,13 @@ button { font-family: inherit; }
 :root.no-motion .bead { animation: none !important; display: none; }
 @media (prefers-reduced-motion: reduce) { .bead { animation: none !important; display: none; } }
 
+/* MOTION: OFF — freeze every ambient CSS animation/transition (trains stop via React) */
+:root.no-motion *, :root.no-motion *::before, :root.no-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
 /* ---- intro splash (global) ---- */
 .intro { position: fixed; inset: 0; z-index: 100; background: var(--canvas); display: grid; place-items: center; cursor: pointer; overflow: hidden; }
 .i-shape { position: absolute; width: 120px; height: 120px; z-index: 1; }

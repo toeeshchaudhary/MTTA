@@ -102,12 +102,41 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
     return () => clearTimeout(t);
   }, [started, initialStop, reduced, motionOff, rideTheLine]);
 
+  // tracks whether we've pushed a stop entry onto history (so Back closes the drawer)
+  const pushedRef = useRef(false);
   const select = useCallback((id: string | null, fly = true) => {
     setSelectedId(id);
-    // canonical, shareable URL per stop — /s/<id> is a real SSG route with its own OG card
-    try { window.history.replaceState(null, '', id ? `/s/${id}` : '/'); } catch {}
+    // canonical, shareable URL per stop — /s/<id> is a real SSG route with its own OG card.
+    // First open pushes a history entry (Back closes it); switching stops replaces in place.
+    try {
+      if (id) {
+        const url = `/s/${id}`;
+        if (pushedRef.current) window.history.replaceState({ stop: id }, '', url);
+        else { window.history.pushState({ stop: id }, '', url); pushedRef.current = true; }
+      } else if (pushedRef.current) {
+        pushedRef.current = false;
+        window.history.back(); // pops the stop entry; popstate handler syncs state
+        return;
+      } else {
+        window.history.replaceState({}, '', '/');
+      }
+    } catch {}
     if (id && fly) setTimeout(() => flyTo(id), 30);
   }, [flyTo]);
+
+  // browser Back/Forward ↔ open stop
+  useEffect(() => {
+    const onPop = () => {
+      const m = /^\/s\/([^/]+)/.exec(window.location.pathname);
+      const id = m && byId[m[1]] ? m[1] : null;
+      pushedRef.current = !!id;
+      setSelectedId(id);
+      setExpanded(false);
+      if (id) setTimeout(() => flyTo(id), 30);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [byId, flyTo]);
 
   const pickFromIndex = useCallback((id: string) => { setIndexOpen(false); setExpanded(false); select(id); }, [select]);
 
@@ -234,7 +263,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
       </TransformWrapper>
 
       {/* HUD — masthead pinned top-right, like the title block of a published map */}
-      {started && <DepartureBoard lines={lines} stations={stations} onPick={(id) => { setExpanded(false); select(id); }} />}
+      {started && <DepartureBoard lines={lines} stations={stations} focusLine={focusLine} onPick={(id) => { setExpanded(false); select(id); }} />}
 
       <header className="masthead">
         <button className="brandmark" onClick={() => setAboutOpen(true)} aria-label="About toeesh">toeesh<span className="bm-net">.network</span></button>
