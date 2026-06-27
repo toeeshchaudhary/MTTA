@@ -84,17 +84,57 @@ export default function Trains({ lines, stations = [], run, onBoard }: { lines: 
 
   return (
     <g ref={gref} aria-hidden="true">
-      {lines.map((l) => (
+      {lines.map((l, i) => (
         // a little train car, centred on its track point; rotated to the tangent at runtime.
-        // white body + line-colour border/windows so it reads as a vehicle ON its own line.
+        // white body + line-colour detail so it reads as a vehicle ON its own line.
+        // each line gets one of three rolling-stock designs so the network feels varied.
         <g key={l.id} className="train" data-line={l.id} style={{ opacity: 0, cursor: onBoard ? 'pointer' : 'default' }} onPointerDown={(e) => { e.stopPropagation(); board(l.id); }}>
-          <rect x={-17} y={-8.5} width={34} height={17} rx={7} fill="#fff" stroke={l.color} strokeWidth={3} />
-          <rect x={-11.5} y={-4} width={5.5} height={8} rx={1.5} fill={l.color} />
-          <rect x={-2.75} y={-4} width={5.5} height={8} rx={1.5} fill={l.color} />
-          <rect x={6} y={-4} width={5.5} height={8} rx={1.5} fill={l.color} />
-          <circle cx={14.5} cy={0} r={1.8} fill={l.color} />
+          <Car color={l.color} variant={i % 3} />
         </g>
       ))}
     </g>
+  );
+}
+
+// Three rolling-stock variants. The car always points along +x (direction of travel);
+// the parent <g> handles position + tangent rotation at runtime.
+function Car({ color, variant }: { color: string; variant: number }) {
+  if (variant === 1) {
+    // bullet — sleek tapered nose, cheatline, windshield + side windows
+    return (
+      <>
+        <path d="M -18 -7 L 9 -7 C 15 -7 19 -3.5 19 0 C 19 3.5 15 7 9 7 L -18 7 Q -21 7 -21 4 L -21 -4 Q -21 -7 -18 -7 Z" fill="#fff" stroke={color} strokeWidth={3} strokeLinejoin="round" />
+        <rect x={-21} y={-1.3} width={40} height={2.6} fill={color} opacity={0.22} />
+        <path d="M 5.5 -4 L 12.5 -3 L 12.5 3 L 5.5 4 Z" fill={color} />
+        <rect x={-3.5} y={-4} width={6} height={8} rx={1.5} fill={color} />
+        <rect x={-13} y={-4} width={6} height={8} rx={1.5} fill={color} />
+        <circle cx={16.5} cy={0} r={1.6} fill={color} />
+      </>
+    );
+  }
+  if (variant === 2) {
+    // tram — boxy, roof destination blind, four windows, twin headlights
+    return (
+      <>
+        <rect x={-17} y={-9} width={34} height={18} rx={3.5} fill="#fff" stroke={color} strokeWidth={3} />
+        <rect x={-12} y={-9} width={24} height={4} rx={1.5} fill={color} />
+        <rect x={-11} y={-2.2} width={4.6} height={7} rx={1} fill={color} />
+        <rect x={-4.6} y={-2.2} width={4.6} height={7} rx={1} fill={color} />
+        <rect x={1.8} y={-2.2} width={4.6} height={7} rx={1} fill={color} />
+        <rect x={8.2} y={-2.2} width={4.6} height={7} rx={1} fill={color} />
+        <circle cx={15} cy={-4.2} r={1.4} fill={color} />
+        <circle cx={15} cy={4.2} r={1.4} fill={color} />
+      </>
+    );
+  }
+  // capsule (default) — rounded body, three windows, single headlight
+  return (
+    <>
+      <rect x={-17} y={-8.5} width={34} height={17} rx={7} fill="#fff" stroke={color} strokeWidth={3} />
+      <rect x={-11.5} y={-4} width={5.5} height={8} rx={1.5} fill={color} />
+      <rect x={-2.75} y={-4} width={5.5} height={8} rx={1.5} fill={color} />
+      <rect x={6} y={-4} width={5.5} height={8} rx={1.5} fill={color} />
+      <circle cx={14.5} cy={0} r={1.8} fill={color} />
+    </>
   );
 }

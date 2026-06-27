@@ -137,6 +137,44 @@ button { font-family: inherit; }
   .drawer { width: 100vw; left: 0; right: 0; border-left: 0; }
 }
 
+/* about card (origin window) — global so framer-motion components are styled */
+.about-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(10,10,10,0.45); display: grid; place-items: center; padding: 24px; }
+.about-card { position: relative; width: min(560px, 92vw); background: var(--panel); color: var(--ink); border: 3px solid var(--ink); box-shadow: 10px 10px 0 var(--ink); padding: 30px 32px 28px; }
+.about-band { position: absolute; top: 0; left: 0; right: 0; height: 12px; background: var(--ink); }
+.about-x { position: absolute; top: 14px; right: 14px; background: none; border: 2px solid var(--ink); color: var(--ink); width: 30px; height: 30px; cursor: pointer; }
+.about-x:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.about-kicker { color: var(--ink-soft); font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; margin-top: 6px; }
+.about-name { font-size: clamp(2.4rem, 7vw, 3.6rem); font-weight: 800; letter-spacing: -0.03em; margin: 4px 0 6px; }
+.about-role { font-size: 1.1rem; font-weight: 700; }
+.about-tags { color: var(--ink-soft); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 8px; }
+.about-blurb { color: var(--ink-soft); line-height: 1.6; margin: 12px 0 18px; }
+.about-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.about-links a, .about-links button { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 8px 12px; cursor: pointer; text-decoration: none; }
+.about-links a:hover, .about-links button:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.about-links button { background: var(--ink); color: var(--bg); }
+
+/* boarding-pass share sheet */
+.share-scrim { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(8,8,8,0.62); backdrop-filter: blur(2px); padding: 24px; }
+.share-card {
+  width: min(560px, 94vw); background: var(--panel); color: var(--ink);
+  border: 3px solid var(--ink); box-shadow: 12px 12px 0 var(--line-c);
+  padding: 18px 18px 20px;
+}
+.share-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.share-k { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--line-c); font-weight: 700; }
+.share-x { background: none; border: 2px solid var(--ink); color: var(--ink); width: 30px; height: 30px; cursor: pointer; font-size: 0.8rem; }
+.share-x:hover { background: var(--line-c); color: #fff; border-color: var(--line-c); }
+.share-pass { position: relative; aspect-ratio: 1200 / 630; width: 100%; border: 2px solid var(--ink); background: #141414; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.share-pass img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s ease; }
+.share-pass.ready img { opacity: 1; }
+.share-loading { position: absolute; color: #8a8a8a; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; }
+.share-url { margin: 12px 0 14px; font-size: 0.72rem; color: var(--muted, #777); word-break: break-all; border-left: 3px solid var(--line-c); padding-left: 10px; }
+.share-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.share-btn { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 9px 12px; cursor: pointer; text-decoration: none; display: inline-block; }
+.share-btn:hover { background: var(--line-c); color: #fff; border-color: var(--line-c); }
+.share-btn.primary { background: var(--line-c); color: #fff; border-color: var(--line-c); }
+@media (prefers-reduced-motion: reduce) { .share-pass img { transition: none; } }
+
 /* In paper mode the map surface bleeds into the page so the canvas
    doesn't read as a cut-off rectangle floating on a different shade. */
 :root[data-theme="light"] .stage { background: var(--canvas); }

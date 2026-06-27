@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TransformWrapper, TransformComponent, MiniMap, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import { AnimatePresence, motion } from 'framer-motion';
 import { contentBounds, RIBBON, type Line } from '@/content/lines';
 import type { Station, Pin } from '@/lib/content';
 import { KIND_BY_ID, type TerrainFeature } from '@/components/map/terrain-kinds';
@@ -196,7 +197,8 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         maxScale={4}
         centerOnInit
         limitToBounds={false}
-        wheel={{ step: 0.08 }}
+        smooth={false}
+        wheel={{ step: 0.14 }}
         doubleClick={{ disabled: true }}
         panning={{ velocityDisabled: false }}
       >
@@ -286,9 +288,17 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         <div className="mono colophon">wayfinding system · delhi · v1</div>
       </aside>
 
+      <AnimatePresence>
       {aboutOpen && (
-        <div className="about-scrim" onClick={() => setAboutOpen(false)}>
-          <div className="about-card" onClick={(e) => e.stopPropagation()}>
+        <motion.div className="about-scrim" onClick={() => setAboutOpen(false)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22, ease: 'easeOut' }}>
+          <motion.div
+            className="about-card"
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, scale: 0.9, y: 18 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: 10 }}
+            transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+          >
             <button className="about-x" onClick={() => setAboutOpen(false)} aria-label="close">✕</button>
             <div className="about-band" />
             <div className="mono about-kicker">slowly living</div>
@@ -304,9 +314,10 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
               ))}
               {featured[0] && <button onClick={() => { setAboutOpen(false); setExpanded(false); select(featured[0]); }}>start here ↘</button>}
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {started && showOnboard && (
         <div className="onboard">
@@ -389,21 +400,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         @media (max-width: 700px) { .onboard { bottom: 12px; } }
         .legend-links { display: flex; gap: 6px; margin: 8px 14px 0; }
         :global(.legend-links .tt) { text-decoration: none; }
-        /* About card */
-        .about-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(10,10,10,0.45); display: grid; place-items: center; }
-        .about-card { position: relative; width: min(560px, 92vw); background: var(--panel); color: var(--ink); border: 3px solid var(--ink); box-shadow: 10px 10px 0 var(--ink); padding: 30px 32px 28px; }
-        .about-band { position: absolute; top: 0; left: 0; right: 0; height: 12px; background: var(--ink); }
-        .about-x { position: absolute; top: 14px; right: 14px; background: none; border: 2px solid var(--ink); color: var(--ink); width: 30px; height: 30px; cursor: pointer; }
-        .about-x:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-        .about-kicker { color: var(--ink-soft); font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; margin-top: 6px; }
-        .about-name { font-size: clamp(2.4rem, 7vw, 3.6rem); font-weight: 800; letter-spacing: -0.03em; margin: 4px 0 6px; }
-        .about-role { font-size: 1.1rem; font-weight: 700; }
-        .about-tags { color: var(--ink-soft); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 8px; }
-        .about-blurb { color: var(--ink-soft); line-height: 1.6; margin: 12px 0 18px; }
-        .about-links { display: flex; flex-wrap: wrap; gap: 8px; }
-        .about-links a, .about-links button { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 8px 12px; cursor: pointer; text-decoration: none; }
-        .about-links a:hover, .about-links button:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-        .about-links button { background: var(--ink); color: var(--bg); }
+        /* About card styles live in globals.css — motion components don't pick up styled-jsx scoping */
         .legend {
           position: absolute; left: 22px; bottom: 20px; z-index: 15;
           background: var(--panel); border: 2px solid var(--ink); padding: 0;
