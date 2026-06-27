@@ -27,7 +27,10 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
   const [expanded, setExpanded] = useState(false);
   const [reduced, setReduced] = useState(false);
   const tw = useRef<ReactZoomPanPinchRef>(null);
-  const trains = started && !motionOff && !reduced;
+  // trains run by default and are controlled by the motion toggle. (We don't auto-suppress
+  // on prefers-reduced-motion — they'd silently never show on motion-averse setups; the
+  // "motion: off" toggle is the explicit opt-out.)
+  const trains = started && !motionOff;
 
   useEffect(() => { try { setReduced(matchMedia('(prefers-reduced-motion: reduce)').matches); } catch {} }, []);
 
