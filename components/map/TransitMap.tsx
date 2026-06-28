@@ -196,24 +196,28 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
           const pts = l.pts as Pt[];
           return tunnelRuns(l.under).map((run, ri) => {
             const sub = runPts(pts, run);
-            // two portals: where it dives (heads toward sub[1]) and where it surfaces (came from sub[-2])
-            const portals: { p: Pt; to: Pt }[] = [
-              { p: sub[0], to: sub[1] },
-              { p: sub[sub.length - 1], to: sub[sub.length - 2] },
+            // each portal faces ALONG the ribbon's own axis (using the adjacent above-ground
+            // waypoint), so the mouth reads as the line plunging straight in — no sideways kink.
+            const aboveDive = run[0] - 1 >= 0 ? pts[run[0] - 1] : sub[1];
+            const aboveSurf = run[1] + 2 < pts.length ? pts[run[1] + 2] : sub[sub.length - 2];
+            const portals: { p: Pt; nbr: Pt; flip: boolean }[] = [
+              { p: sub[0], nbr: aboveDive, flip: run[0] - 1 >= 0 },                        // dive: face away from the stop behind
+              { p: sub[sub.length - 1], nbr: aboveSurf, flip: run[1] + 2 < pts.length },   // surface: face away from the stop ahead
             ];
             return (
               <motion.g key={`${l.id}-${ri}`}
                 initial={{ opacity: 0 }} animate={{ opacity: started ? dim(l.id) : 0 }}
                 transition={{ delay: started ? lineEndAt(lineIndex[l.id] ?? 0) : 0, duration: 0.4 }}>
                 {portals.map((portal, k) => {
-                  const dx = portal.to[0] - portal.p[0], dy = portal.to[1] - portal.p[1], len = Math.hypot(dx, dy) || 1;
-                  const ux = dx / len, uy = dy / len, px = portal.p[0], py = portal.p[1];
-                  // a domed portal (line-colour) with a dark arched opening, mouth facing underground
-                  const r1 = RIBBON * 1.08;
+                  // face direction = away from the adjacent above-ground waypoint (into the ground)
+                  let dx = portal.p[0] - portal.nbr[0], dy = portal.p[1] - portal.nbr[1];
+                  if (!portal.flip) { dx = -dx; dy = -dy; }
+                  const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, px = portal.p[0], py = portal.p[1];
+                  const r1 = RIBBON * 1.05;
                   return (
                     <g key={k}>
-                      <path d={mouthPath(px, py, ux, uy, r1)} fill={l.color} />
-                      <path d={mouthPath(px + ux * 2.5, py + uy * 2.5, ux, uy, r1 * 0.62)} fill="var(--tunnel-mouth, #16181f)" />
+                      <path d={mouthPath(px - ux * 2, py - uy * 2, ux, uy, r1)} fill={l.color} />
+                      <path d={mouthPath(px + ux * 1, py + uy * 1, ux, uy, r1 * 0.6)} fill="var(--tunnel-mouth, #16181f)" />
                     </g>
                   );
                 })}
