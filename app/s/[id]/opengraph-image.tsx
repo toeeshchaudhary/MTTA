@@ -19,6 +19,11 @@ export default async function StopOG({ params }: { params: Promise<{ id: string 
   const line = lines.find((l) => l.id === s?.line);
   const color = line?.color || '#141414';
   const title = s?.title || 'toeesh.network';
+  // the destination title fits a wide range of lengths — from a short name to a full quote.
+  // scale the type down (and ease off the tight tracking) as it grows so it always fits + wraps cleanly.
+  const tlen = title.length;
+  const titleSize = tlen <= 12 ? 96 : tlen <= 18 ? 80 : tlen <= 26 ? 64 : tlen <= 38 ? 50 : tlen <= 56 ? 40 : tlen <= 80 ? 32 : 26;
+  const titleSpacing = titleSize >= 70 ? -3 : titleSize >= 50 ? -1 : 0;
   const thread = (line?.label || 'the network').toUpperCase();
   const lineNo = String(Math.max(1, lines.findIndex((l) => l.id === s?.line) + 1)).padStart(2, '0');
   const per = String(all.filter((x) => x.line === s?.line).findIndex((x) => x.id === id) + 1).padStart(2, '0');
@@ -41,7 +46,7 @@ export default async function StopOG({ params }: { params: Promise<{ id: string 
                 {thread} line
               </div>
               <div style={{ display: 'flex', fontSize: 30, letterSpacing: 4, textTransform: 'uppercase', color: '#9a988f', marginTop: 28 }}>destination</div>
-              <div style={{ display: 'flex', fontSize: 92, fontWeight: 800, letterSpacing: -3, color: '#141414', marginTop: 4, lineHeight: 1.02 }}>{title}</div>
+              <div style={{ display: 'flex', fontSize: titleSize, fontWeight: 800, letterSpacing: titleSpacing, color: '#141414', marginTop: 8, lineHeight: 1.05, maxWidth: 880 }}>{title}</div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 44px 34px', fontSize: 28 }}>
               <div style={{ display: 'flex', fontWeight: 800, color: '#141414' }}>toeesh<span style={{ color: '#6b6b72' }}>.network</span></div>

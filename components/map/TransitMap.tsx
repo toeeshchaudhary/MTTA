@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { RIBBON, roundedPath, contentBounds, tunnelRuns, runPts, type Line, type Pt } from '@/content/lines';
 import type { Station, Pin } from '@/lib/content';
 import type { TerrainFeature } from './terrain-kinds';
@@ -91,13 +91,13 @@ type Props = {
   terrain: TerrainFeature[];
   pins?: Pin[];
   selectedId: string | null;
-  activeLine: string | null; // hovered or focused thread
+  activeLines: string[]; // hovered or focused threads (an interchange lights all of its lines)
   started: boolean; // intro finished → run draw-on
   trains: boolean; // run the moving beads
   stationPulse?: boolean; // pulse a stop when a train dwells
   expressTrain?: boolean; // allow the rare express run
   crittersRun?: boolean; // allow the track rat
-  onHoverLine: (id: string | null) => void;
+  onHoverLine: (ids: string[]) => void;
   onSelect: (id: string) => void;
   onOrigin?: () => void; // click the origin marker → About card
   origin?: [number, number]; // editable origin-marker position
@@ -107,9 +107,9 @@ type Props = {
   codeOf?: Record<string, string>; // station id → system code (e.g. 02·01)
 };
 
-export default function TransitMap({ lines, stations, terrain, pins = [], selectedId, activeLine, started, trains, stationPulse = true, expressTrain = true, crittersRun = false, onHoverLine, onSelect, onOrigin, origin = [700, 96], originLabel = 'the origin — toeesh', originCue = 'about ↗', featured = [], codeOf = {} }: Props) {
+export default function TransitMap({ lines, stations, terrain, pins = [], selectedId, activeLines, started, trains, stationPulse = true, expressTrain = true, crittersRun = false, onHoverLine, onSelect, onOrigin, origin = [700, 96], originLabel = 'the origin — toeesh', originCue = 'about ↗', featured = [], codeOf = {} }: Props) {
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const dim = (lineId: string) => (activeLine && activeLine !== lineId ? 0.14 : 1);
+  const dim = (lineId: string) => (activeLines.length > 0 && !activeLines.includes(lineId) ? 0.14 : 1);
   const [ox, oy] = origin;
 
   // frame the map to whatever has been drawn — no fixed cut-off rectangle (origin included)
@@ -270,7 +270,10 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
       {stations.map((s, i) => {
         const sel = s.id === selectedId;
         const isFeatured = featured.includes(s.id);
-        const show = sel || hoverId === s.id || activeLine === s.line || (isFeatured && !activeLine && !selectedId); // reveal tablet (featured stay labelled at rest)
+        const onLine = (l: string) => s.line === l || (s.lines?.includes(l) ?? false);
+        // reveal tablet: this stop, a single focused/hovered thread it sits on, or featured-at-rest.
+        // (a multi-line interchange hover lights the ribbons but doesn't flood every stop's label)
+        const show = sel || hoverId === s.id || (activeLines.length === 1 && onLine(activeLines[0])) || (isFeatured && activeLines.length === 0 && !selectedId);
         const labelRight = s.x < 980;
         return (
           <g key={s.id} id={`st-${s.id}`} transform={`translate(${s.x},${s.y})`}>
@@ -284,10 +287,10 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
               transition={{ delay: started ? (stDelay[s.id] ?? 0.5) : 0, type: 'spring', stiffness: 340, damping: 18 }}
               whileHover={{ scale: 1.18 }}
               whileTap={{ scale: 0.92 }}
-              onMouseEnter={() => { setHoverId(s.id); onHoverLine(s.line); }}
-              onMouseLeave={() => { setHoverId(null); onHoverLine(null); }}
-              onFocus={() => { setHoverId(s.id); onHoverLine(s.line); }}
-              onBlur={() => { setHoverId(null); onHoverLine(null); }}
+              onMouseEnter={() => { setHoverId(s.id); onHoverLine(s.lines && s.lines.length ? s.lines : [s.line]); }}
+              onMouseLeave={() => { setHoverId(null); onHoverLine([]); }}
+              onFocus={() => { setHoverId(s.id); onHoverLine(s.lines && s.lines.length ? s.lines : [s.line]); }}
+              onBlur={() => { setHoverId(null); onHoverLine([]); }}
               onClick={() => onSelect(s.id)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(s.id); } }}
             >
@@ -304,13 +307,21 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
               {s.lines && s.lines.length >= 2
                 ? <InterchangeMarker colors={s.colors} sel={sel} />
                 : <ShapeMarker shape={s.shape} sel={sel} />}
-              {show && (
-                <foreignObject x={labelRight ? RSEL + 12 : -(320 + RSEL + 12)} y={-26} width={320} height={52} style={{ overflow: 'visible' }}>
-                  <div className="plate-wrap" style={{ justifyContent: labelRight ? 'flex-start' : 'flex-end' }}>
-                    <span className="plate">{codeOf[s.id] && <span className="plate-code">{codeOf[s.id]}</span>}<span className="dot" style={{ background: s.color }} />{s.title}</span>
-                  </div>
-                </foreignObject>
-              )}
+              <AnimatePresence>
+                {show && (
+                  <motion.foreignObject
+                    key="label"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.16, ease: 'easeOut' }}
+                    x={labelRight ? RSEL + 12 : -(320 + RSEL + 12)} y={-42} width={320} height={84} style={{ overflow: 'visible' }}>
+                    <div className="plate-wrap" style={{ justifyContent: labelRight ? 'flex-start' : 'flex-end' }}>
+                      <span className="plate">{codeOf[s.id] && <span className="plate-code">{codeOf[s.id]}</span>}<span className="dot" style={{ background: s.color }} /><span className="plate-title">{s.title}</span></span>
+                    </div>
+                  </motion.foreignObject>
+                )}
+              </AnimatePresence>
             </motion.g>
           </g>
         );

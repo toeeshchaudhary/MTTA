@@ -22,7 +22,7 @@ const DEFAULT_ABOUT: AboutData = { name: 'Toeesh Chaudhary', role: '', blurb: ''
 
 export default function Experience({ lines, stations, terrain = [], pins = [], origin = [700, 96], originLabel = 'the origin — toeesh', originCue = 'about ↗', about = DEFAULT_ABOUT, play = PLAY_DEFAULTS, initialStop }: { lines: Line[]; stations: Station[]; terrain?: TerrainFeature[]; pins?: Pin[]; origin?: [number, number]; originLabel?: string; originCue?: string; about?: AboutData; play?: Play; initialStop?: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [hoveredLine, setHoveredLine] = useState<string | null>(null);
+  const [hoveredLines, setHoveredLines] = useState<string[]>([]);
   const [focusLine, setFocusLine] = useState<string | null>(null);
   const [started, setStarted] = useState(false); // flips true when the Intro splash clears, so the map choreography is actually seen
   const [trainsReady, setTrainsReady] = useState(false); // trains hold until the lines have drawn on
@@ -88,7 +88,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
     return code;
   }, [lines, stations]);
   const selected = selectedId ? byId[selectedId] : null;
-  const activeLine = focusLine ?? hoveredLine;
+  const activeLines = focusLine ? [focusLine] : hoveredLines; // hovering an interchange lights every thread it sits on
 
   const siblings = useMemo(() => (selected ? stations.filter((s) => s.line === selected.line) : []), [selected, stations]);
   const idx = selected ? siblings.findIndex((s) => s.id === selected.id) : -1;
@@ -308,13 +308,13 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
             terrain={terrain}
             pins={pins}
             selectedId={selectedId}
-            activeLine={activeLine}
+            activeLines={activeLines}
             started={started}
             trains={trains}
             stationPulse={play.stationPulse}
             expressTrain={play.expressTrain}
             crittersRun={crittersRun}
-            onHoverLine={setHoveredLine}
+            onHoverLine={setHoveredLines}
             onSelect={(id) => { setExpanded(false); select(id); }}
             onOrigin={() => setAboutOpen(true)}
             origin={origin}
@@ -363,9 +363,9 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
             <li key={l.id} className="leg-li">
               <button
                 className={`leg ${focusLine === l.id ? 'leg-on' : ''}`}
-                style={{ opacity: activeLine && activeLine !== l.id ? 0.32 : 1 }}
-                onMouseEnter={() => setHoveredLine(l.id)}
-                onMouseLeave={() => setHoveredLine(null)}
+                style={{ opacity: activeLines.length > 0 && !activeLines.includes(l.id) ? 0.32 : 1 }}
+                onMouseEnter={() => setHoveredLines([l.id])}
+                onMouseLeave={() => setHoveredLines([])}
                 onClick={() => toggleFocus(l.id)}
               >
                 <span className="leg-no mono">{pad2(i + 1)}</span>
