@@ -1,6 +1,6 @@
 'use client';
 import './admin.css';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { MAP_VIEWBOX, RIBBON, roundedPath, type Pt } from '@/content/lines';
 import { TERRAIN_KINDS, KIND_BY_ID, type TerrainKind, type TerrainFeature } from '@/components/map/terrain-kinds';
@@ -381,7 +381,7 @@ export default function Admin() {
     else if (tool === 'terrain') {
       // pen: drop an (organic, unsnapped) vertex; clicking near the first point closes the shape
       const [rx, ry] = toSvgRaw(cx, cy);
-      if (landDraft.length >= 3 && Math.hypot(rx - landDraft[0][0], ry - landDraft[0][1]) < 16) { finishLand(); return; }
+      if (landDraft.length >= 3 && Math.hypot(rx - landDraft[0][0], ry - landDraft[0][1]) < 18) { finishLand(); return; }
       setSelTerr(null); setLandDraft((d) => [...d, [rx, ry]]);
     }
     else if (tool === 'select') { setSelLn(null); } // tap empty space → deselect the thread (hides its re-route handles)
@@ -433,13 +433,18 @@ export default function Admin() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
       if (e.key === 'Escape') { cancelTrack(); cancelLand(); setLandNode(null); closeForm(); setSelLn(null); setSelTerr(null); setSelPin(null); setDraw(null); setPinDraw(null); setPickStop(false); setLnDrag(null); setOrigDrag(false); drawStart.current = null; pinDrawStart.current = null; return; }
+      // terrain pen: Backspace undoes the last anchor, Enter closes the loop into water
+      if (tool === 'terrain' && landDraft.length > 0) {
+        if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); setLandDraft((d) => d.slice(0, -1)); return; }
+        if (e.key === 'Enter') { e.preventDefault(); finishLand(); return; }
+      }
       const t = TOOLS.find((x) => x.key === e.key.toLowerCase());
       if (t) { setTool(t.id); if (t.id === 'track') { setEditId('__new'); setTrack([]); } else { cancelTrack(); } if (t.id !== 'terrain') cancelLand(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, stations]);
+  }, [lines, stations, tool, landDraft]);
 
   // when a stop opens for editing, frame it in the (now shrunken) map pane — once per stop, not per keystroke
   const lastFocus = useRef<string | null>(null);
@@ -477,7 +482,7 @@ export default function Admin() {
   const previewPts = cursor && tool === 'track' && editId === '__new' ? [...track, snapTrack(track[track.length - 1], cursor)] : track;
   // NOTE: the flyout markup is inlined in the return below — styled-jsx only scopes JSX
   // written inside the return, so extracting it to a const left .rail-fly/.sw unstyled.
-  const flyLabel = tool === 'terrain' ? 'land' : tool === 'note' ? 'pin kind' : (tool === 'paint' ? 'paint colour — pick one, then click a thread' : tool === 'track' ? 'thread colour' : '');
+  const flyLabel = tool === 'terrain' ? 'terrain · map locked while you sculpt water' : tool === 'note' ? 'pin kind' : (tool === 'paint' ? 'paint colour — pick one, then click a thread' : tool === 'track' ? 'thread colour' : '');
   const hasFly = tool === 'paint' || tool === 'track' || tool === 'terrain' || tool === 'note';
 
   return (
@@ -524,9 +529,13 @@ export default function Admin() {
           </div>
           <div className="rail-div" />
           {TOOLS.map((t) => (
-            <button key={t.id} className={`rail-tool ${tool === t.id ? 'on' : ''}`} title={`${t.label} (${t.key})`} onClick={() => { setTool(t.id); if (t.id === 'track') { setEditId('__new'); setTrack([]); setSelLn(null); setForm(null); } else cancelTrack(); if (t.id !== 'terrain') cancelLand(); }}>
-              <span className="t-ic">{t.icon}</span><span className="t-lab">{t.label}</span><kbd>{t.key}</kbd>
-            </button>
+            <Fragment key={t.id}>
+              {/* terrain is its own editing mode — set it apart from the thread/stop tools */}
+              {t.id === 'terrain' && <div className="rail-div" />}
+              <button className={`rail-tool ${tool === t.id ? 'on' : ''} ${t.id === 'terrain' ? 'rail-terrain' : ''}`} title={`${t.label} (${t.key})`} onClick={() => { setTool(t.id); if (t.id === 'track') { setEditId('__new'); setTrack([]); setSelLn(null); setForm(null); } else cancelTrack(); if (t.id !== 'terrain') cancelLand(); }}>
+                <span className="t-ic">{t.icon}</span><span className="t-lab">{t.label}</span><kbd>{t.key}</kbd>
+              </button>
+            </Fragment>
           ))}
         </div>
 

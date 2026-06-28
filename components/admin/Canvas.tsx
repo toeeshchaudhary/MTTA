@@ -53,6 +53,10 @@ export default function Canvas(p: CanvasProps) {
     commitTerrain, commitPins, pushHistory, finishTrack, cancelTrack,
     cursor, landDraft, landNode, setTerrain, setLandNode, finishLand, cancelLand,
   } = p;
+  // terrain is a focused mode: while it's active the rest of the map dims and goes pointer-inert,
+  // so editing water never fights nearby stops/threads. Only the water layer stays live.
+  const terr = tool === 'terrain';
+  const lockStyle = terr ? ({ opacity: 0.3, pointerEvents: 'none' } as const) : undefined;
   return (
     <div className="adm-canvas">
       {hasFly && (
@@ -77,7 +81,7 @@ export default function Canvas(p: CanvasProps) {
       )}
       {tool === 'terrain' && landDraft.length > 0 && (
         <div className="adm-trackbar">
-          <span className="mono">drawing {terrainKind} · {landDraft.length} {landDraft.length === 1 ? 'point' : 'points'}{landDraft.length < 3 ? ' · tap to add' : ' · tap the first point to close'}</span>
+          <span className="mono">drawing {terrainKind} · {landDraft.length} {landDraft.length === 1 ? 'point' : 'points'}{landDraft.length < 3 ? ' · tap to drop anchors' : ' · snap onto the first point (or ⏎) to close · ⌫ undo'}</span>
           <button className="tbtn solid" onClick={finishLand}>✓ close</button>
           <button className="tbtn" onClick={cancelLand}>✗ cancel</button>
         </div>
@@ -125,14 +129,25 @@ export default function Canvas(p: CanvasProps) {
                     </g>
                   );
                 })}
-                {/* live pen draft — the shape under construction + its vertices */}
+                {/* live pen draft — Figma-style: tap to drop anchors, snap onto the first point to close into water */}
                 {tool === 'terrain' && landDraft.length > 0 && (() => {
-                  const k = KIND_BY_ID[terrainKind]; const prev = cursor ? [...landDraft, cursor] : landDraft;
-                  return (<g>
-                    <path d={pathForPoints(prev, k)} fill={landDraft.length >= 2 ? k.fill : 'none'} fillOpacity={0.45} stroke={INK} strokeWidth={2} strokeDasharray="8 6" style={{ pointerEvents: 'none' }} />
+                  const k = KIND_BY_ID[terrainKind];
+                  const first = landDraft[0];
+                  const last = landDraft[landDraft.length - 1];
+                  const canClose = landDraft.length >= 3;
+                  const nearStart = !!(cursor && canClose && Math.hypot(cursor[0] - first[0], cursor[1] - first[1]) < 18);
+                  // when ready to close, preview the finished (smoothed, closed) blob; otherwise trail the cursor as the next anchor
+                  const preview = nearStart || !cursor ? landDraft : [...landDraft, cursor];
+                  return (<g style={{ pointerEvents: 'none' }}>
+                    <path d={pathForPoints(preview, k)} fill={landDraft.length >= 2 ? k.fill : 'none'} fillOpacity={nearStart ? 0.5 : 0.3} stroke={INK} strokeWidth={2} strokeDasharray={nearStart ? undefined : '8 6'} />
+                    {/* dotted closing edge back to the first anchor once the loop can close */}
+                    {canClose && nearStart && <line x1={last[0]} y1={last[1]} x2={first[0]} y2={first[1]} stroke={k.coast} strokeWidth={2} strokeDasharray="2 6" />}
+                    {/* snap ring on the first anchor — the close target, brightens when the cursor is over it */}
+                    {canClose && <circle cx={first[0]} cy={first[1]} r={nearStart ? 16 : 12} fill="none" stroke={k.coast} strokeWidth={nearStart ? 2.5 : 1.5} strokeDasharray="3 4" opacity={nearStart ? 1 : 0.5} />}
                     {landDraft.map((pt, i) => (
-                      <circle key={i} className="rt-drag" data-hit cx={pt[0]} cy={pt[1]} r={i === 0 ? 8 : 5} fill={i === 0 ? INK : 'var(--ed-face)'} stroke={INK} strokeWidth={2} style={{ cursor: i === 0 && landDraft.length >= 3 ? 'pointer' : 'default' }}
-                        onPointerDown={(e) => { e.stopPropagation(); if (i === 0 && landDraft.length >= 3) finishLand(); }} />
+                      <circle key={i} className="rt-drag" data-hit cx={pt[0]} cy={pt[1]} r={i === 0 ? 7 : 4.5} fill={i === 0 ? k.coast : 'var(--ed-face)'} stroke={INK} strokeWidth={2}
+                        style={{ pointerEvents: 'auto', cursor: i === 0 && canClose ? 'pointer' : 'crosshair' }}
+                        onPointerDown={(e) => { e.stopPropagation(); if (i === 0 && canClose) finishLand(); }} />
                     ))}
                   </g>);
                 })()}
@@ -141,6 +156,7 @@ export default function Canvas(p: CanvasProps) {
               {/* bridge preview — auto-decks wherever a thread crosses water, same as the public map */}
               <Bridges lines={lines} terrain={terrain} />
 
+              <g style={lockStyle}>
               {lines.map((l) => (editId && editId !== '__new' && editId === l.id ? null : (
                 <g key={l.id} style={{ cursor: tool === 'select' || tool === 'paint' || tool === 'bulldoze' ? 'pointer' : 'crosshair' }}
                   onPointerDown={(e) => { if (tool === 'station' || tool === 'track') return; e.stopPropagation(); onLine(l); }} onPointerEnter={() => setHover('L' + l.id)} onPointerLeave={() => setHover(null)}>
@@ -154,6 +170,7 @@ export default function Canvas(p: CanvasProps) {
                   )) : null}
                 </g>
               )))}
+              </g>
 
               {/* live re-route handles for the selected thread (Mini-Metro style) */}
               {tool === 'select' && !editId && selLine && selLine.pts && selLine.pts.length >= 2 && (() => {
@@ -184,6 +201,7 @@ export default function Canvas(p: CanvasProps) {
                 </g>
               )}
 
+              <g style={lockStyle}>
               {stations.map((s) => {
                 const ids = s.lines && s.lines.length ? s.lines : [s.line];
                 const cols = ids.map(lnColor);
@@ -196,9 +214,10 @@ export default function Canvas(p: CanvasProps) {
                   </g>
                 );
               })}
+              </g>
 
               {/* origin — drag to reposition in the select tool */}
-              <g className="rt-drag" data-hit transform={`translate(${origin[0]},${origin[1]})`} style={{ cursor: tool === 'select' ? 'grab' : 'default' }}
+              <g className="rt-drag" data-hit transform={`translate(${origin[0]},${origin[1]})`} style={{ cursor: tool === 'select' ? 'grab' : 'default', ...(terr ? { opacity: 0.3, pointerEvents: 'none' as const } : {}) }}
                 onPointerDown={(e) => { if (tool !== 'select') return; e.stopPropagation(); const [rx, ry] = toSvgRaw(e.clientX, e.clientY); origGrab.current = [rx - origin[0], ry - origin[1]]; setOrigDrag(true); }}>
                 <circle r={40} fill="transparent" />
                 <circle r={30} fill={INK} />
@@ -207,7 +226,7 @@ export default function Canvas(p: CanvasProps) {
               </g>
 
               {/* pins — notes & photos tacked on the board, editable in the note tool */}
-              <g>
+              <g style={lockStyle}>
                 {pins.map((pin, i) => {
                   const isSel = selPin === pin.id; const active = tool === 'note' || tool === 'bulldoze';
                   const no = `T·${String(i + 1).padStart(2, '0')}`;
