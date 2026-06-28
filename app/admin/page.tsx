@@ -388,6 +388,26 @@ export default function Admin() {
     return () => clearTimeout(t);
   }, [form]);
 
+  // "ride the line" intro glide — same as the public map: on first load this session,
+  // jump tight to the leftmost stop, glide across to the rightmost, then settle to full view
+  const glided = useRef(false);
+  useEffect(() => {
+    if (glided.current || view !== 'build' || form || stations.length < 2) return;
+    let done = false; try { done = sessionStorage.getItem('admin-glided') === '1'; } catch {}
+    if (done) { glided.current = true; return; }
+    glided.current = true;
+    try { sessionStorage.setItem('admin-glided', '1'); } catch {}
+    const byX = [...stations].filter((s) => s.id).sort((a, b) => a.x - b.x);
+    if (byX.length < 2) { glided.current = false; return; }
+    const first = byX[0], last = byX[byX.length - 1];
+    const timers = [
+      setTimeout(() => { try { tw.current?.zoomToElement('st-' + first.id, 1.4, 0); } catch {} }, 350),
+      setTimeout(() => { try { tw.current?.zoomToElement('st-' + last.id, 0.9, 2400, 'easeOut'); } catch {} }, 800),
+      setTimeout(() => { try { tw.current?.resetTransform(1200, 'easeOut'); } catch {} }, 3400),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [stations, view, form]);
+
   const { theme, toggle: toggleTheme } = useAdminTheme();
   const editColor = editId && editId !== '__new' ? (lines.find((l) => l.id === editId)?.color ?? paint) : paint;
   const previewPts = cursor && tool === 'track' && editId === '__new' ? [...track, snapTrack(track[track.length - 1], cursor)] : track;
