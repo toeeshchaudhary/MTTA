@@ -23,5 +23,21 @@
         "url": "mailto:thesonofdevilhunter1@gmail.com"
       }
     ]
+  },
+  "play": {
+    "critters": true,
+    "stationPulse": true,
+    "expressTrain": true,
+    "serviceQuips": true,
+    "sounds": true,
+    "nightOwl": true,
+    "quips": [
+      "GOOD SERVICE · slowly living",
+      "DELAYED · that side project",
+      "NOW ARRIVING · a new idea",
+      "EXPRESS · skipping the small talk",
+      "MIND THE GAP · between plan and ship",
+      "NEXT · whatever comes"
+    ]
   }
 }
