@@ -174,6 +174,17 @@ export default function Inspector(p: InspectorProps) {
                     <label>blurb<input value={l.blurb} onChange={(e) => upLine({ blurb: e.target.value })} /></label>
                     <div className="row2"><label>shape<select value={l.shape} onChange={(e) => upLine({ shape: e.target.value })}>{SHAPES.map((s) => <option key={s} value={s}>{s}</option>)}</select></label><label>bullet<select value={l.text} onChange={(e) => upLine({ text: e.target.value })}><option value="#fff">white</option><option value="#111">black</option></select></label></div>
                     <div className="swrow">{PALETTE.map((c) => <button key={c} className={`sw ${l.color === c ? 'on' : ''}`} style={{ background: c }} onClick={() => upLine({ color: c, text: isLight(c) ? '#111' : '#fff' })} />)}<label className="cpick" title="custom colour"><input type="color" value={l.color} onChange={(e) => upLine({ color: e.target.value, text: isLight(e.target.value) ? '#111' : '#fff' })} /></label></div>
+                    {l.pts && l.pts.length >= 2 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <span className="mono dimk" style={{ fontSize: '0.58rem', letterSpacing: '0.06em' }}>tunnels — tap a segment to send it underground</span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {Array.from({ length: l.pts.length - 1 }, (_, si) => { const on = (l.under ?? []).includes(si); return (
+                            <button key={si} title={`segment ${si + 1}`} onClick={() => { const cur = new Set(l.under ?? []); on ? cur.delete(si) : cur.add(si); upLine({ under: Array.from(cur).sort((a, b) => a - b) }); }}
+                              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', width: 24, height: 24, cursor: 'pointer', border: '2px solid var(--ed-ink)', borderStyle: on ? 'dashed' : 'solid', background: on ? 'var(--ed-ink)' : 'transparent', color: on ? 'var(--ed-face)' : 'var(--ed-ink)' }}>{si + 1}</button>
+                          ); })}
+                        </div>
+                      </div>
+                    )}
                     <div className="thr-act"><button className="tbtn sm solid" onClick={() => { setForm(null); setSelSt(null); setTool('station'); flash(`tap the ${l.label} line to add a stop on it`); }}>＋ stop here</button><button className="tbtn sm" onClick={() => { setForm(null); setSelSt(null); setTool('track'); setEditId(l.id); setTrack((l.pts as [number, number][]) ?? []); flash('drag nodes · ＋ to add · dbl-click to remove · finish'); }}>✎ re-route</button><button className="tbtn sm" onClick={() => { pushHistory(); commitLines(lines.filter((q) => q.id !== l.id)); setSelLn(null); }}>delete</button></div>
                   </div>
                 )}

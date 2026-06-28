@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { RIBBON, type Pt } from '@/content/lines';
 import { KIND_BY_ID, type TerrainFeature } from './terrain-kinds';
 
-type BLine = { id: string; color: string; pts?: Pt[] };
+type BLine = { id: string; color: string; pts?: Pt[]; under?: number[] };
 
 type Seg = [number, number, number, number];
 
@@ -69,6 +69,7 @@ export default function Bridges({ lines, terrain, started = true, startAt = 0, d
   for (const l of lines) {
     const pts: Pt[] = l.pts || [];
     for (let s = 0; s < pts.length - 1; s++) {
+      if (l.under?.includes(s)) continue; // underground here → a tunnel, not a bridge
       const [x0, y0] = pts[s], [x1, y1] = pts[s + 1];
       for (const w of water) {
         // clip against the actual coastline polygon when present, else the bounding rect
@@ -84,9 +85,8 @@ export default function Bridges({ lines, terrain, started = true, startAt = 0, d
   }
   if (!spans.length) return null;
 
-  const DW = RIBBON + 16;   // deck a touch wider than the ribbon on each side
-  const HALF = DW / 2;
-  const EXT = 7;            // run the deck a little onto each bank (abutments)
+  const HALF = RIBBON / 2 + 6; // deck half-width — the sleeper ends poke past the ribbon
+  const EXT = 5;               // land the deck just onto each bank
 
   return (
     <g className="bridges" aria-hidden>
@@ -95,28 +95,26 @@ export default function Bridges({ lines, terrain, started = true, startAt = 0, d
         const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy) || 1;
         const ux = dx / len, uy = dy / len;        // along the route
         const nx = -uy, ny = ux;                   // across the deck
-        // extend onto the banks
-        ax -= ux * EXT; ay -= uy * EXT; bx += ux * EXT; by += uy * EXT;
+        ax -= ux * EXT; ay -= uy * EXT; bx += ux * EXT; by += uy * EXT; // onto the banks
         const flen = len + EXT * 2;
-        const planks = Math.max(2, Math.round(flen / 11));
+        const n = Math.max(2, Math.round(flen / 17)); // a few bold sleepers, well spaced
+        const tie = (t: number, w: number, col: string, over = 0) => {
+          const px = ax + ux * flen * t, py = ay + uy * flen * t, h = HALF + over;
+          return <line x1={px - nx * h} y1={py - ny * h} x2={px + nx * h} y2={py + ny * h} stroke={col} strokeWidth={w} strokeLinecap="round" />;
+        };
         return (
           <motion.g key={sp.id}
             initial={{ opacity: 0 }}
             animate={{ opacity: started ? 1 : 0 }}
             transition={{ delay: started ? startAt : 0, duration: dur, ease: 'easeOut' }}>
-            {/* deck */}
-            <line x1={ax} y1={ay} x2={bx} y2={by} stroke="var(--bridge-deck, #d8d2c4)" strokeWidth={DW} strokeLinecap="butt" />
-            {/* planks across the deck (the ribbon will hide the centre, leaving edge ties) */}
-            {Array.from({ length: planks + 1 }, (_, k) => {
-              const t = k / planks, px = ax + ux * flen * t, py = ay + uy * flen * t;
-              return <line key={k} x1={px - nx * HALF} y1={py - ny * HALF} x2={px + nx * HALF} y2={py + ny * HALF} stroke="var(--bridge-plank, rgba(20,20,20,0.16))" strokeWidth={1.2} />;
-            })}
-            {/* side rails */}
-            <line x1={ax + nx * HALF} y1={ay + ny * HALF} x2={bx + nx * HALF} y2={by + ny * HALF} stroke="var(--bridge-rail, rgba(20,20,20,0.40))" strokeWidth={2.2} strokeLinecap="round" />
-            <line x1={ax - nx * HALF} y1={ay - ny * HALF} x2={bx - nx * HALF} y2={by - ny * HALF} stroke="var(--bridge-rail, rgba(20,20,20,0.40))" strokeWidth={2.2} strokeLinecap="round" />
-            {/* abutments — short caps where the deck meets each bank */}
-            <line x1={ax - nx * HALF} y1={ay - ny * HALF} x2={ax + nx * HALF} y2={ay + ny * HALF} stroke="var(--bridge-rail, rgba(20,20,20,0.40))" strokeWidth={2.4} strokeLinecap="round" />
-            <line x1={bx - nx * HALF} y1={by - ny * HALF} x2={bx + nx * HALF} y2={by + ny * HALF} stroke="var(--bridge-rail, rgba(20,20,20,0.40))" strokeWidth={2.4} strokeLinecap="round" />
+            {/* concrete deck band with a thin structural outline; the ribbon rides over its centre */}
+            <line x1={ax} y1={ay} x2={bx} y2={by} stroke="var(--bridge-rail, rgba(43,80,106,0.55))" strokeWidth={(HALF + 1.5) * 2} strokeLinecap="round" />
+            <line x1={ax} y1={ay} x2={bx} y2={by} stroke="var(--bridge-deck, #eef2f4)" strokeWidth={HALF * 2} strokeLinecap="round" />
+            {/* cross-ties (sleepers) — the bridge read; ends poke past the ribbon on both sides */}
+            {Array.from({ length: n + 1 }, (_, k) => <g key={k}>{tie(k / n, 2.4, 'var(--bridge-rail, rgba(43,80,106,0.55))')}</g>)}
+            {/* heavy abutment caps where the deck meets each bank */}
+            {tie(0, 4, 'var(--bridge-rail, rgba(43,80,106,0.55))', 1.5)}
+            {tie(1, 4, 'var(--bridge-rail, rgba(43,80,106,0.55))', 1.5)}
           </motion.g>
         );
       })}

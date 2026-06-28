@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { RIBBON, contentBounds, type Line } from '@/content/lines';
+import { RIBBON, roundedPath, contentBounds, tunnelRuns, runPts, type Line, type Pt } from '@/content/lines';
 import type { Station, Pin } from '@/lib/content';
 import type { TerrainFeature } from './terrain-kinds';
 import Trains from './Trains';
@@ -141,6 +141,16 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
         <filter id="term-shadow" x="-60%" y="-60%" width="220%" height="220%">
           <feDropShadow dx="0" dy="2.5" stdDeviation="3.5" floodColor="var(--terrain-shadow, rgba(20,20,20,0.22))" floodOpacity="1" />
         </filter>
+        {/* one mask per tunnelled line — blacks out the underground runs so the solid ribbon
+            disappears there (revealing the water beneath); the dotted overlay then shows the track */}
+        {lines.map((l) => l.under?.length && l.pts ? (
+          <mask key={l.id} id={`tun-${l.id}`} maskUnits="userSpaceOnUse">
+            <rect x={b.x} y={b.y} width={b.w} height={b.h} fill="white" />
+            {tunnelRuns(l.under).map((run, ri) => (
+              <path key={ri} d={roundedPath(runPts(l.pts as Pt[], run))} fill="none" stroke="black" strokeWidth={RIBBON + 10} strokeLinecap="round" strokeLinejoin="round" />
+            ))}
+          </mask>
+        ) : null)}
       </defs>
       {/* celestial dot grid — a nod to toeesh's starfield boards */}
       <g opacity={0.75}>
@@ -152,7 +162,8 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
       {/* bridges — auto-placed where a route crosses water; drawn before the lines so the ribbon rides over the deck */}
       <Bridges lines={lines} terrain={terrain} started={started} startAt={terrEnd} dur={LINE_DUR} />
 
-      {/* lines (draw on one after another, after terrain) — id'd so trains can ride them */}
+      {/* lines (draw on one after another, after terrain) — id'd so trains can ride them.
+          tunnelled lines are masked so their underground runs read as gaps (water shows through) */}
       {lines.map((l, i) => (
         <motion.path
           key={l.id}
@@ -163,11 +174,36 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
           strokeWidth={RIBBON}
           strokeLinecap="round"
           strokeLinejoin="round"
+          mask={l.under?.length ? `url(#tun-${l.id})` : undefined}
           initial={{ pathLength: 0, opacity: dim(l.id) }}
           animate={{ pathLength: started ? 1 : 0, opacity: dim(l.id) }}
           transition={{ pathLength: { duration: LINE_DUR, delay: started ? lineStartAt(i) : 0, ease: [0.65, 0, 0.35, 1] }, opacity: { duration: 0.25 } }}
         />
       ))}
+
+      {/* tunnels — the dotted underground track + portal mouths where each run dives / surfaces */}
+      <g className="tunnels" aria-hidden>
+        {lines.map((l) => {
+          if (!l.under?.length || !l.pts) return null;
+          const pts = l.pts as Pt[];
+          return tunnelRuns(l.under).map((run, ri) => {
+            const sub = runPts(pts, run);
+            const ends: { p: Pt; q: Pt }[] = [{ p: sub[0], q: sub[1] }, { p: sub[sub.length - 1], q: sub[sub.length - 2] }];
+            return (
+              <motion.g key={`${l.id}-${ri}`} style={{ opacity: dim(l.id) }}
+                initial={{ opacity: 0 }} animate={{ opacity: started ? dim(l.id) : 0 }}
+                transition={{ delay: started ? lineEndAt(lineIndex[l.id] ?? 0) : 0, duration: 0.4 }}>
+                <path d={roundedPath(sub)} fill="none" stroke={l.color} strokeWidth={RIBBON * 0.55} strokeDasharray="0.1 11" strokeLinecap="round" opacity={0.55} />
+                {ends.map(({ p, q }, k) => {
+                  const dx = p[0] - q[0], dy = p[1] - q[1], len = Math.hypot(dx, dy) || 1;
+                  const nx = -dy / len, ny = dx / len, h = RIBBON / 2 + 4;
+                  return <line key={k} x1={p[0] - nx * h} y1={p[1] - ny * h} x2={p[0] + nx * h} y2={p[1] + ny * h} stroke={l.color} strokeWidth={3.5} strokeLinecap="round" />;
+                })}
+              </motion.g>
+            );
+          });
+        })}
+      </g>
 
       {/* trains — JS rAF beads riding the lines (white, high-contrast, always move) */}
       <Trains lines={trainLines} stations={stations} run={trains} stationPulse={stationPulse} expressTrain={expressTrain} onBoard={onSelect} />

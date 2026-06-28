@@ -21,6 +21,9 @@ export async function POST(req: Request) {
   if (!lines) return NextResponse.json({ error: 'lines[] required' }, { status: 400 });
   const clean = lines.map((l: Record<string, unknown>) => {
     const pts = (Array.isArray(l.pts) ? l.pts : []) as Pt[];
+    const under = Array.isArray(l.under)
+      ? Array.from(new Set((l.under as unknown[]).map((n) => Math.round(Number(n))).filter((n) => Number.isInteger(n) && n >= 0 && n < pts.length - 1))).sort((a, b) => a - b)
+      : [];
     return {
       id: slug(String(l.id || l.label || 'thread')),
       label: String(l.label || 'thread'),
@@ -29,6 +32,7 @@ export async function POST(req: Request) {
       shape: String(l.shape || 'circle'),
       blurb: String(l.blurb || ''),
       pts,
+      ...(under.length ? { under } : {}),
       d: pts.length >= 2 ? roundedPath(pts) : String(l.d || ''),
     };
   });

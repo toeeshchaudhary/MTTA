@@ -47,6 +47,17 @@ export function contentBounds(
   return { x, y, w, h, viewBox: `${x} ${y} ${w} ${h}` };
 }
 
+// Tunnels: contiguous runs of underground segment indices → [startSeg, endSeg] inclusive.
+export function tunnelRuns(under?: number[]): [number, number][] {
+  if (!under?.length) return [];
+  const s = Array.from(new Set(under)).sort((a, b) => a - b);
+  const runs: [number, number][] = []; let a = s[0], p = s[0];
+  for (let i = 1; i < s.length; i++) { if (s[i] === p + 1) p = s[i]; else { runs.push([a, p]); a = p = s[i]; } }
+  runs.push([a, p]); return runs;
+}
+// the waypoints a run covers: segments a..e use points[a .. e+1].
+export const runPts = (pts: Pt[], run: [number, number]): Pt[] => pts.slice(run[0], run[1] + 2);
+
 // Build a rounded-corner SVG path from waypoints (fillet each interior vertex
 // with a quadratic curve, radius clamped to half the shorter adjacent segment).
 export function roundedPath(pts: Pt[], r = CORNER_R): string {

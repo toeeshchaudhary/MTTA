@@ -33,10 +33,9 @@
   /* terrain — Mini-Metro water: light-blue body, soft bank, lighter inner current line */
   --water: #bfe2f1;       --water-line: #93c8e1;       --water-coast: #e8f5fc;
   --terrain-label: rgba(43,80,106,0.5);
-  /* bridges — deck blends with the line crossing the water */
-  --bridge-deck: #e9f2f7;
-  --bridge-rail: rgba(43,80,106,0.30);
-  --bridge-plank: rgba(43,80,106,0.14);
+  /* bridges — pale concrete deck + bold slate ties/abutments (railway trestle) */
+  --bridge-deck: #eef2f4;
+  --bridge-rail: rgba(43,80,106,0.55);
 }
 
 /* theme: whiteboard (default) — bright, airy paper */
@@ -61,8 +60,9 @@
   /* terrain — Mini-Metro water, muted for night so it sits under the dark canvas */
   --water: #1f3a4a;       --water-line: #356881;       --water-coast: #4d8aa6;
   --terrain-label: rgba(190,225,240,0.55);
-  /* bridges — deck reads on the dark water */
-  --bridge-deck: #2c4a5a;
+  /* bridges — concrete deck + light ties read on the dark water */
+  --bridge-deck: #34505f;
+  --bridge-rail: rgba(200,228,242,0.55);
   --bridge-rail: rgba(233,230,240,0.46);
   --bridge-plank: rgba(233,230,240,0.18);
 }

@@ -3,7 +3,7 @@
 // stations, origin, pins, ghost — plus the contextual flybar and track bar. Extracted
 // from the admin page; fed one props bundle so the page no longer holds ~160 lines of SVG.
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
-import { MAP_VIEWBOX, RIBBON, roundedPath, type Pt } from '@/content/lines';
+import { MAP_VIEWBOX, RIBBON, roundedPath, tunnelRuns, runPts, type Pt } from '@/content/lines';
 import { TERRAIN_KINDS, KIND_BY_ID, type TerrainKind, type TerrainFeature } from '@/components/map/terrain-kinds';
 import { terrainPath, pathForPoints, smoothClosedPath, offsetInward, bboxOf } from '@/components/map/terrain-shape';
 import Bridges from '@/components/map/Bridges';
@@ -148,6 +148,10 @@ export default function Canvas(p: CanvasProps) {
                   <path d={l.d} fill="none" stroke="transparent" strokeWidth={28} strokeLinecap="round" strokeLinejoin="round" />
                   <path d={l.d} fill="none" stroke={l.color} strokeWidth={RIBBON} strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}
                     opacity={(selLn && selLn !== l.id) || (hover && hover !== 'L' + l.id && tool === 'paint') ? 0.4 : 0.92} />
+                  {/* tunnel preview — white ticks mark the underground segments */}
+                  {l.under?.length && l.pts ? tunnelRuns(l.under).map((run, ri) => (
+                    <path key={'tun' + ri} d={roundedPath(runPts(l.pts as Pt[], run))} fill="none" stroke="var(--canvas)" strokeWidth={RIBBON * 0.7} strokeDasharray="3 8" strokeLinecap="round" style={{ pointerEvents: 'none' }} />
+                  )) : null}
                 </g>
               )))}
 
