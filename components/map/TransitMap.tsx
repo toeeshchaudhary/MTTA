@@ -24,6 +24,21 @@ function dotsAlong(poly: Pt[], spacing: number, inset: number): Pt[] {
   return out;
 }
 
+// geometry for one underground run: the cap sits a little BEFORE the dive corner (on the
+// straight approach) so the masked-out corner can't leave a notch; caps + buried trail follow.
+function tunnelGeom(pts: Pt[], run: [number, number]) {
+  const RET = RIBBON * 1.15;
+  const sub = runPts(pts, run);
+  const D = sub[0], S = sub[sub.length - 1];
+  const A = run[0] - 1 >= 0 ? pts[run[0] - 1] : null;          // above-ground stop before the dive
+  const B = run[1] + 2 < pts.length ? pts[run[1] + 2] : null;  // above-ground stop after the surface
+  const toward = (P: Pt, Q: Pt): Pt => { const dx = Q[0] - P[0], dy = Q[1] - P[1], len = Math.hypot(dx, dy) || 1; return [P[0] + (dx / len) * RET, P[1] + (dy / len) * RET]; };
+  const capDive = A ? toward(D, A) : D;
+  const capSurf = B ? toward(S, B) : S;
+  const maskPts: Pt[] = [...(A ? [capDive] : []), ...sub, ...(B ? [capSurf] : [])];
+  return { maskPts, caps: [capDive, capSurf] as Pt[], trail: dotsAlong(maskPts, 20, 13) };
+}
+
 function ShapeMarker({ shape, sel }: { shape: Station['shape']; sel: boolean }) {
   const r = sel ? RSEL : R;
   const stroke = INK;
@@ -157,7 +172,7 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
           <mask key={l.id} id={`tun-${l.id}`} maskUnits="userSpaceOnUse">
             <rect x={b.x} y={b.y} width={b.w} height={b.h} fill="white" />
             {tunnelRuns(l.under).map((run, ri) => (
-              <path key={ri} d={roundedPath(runPts(l.pts as Pt[], run))} fill="none" stroke="black" strokeWidth={RIBBON + 6} strokeLinecap="butt" strokeLinejoin="round" />
+              <path key={ri} d={roundedPath(tunnelGeom(l.pts as Pt[], run).maskPts)} fill="none" stroke="black" strokeWidth={RIBBON + 6} strokeLinecap="butt" strokeLinejoin="round" />
             ))}
           </mask>
         ) : null)}
@@ -198,17 +213,15 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
           if (!l.under?.length || !l.pts) return null;
           const pts = l.pts as Pt[];
           return tunnelRuns(l.under).map((run, ri) => {
-            const sub = runPts(pts, run);
-            const trail = dotsAlong(sub, 20, 16); // dots every 20u, held back 16u from each end
+            const g = tunnelGeom(pts, run);
             return (
               <motion.g key={`${l.id}-${ri}`}
                 initial={{ opacity: 0 }} animate={{ opacity: started ? dim(l.id) : 0 }}
                 transition={{ delay: started ? lineEndAt(lineIndex[l.id] ?? 0) : 0, duration: 0.4 }}>
-                {/* clean rounded ends at the dive / surface points */}
-                <circle cx={sub[0][0]} cy={sub[0][1]} r={RIBBON / 2} fill={l.color} />
-                <circle cx={sub[sub.length - 1][0]} cy={sub[sub.length - 1][1]} r={RIBBON / 2} fill={l.color} />
+                {/* clean rounded ends, set back onto the straight approach so no corner notch shows */}
+                {g.caps.map((c, ci) => <circle key={`c${ci}`} cx={c[0]} cy={c[1]} r={RIBBON / 2} fill={l.color} />)}
                 {/* the buried path, as a faint dot trail */}
-                {trail.map((p, di) => <circle key={di} cx={p[0]} cy={p[1]} r={2.3} fill={l.color} opacity={0.42} />)}
+                {g.trail.map((p, di) => <circle key={di} cx={p[0]} cy={p[1]} r={2.3} fill={l.color} opacity={0.42} />)}
               </motion.g>
             );
           });
