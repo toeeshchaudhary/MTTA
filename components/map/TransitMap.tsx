@@ -14,11 +14,14 @@ const R = 11;
 const RSEL = 16;
 const INK = '#2b2b33';
 
-// a half-disc (tunnel-mouth) of radius r centred at (px,py) with the dome facing (ux,uy)
-function mouthPath(px: number, py: number, ux: number, uy: number, r: number): string {
-  const nx = -uy, ny = ux;
-  const ax = px + nx * r, ay = py + ny * r, bx = px - nx * r, by = py - ny * r;
-  return `M ${ax.toFixed(1)} ${ay.toFixed(1)} A ${r} ${r} 0 0 0 ${bx.toFixed(1)} ${by.toFixed(1)} Z`;
+// evenly-spaced points along a polyline — used for the dotted buried-path trail
+function dotsAlong(poly: Pt[], spacing: number, inset: number): Pt[] {
+  const seg: number[] = []; let total = 0;
+  for (let i = 0; i < poly.length - 1; i++) { const d = Math.hypot(poly[i + 1][0] - poly[i][0], poly[i + 1][1] - poly[i][1]); seg.push(d); total += d; }
+  const at = (d: number): Pt => { let acc = 0; for (let i = 0; i < seg.length; i++) { if (acc + seg[i] >= d) { const t = (d - acc) / (seg[i] || 1); return [poly[i][0] + (poly[i + 1][0] - poly[i][0]) * t, poly[i][1] + (poly[i + 1][1] - poly[i][1]) * t]; } acc += seg[i]; } return poly[poly.length - 1]; };
+  const out: Pt[] = [];
+  for (let d = inset; d <= total - inset; d += spacing) out.push(at(d));
+  return out;
 }
 
 function ShapeMarker({ shape, sel }: { shape: Station['shape']; sel: boolean }) {
@@ -98,7 +101,7 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
   const b = useMemo(() => contentBounds(lines, [...stations, { x: ox, y: oy }], terrain), [lines, stations, terrain, ox, oy]);
   // stable identity so <Trains> doesn't restart every render (e.g. when a station is selected)
   const trainLines = useMemo(() => lines.map((l) => ({ id: l.id, color: l.color, pts: l.pts, under: l.under })), [lines]);
-  const GS = 80;
+  const GS = 50; // denser celestial dot grid
   const vx: number[] = [], hy: number[] = [];
   for (let x = Math.floor(b.x / GS) * GS; x <= b.x + b.w; x += GS) vx.push(x);
   for (let y = Math.floor(b.y / GS) * GS; y <= b.y + b.h; y += GS) hy.push(y);
@@ -160,8 +163,8 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
         ) : null)}
       </defs>
       {/* celestial dot grid — a nod to toeesh's starfield boards */}
-      <g opacity={0.75}>
-        {vx.map((x) => hy.map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r={1.6} fill="var(--canvas-grid)" />))}
+      <g opacity={0.7}>
+        {vx.map((x) => hy.map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r={1.4} fill="var(--canvas-grid)" />))}
       </g>
 
       {/* terrain — fades in after the notes, before the lines */}
@@ -188,39 +191,24 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
         />
       ))}
 
-      {/* tunnels — no underground track is drawn; the ribbon just tapers to a point as it
-          slips under (a hint of which way it went) and re-emerges at the far portal */}
+      {/* tunnels — the ribbon just ends with a clean rounded cap where it dips under, and a
+          faint dotted trail marks the buried path until it re-emerges (no solid track) */}
       <g className="tunnels" aria-hidden>
         {lines.map((l) => {
           if (!l.under?.length || !l.pts) return null;
           const pts = l.pts as Pt[];
           return tunnelRuns(l.under).map((run, ri) => {
             const sub = runPts(pts, run);
-            // each portal faces ALONG the ribbon's own axis (using the adjacent above-ground
-            // waypoint), so the mouth reads as the line plunging straight in — no sideways kink.
-            const aboveDive = run[0] - 1 >= 0 ? pts[run[0] - 1] : sub[1];
-            const aboveSurf = run[1] + 2 < pts.length ? pts[run[1] + 2] : sub[sub.length - 2];
-            const portals: { p: Pt; nbr: Pt; flip: boolean }[] = [
-              { p: sub[0], nbr: aboveDive, flip: run[0] - 1 >= 0 },                        // dive: face away from the stop behind
-              { p: sub[sub.length - 1], nbr: aboveSurf, flip: run[1] + 2 < pts.length },   // surface: face away from the stop ahead
-            ];
+            const trail = dotsAlong(sub, 20, 16); // dots every 20u, held back 16u from each end
             return (
               <motion.g key={`${l.id}-${ri}`}
                 initial={{ opacity: 0 }} animate={{ opacity: started ? dim(l.id) : 0 }}
                 transition={{ delay: started ? lineEndAt(lineIndex[l.id] ?? 0) : 0, duration: 0.4 }}>
-                {portals.map((portal, k) => {
-                  // face direction = away from the adjacent above-ground waypoint (into the ground)
-                  let dx = portal.p[0] - portal.nbr[0], dy = portal.p[1] - portal.nbr[1];
-                  if (!portal.flip) { dx = -dx; dy = -dy; }
-                  const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, px = portal.p[0], py = portal.p[1];
-                  const r1 = RIBBON * 1.05;
-                  return (
-                    <g key={k}>
-                      <path d={mouthPath(px - ux * 2, py - uy * 2, ux, uy, r1)} fill={l.color} />
-                      <path d={mouthPath(px + ux * 1, py + uy * 1, ux, uy, r1 * 0.6)} fill="var(--tunnel-mouth, #16181f)" />
-                    </g>
-                  );
-                })}
+                {/* clean rounded ends at the dive / surface points */}
+                <circle cx={sub[0][0]} cy={sub[0][1]} r={RIBBON / 2} fill={l.color} />
+                <circle cx={sub[sub.length - 1][0]} cy={sub[sub.length - 1][1]} r={RIBBON / 2} fill={l.color} />
+                {/* the buried path, as a faint dot trail */}
+                {trail.map((p, di) => <circle key={di} cx={p[0]} cy={p[1]} r={2.3} fill={l.color} opacity={0.42} />)}
               </motion.g>
             );
           });
