@@ -90,7 +90,7 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
   // frame the map to whatever has been drawn — no fixed cut-off rectangle (origin included)
   const b = useMemo(() => contentBounds(lines, [...stations, { x: ox, y: oy }], terrain), [lines, stations, terrain, ox, oy]);
   // stable identity so <Trains> doesn't restart every render (e.g. when a station is selected)
-  const trainLines = useMemo(() => lines.map((l) => ({ id: l.id, color: l.color })), [lines]);
+  const trainLines = useMemo(() => lines.map((l) => ({ id: l.id, color: l.color, pts: l.pts, under: l.under })), [lines]);
   const GS = 80;
   const vx: number[] = [], hy: number[] = [];
   for (let x = Math.floor(b.x / GS) * GS; x <= b.x + b.w; x += GS) vx.push(x);
@@ -147,7 +147,7 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
           <mask key={l.id} id={`tun-${l.id}`} maskUnits="userSpaceOnUse">
             <rect x={b.x} y={b.y} width={b.w} height={b.h} fill="white" />
             {tunnelRuns(l.under).map((run, ri) => (
-              <path key={ri} d={roundedPath(runPts(l.pts as Pt[], run))} fill="none" stroke="black" strokeWidth={RIBBON + 10} strokeLinecap="round" strokeLinejoin="round" />
+              <path key={ri} d={roundedPath(runPts(l.pts as Pt[], run))} fill="none" stroke="black" strokeWidth={RIBBON + 6} strokeLinecap="butt" strokeLinejoin="round" />
             ))}
           </mask>
         ) : null)}
@@ -181,23 +181,34 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
         />
       ))}
 
-      {/* tunnels — the dotted underground track + portal mouths where each run dives / surfaces */}
+      {/* tunnels — no underground track is drawn; the ribbon just tapers to a point as it
+          slips under (a hint of which way it went) and re-emerges at the far portal */}
       <g className="tunnels" aria-hidden>
         {lines.map((l) => {
           if (!l.under?.length || !l.pts) return null;
           const pts = l.pts as Pt[];
           return tunnelRuns(l.under).map((run, ri) => {
             const sub = runPts(pts, run);
-            const ends: { p: Pt; q: Pt }[] = [{ p: sub[0], q: sub[1] }, { p: sub[sub.length - 1], q: sub[sub.length - 2] }];
+            // two portals: where it dives (heads toward sub[1]) and where it surfaces (came from sub[-2])
+            const portals: { p: Pt; to: Pt }[] = [
+              { p: sub[0], to: sub[1] },
+              { p: sub[sub.length - 1], to: sub[sub.length - 2] },
+            ];
             return (
-              <motion.g key={`${l.id}-${ri}`} style={{ opacity: dim(l.id) }}
+              <motion.g key={`${l.id}-${ri}`}
                 initial={{ opacity: 0 }} animate={{ opacity: started ? dim(l.id) : 0 }}
                 transition={{ delay: started ? lineEndAt(lineIndex[l.id] ?? 0) : 0, duration: 0.4 }}>
-                <path d={roundedPath(sub)} fill="none" stroke={l.color} strokeWidth={RIBBON * 0.55} strokeDasharray="0.1 11" strokeLinecap="round" opacity={0.55} />
-                {ends.map(({ p, q }, k) => {
-                  const dx = p[0] - q[0], dy = p[1] - q[1], len = Math.hypot(dx, dy) || 1;
-                  const nx = -dy / len, ny = dx / len, h = RIBBON / 2 + 4;
-                  return <line key={k} x1={p[0] - nx * h} y1={p[1] - ny * h} x2={p[0] + nx * h} y2={p[1] + ny * h} stroke={l.color} strokeWidth={3.5} strokeLinecap="round" />;
+                {portals.map((portal, k) => {
+                  const dx = portal.to[0] - portal.p[0], dy = portal.to[1] - portal.p[1], len = Math.hypot(dx, dy) || 1;
+                  const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+                  const w = RIBBON / 2, tip = RIBBON + 6, px = portal.p[0], py = portal.p[1];
+                  return (
+                    <g key={k}>
+                      {/* a faint mouth line across the track, then the ribbon narrows to a point underground */}
+                      <line x1={px + nx * (w + 2.5)} y1={py + ny * (w + 2.5)} x2={px - nx * (w + 2.5)} y2={py - ny * (w + 2.5)} stroke={l.color} strokeWidth={3} strokeLinecap="round" opacity={0.55} />
+                      <polygon points={`${px + nx * w},${py + ny * w} ${px - nx * w},${py - ny * w} ${px + ux * tip},${py + uy * tip}`} fill={l.color} />
+                    </g>
+                  );
                 })}
               </motion.g>
             );

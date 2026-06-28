@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { tunnelRuns, runPts, type Pt } from '@/content/lines';
 
 // One train per line: it shuttles from one end of the line to the other, pausing at
 // every station, then runs back — a small bit of life on each thread. JS rAF driven
@@ -11,7 +12,7 @@ type Stop = { id: string; x: number; y: number; line: string; lines?: string[] }
 const SPEED = 130;   // map units / second between stops
 const DWELL = 0.7;   // seconds paused at each station / terminus
 
-export default function Trains({ lines, stations = [], run, stationPulse = true, expressTrain = true, onBoard }: { lines: { id: string; color: string }[]; stations?: Stop[]; run: boolean; stationPulse?: boolean; expressTrain?: boolean; onBoard?: (id: string) => void }) {
+export default function Trains({ lines, stations = [], run, stationPulse = true, expressTrain = true, onBoard }: { lines: { id: string; color: string; pts?: Pt[]; under?: number[] }[]; stations?: Stop[]; run: boolean; stationPulse?: boolean; expressTrain?: boolean; onBoard?: (id: string) => void }) {
   const gref = useRef<SVGGElement>(null);
   const posRef = useRef<Record<string, { x: number; y: number }>>({});
   const [pings, setPings] = useState<{ key: number; x: number; y: number; color: string }[]>([]);
@@ -63,8 +64,15 @@ export default function Trains({ lines, stations = [], run, stationPulse = true,
         time += Math.abs(seq[i] - seq[i - 1]) / SPEED; kf.push({ t: time, d: seq[i] });
         time += DWELL; kf.push({ t: time, d: seq[i] });
       }
+      // underground arc-length ranges → the car vanishes (CSS-fades) while it's in a tunnel
+      const lineObj = lines.find((l) => l.id === id);
+      const tunnels: [number, number][] = [];
+      if (lineObj?.under?.length && lineObj.pts && samples.length) {
+        const nearestD = (pt: Pt) => { let best = Infinity, bd = 0; for (const sm of samples) { const dd = (sm.x - pt[0]) ** 2 + (sm.y - pt[1]) ** 2; if (dd < best) { best = dd; bd = sm.d; } } return bd; };
+        for (const r of tunnelRuns(lineObj.under)) { const sub = runPts(lineObj.pts, r); const a = nearestD(sub[0]), b = nearestD(sub[sub.length - 1]); tunnels.push([Math.min(a, b), Math.max(a, b)]); }
+      }
       const color = lines.find((l) => l.id === id)?.color ?? '#888';
-      return { id, car, path, len, kf, cycle: time, stopsMap, color, lastDwell: null as number | null };
+      return { id, car, path, len, kf, cycle: time, stopsMap, tunnels, color, lastDwell: null as number | null };
     });
 
     let raf = 0;
@@ -85,7 +93,9 @@ export default function Trains({ lines, stations = [], run, stationPulse = true,
           const pb = d.path.getPointAtLength(Math.max(dist - 6, 0));
           const angle = Math.atan2(pa.y - pb.y, pa.x - pb.x) * 180 / Math.PI;
           d.car.setAttribute('transform', `translate(${p.x},${p.y}) rotate(${angle})`);
-          d.car.style.opacity = '1';
+          // disappear (CSS-fades via .train transition) while underground, reappear at the far portal
+          const underground = d.tunnels.some(([a, b]) => dist >= a && dist <= b);
+          d.car.style.opacity = underground ? '0' : '1';
           posRef.current[d.id] = { x: p.x, y: p.y };
           // dwell pulse: when sitting still (a.d === b.d) near a real station, ping it once
           if (stationPulse) {
