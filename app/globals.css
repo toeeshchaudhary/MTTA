@@ -36,6 +36,7 @@
   /* bridges — pale concrete deck + bold slate ties/abutments (railway trestle) */
   --bridge-deck: #eef2f4;
   --bridge-rail: rgba(43,80,106,0.55);
+  --tunnel-mouth: #16181f; /* the dark opening of a tunnel portal */
 }
 
 /* theme: whiteboard (default) — bright, airy paper */
@@ -63,8 +64,7 @@
   /* bridges — concrete deck + light ties read on the dark water */
   --bridge-deck: #34505f;
   --bridge-rail: rgba(200,228,242,0.55);
-  --bridge-rail: rgba(233,230,240,0.46);
-  --bridge-plank: rgba(233,230,240,0.18);
+  --tunnel-mouth: #05060a;
 }
 
 /* admin editor chrome — handle/stroke inks that resolve per theme so the map editor

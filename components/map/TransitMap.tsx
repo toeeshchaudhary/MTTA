@@ -14,6 +14,13 @@ const R = 11;
 const RSEL = 16;
 const INK = '#2b2b33';
 
+// a half-disc (tunnel-mouth) of radius r centred at (px,py) with the dome facing (ux,uy)
+function mouthPath(px: number, py: number, ux: number, uy: number, r: number): string {
+  const nx = -uy, ny = ux;
+  const ax = px + nx * r, ay = py + ny * r, bx = px - nx * r, by = py - ny * r;
+  return `M ${ax.toFixed(1)} ${ay.toFixed(1)} A ${r} ${r} 0 0 0 ${bx.toFixed(1)} ${by.toFixed(1)} Z`;
+}
+
 function ShapeMarker({ shape, sel }: { shape: Station['shape']; sel: boolean }) {
   const r = sel ? RSEL : R;
   const stroke = INK;
@@ -200,13 +207,13 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
                 transition={{ delay: started ? lineEndAt(lineIndex[l.id] ?? 0) : 0, duration: 0.4 }}>
                 {portals.map((portal, k) => {
                   const dx = portal.to[0] - portal.p[0], dy = portal.to[1] - portal.p[1], len = Math.hypot(dx, dy) || 1;
-                  const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
-                  const w = RIBBON / 2, tip = RIBBON + 6, px = portal.p[0], py = portal.p[1];
+                  const ux = dx / len, uy = dy / len, px = portal.p[0], py = portal.p[1];
+                  // a domed portal (line-colour) with a dark arched opening, mouth facing underground
+                  const r1 = RIBBON * 1.08;
                   return (
                     <g key={k}>
-                      {/* a faint mouth line across the track, then the ribbon narrows to a point underground */}
-                      <line x1={px + nx * (w + 2.5)} y1={py + ny * (w + 2.5)} x2={px - nx * (w + 2.5)} y2={py - ny * (w + 2.5)} stroke={l.color} strokeWidth={3} strokeLinecap="round" opacity={0.55} />
-                      <polygon points={`${px + nx * w},${py + ny * w} ${px - nx * w},${py - ny * w} ${px + ux * tip},${py + uy * tip}`} fill={l.color} />
+                      <path d={mouthPath(px, py, ux, uy, r1)} fill={l.color} />
+                      <path d={mouthPath(px + ux * 2.5, py + uy * 2.5, ux, uy, r1 * 0.62)} fill="var(--tunnel-mouth, #16181f)" />
                     </g>
                   );
                 })}
