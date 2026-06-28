@@ -103,7 +103,7 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
   const NOTE_STAGGER = 0.06, NOTE_DUR = 0.26;
   const notesEnd = pins.length ? NOTES_T + (pins.length - 1) * NOTE_STAGGER + NOTE_DUR : NOTES_T;
   const TERR_T = notesEnd + 0.05;
-  const TERR_STAGGER = 0.04, TERR_DUR = 0.26;
+  const TERR_STAGGER = 0.1, TERR_DUR = 0.5; // water washes in gently rather than popping
   const terrEnd = terrain.length ? TERR_T + (terrain.length - 1) * TERR_STAGGER + TERR_DUR : TERR_T;
   const LINES_T = terrEnd + 0.06;
   const LINE_DUR = 0.5, LINE_GAP = 0.08;

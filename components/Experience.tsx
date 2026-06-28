@@ -24,7 +24,8 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoveredLine, setHoveredLine] = useState<string | null>(null);
   const [focusLine, setFocusLine] = useState<string | null>(null);
-  const [started, setStarted] = useState(true);
+  const [started, setStarted] = useState(false); // flips true when the Intro splash clears, so the map choreography is actually seen
+  const [trainsReady, setTrainsReady] = useState(false); // trains hold until the lines have drawn on
   const [indexOpen, setIndexOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [showOnboard, setShowOnboard] = useState(false);
@@ -36,13 +37,21 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
   // trains run by default and are controlled by the motion toggle. (We don't auto-suppress
   // on prefers-reduced-motion — they'd silently never show on motion-averse setups; the
   // "motion: off" toggle is the explicit opt-out.)
-  const trains = started && !motionOff;
-  const crittersRun = started && !motionOff && play.critters;
+  const trains = started && trainsReady && !motionOff;
+  const crittersRun = started && trainsReady && !motionOff && play.critters;
   const [nightOwl, setNightOwl] = useState(false);
   const [tripOpen, setTripOpen] = useState(false);
   const [tripResult, setTripResult] = useState<TripResult>(null);
 
   useEffect(() => { try { setReduced(matchMedia('(prefers-reduced-motion: reduce)').matches); } catch {} }, []);
+
+  // hold the trains until the intro cascade (origin → notes → terrain → lines → stops) has
+  // played, then let them fade in — otherwise they're already mid-run the instant the map appears
+  useEffect(() => {
+    if (!started) { setTrainsReady(false); return; }
+    const t = setTimeout(() => setTrainsReady(true), 3400);
+    return () => clearTimeout(t);
+  }, [started]);
 
   // first-visit onboarding — show once (after the intro), then remember
   const dismissOnboard = useCallback(() => { setShowOnboard(false); try { localStorage.setItem('onboarded', '1'); } catch {} }, []);

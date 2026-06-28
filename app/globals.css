@@ -259,6 +259,9 @@ button { font-family: inherit; }
   transition-duration: 0.001ms !important;
 }
 
+/* local trains ease in when they're first released (rAF flips opacity 0 → 1) */
+.train:not(.express) { transition: opacity 0.55s ease; }
+
 /* the express car glows a little as it tears past */
 .train.express { filter: drop-shadow(0 0 3px rgba(255,207,0,0.55)); }
 
