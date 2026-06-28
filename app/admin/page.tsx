@@ -252,13 +252,32 @@ export default function Admin() {
     return onDrag(move, up);
   }, [pinDrag, commitPins]);
 
-  // origin marker: drag to reposition (grab-anchored), persist on release
+  // origin marker: drag to reposition (grab-anchored), persist on release. The origin is a
+  // first-class terminus, so any line endpoint sitting on it is carried along as it moves.
   useEffect(() => {
     if (!origDrag) return;
-    const move = (e: PointerEvent) => { const [rx, ry] = toSvgRaw(e.clientX, e.clientY); setOrigin([snap(rx - origGrab.current[0]), snap(ry - origGrab.current[1])]); };
-    const up = () => { setOrigin((o) => { commitOrigin(o); return o; }); setOrigDrag(false); };
+    const old = origin; // captured when the drag begins
+    const links: { id: string; i: number }[] = [];
+    for (const l of lines) {
+      const pts = l.pts; if (!pts || pts.length < 2) continue;
+      if (Math.hypot(pts[0][0] - old[0], pts[0][1] - old[1]) < 2) links.push({ id: l.id, i: 0 });
+      const last = pts.length - 1;
+      if (Math.hypot(pts[last][0] - old[0], pts[last][1] - old[1]) < 2) links.push({ id: l.id, i: last });
+    }
+    const move = (e: PointerEvent) => {
+      const [rx, ry] = toSvgRaw(e.clientX, e.clientY);
+      const no: Pt = [snap(rx - origGrab.current[0]), snap(ry - origGrab.current[1])];
+      setOrigin(no);
+      if (links.length) setLines((arr) => arr.map((l) => {
+        const mine = links.filter((k) => k.id === l.id); if (!mine.length || !l.pts) return l;
+        const pts = l.pts.slice(); for (const k of mine) pts[k.i] = no;
+        return { ...l, pts, d: roundedPath(pts) };
+      }));
+    };
+    const up = () => { setOrigin((o) => { commitOrigin(o); return o; }); if (links.length) commitLines(linesRef.current); setOrigDrag(false); };
     return onDrag(move, up);
-  }, [origDrag, commitOrigin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [origDrag, commitOrigin, commitLines]);
 
   // live re-route: drag a waypoint of an already-built line (Mini-Metro style) — no mode, no delete.
   useEffect(() => {
@@ -278,13 +297,34 @@ export default function Admin() {
   }, [lnDrag, commitLines]);
 
   const cancelTrack = () => { setTrack([]); setEditId(null); setNodeDrag(null); };
+  // a line must begin & end at a station (or the origin) — anchor each end to the nearest one,
+  // and if there's nothing close, drop a terminus stop right there.
+  const SNAP = 46;
+  const anchorEnd = (p: Pt): { p: Pt; bare: boolean } => {
+    if (Math.hypot(p[0] - origin[0], p[1] - origin[1]) <= SNAP) return { p: [origin[0], origin[1]], bare: false };
+    let best: St | null = null, bd = SNAP;
+    for (const s of stations) { if (!s.id) continue; const dd = Math.hypot(p[0] - s.x, p[1] - s.y); if (dd <= bd) { bd = dd; best = s; } }
+    return best ? { p: [best.x, best.y], bare: false } : { p, bare: true };
+  };
   const finishTrack = async () => {
     if (track.length < 2) { cancelTrack(); return; }
     pushHistory();
-    const d = roundedPath(track);
-    if (editId && editId !== '__new') { await commitLines(lines.map((l) => (l.id === editId ? { ...l, pts: track, d } : l))); setSelLn(editId); flash('thread re-routed'); }
-    else { const id = `thread-${Date.now().toString(36)}`; await commitLines([...lines, { id, label: `thread ${lines.length + 1}`, color: paint, text: isLight(paint) ? '#111' : '#fff', shape: 'circle', blurb: 'a new thread', pts: track, d }]); setSelLn(id); flash('thread laid'); }
-    setTrack([]); setEditId(null); setNodeDrag(null); setTool('select'); setSelSt(null);
+    const a0 = anchorEnd(track[0]), aN = anchorEnd(track[track.length - 1]);
+    const pts = track.slice(); pts[0] = a0.p; pts[pts.length - 1] = aN.p;
+    const d = roundedPath(pts);
+    const isEdit = !!(editId && editId !== '__new');
+    const id = isEdit ? editId! : `thread-${Date.now().toString(36)}`;
+    if (isEdit) await commitLines(lines.map((l) => (l.id === editId ? { ...l, pts, d } : l)));
+    else await commitLines([...lines, { id, label: `thread ${lines.length + 1}`, color: paint, text: isLight(paint) ? '#111' : '#fff', shape: 'circle', blurb: 'a new thread', pts, d }]);
+    // drop a terminus stop on any bare end so the line always starts & ends at a station
+    let made = 0;
+    for (const [end, key] of [[a0, 'start'], [aN, 'end']] as const) {
+      if (!end.bare) continue;
+      await saveStation({ id: `${id}-${key}`, title: 'new stop', line: id, lines: [id], date: '', shape: 'circle', x: end.p[0], y: end.p[1], media: [], body: '' });
+      made++;
+    }
+    setSelLn(id); setTrack([]); setEditId(null); setNodeDrag(null); setTool('select'); setSelSt(null);
+    flash(isEdit ? `re-routed${made ? ` · +${made} terminus stop` : ''}` : `thread laid${made ? ` · +${made} terminus stop` : ''}`);
   };
 
   const paintLine = (id: string) => { const l = lines.find((q) => q.id === id); if (!l) return; pushHistory(); commitLines(lines.map((q) => (q.id === id ? { ...q, color: paint, text: isLight(paint) ? '#111' : '#fff' } : q))); flash(`recoloured “${l.label || id}” → ${paint}`); };
