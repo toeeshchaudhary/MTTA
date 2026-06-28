@@ -3,7 +3,7 @@
 // → cubic Bézier); built kinds (block/yard) stay a crisp closed polygon. Plain module
 // (no 'use client') — shared by the public map, the admin builder, and the API.
 import type { Pt } from '@/content/lines';
-import type { TerrainFeature, TerrainKindDef } from './terrain-kinds';
+import { DEFAULT_ROUND, type TerrainFeature, type TerrainKindDef } from './terrain-kinds';
 
 export function bboxOf(points: Pt[]): { x: number; y: number; w: number; h: number } {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -71,6 +71,28 @@ export function polyPath(points: Pt[]): string {
   return 'M' + points.map(([x, y]) => `${f1(x)},${f1(y)}`).join(' L') + 'Z';
 }
 
+// Rigid polygon with rounded corners: straight edges, each corner filleted by a quadratic curve.
+// radius 0 → a sharp polygon; larger → rounder. The radius is clamped per-corner to half of the
+// shorter adjacent edge, so the fillets never overrun the edge or self-overlap.
+export function roundedPolyPath(points: Pt[], radius: number): string {
+  const n = points.length;
+  if (n < 3) return polyPath(points);
+  if (radius <= 0.5) return polyPath(points);
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const p0 = points[(i - 1 + n) % n], p1 = points[i], p2 = points[(i + 1) % n];
+    const ax = p0[0] - p1[0], ay = p0[1] - p1[1];
+    const bx = p2[0] - p1[0], by = p2[1] - p1[1];
+    const la = Math.hypot(ax, ay) || 1, lb = Math.hypot(bx, by) || 1;
+    const r = Math.min(radius, la / 2, lb / 2);
+    const c1: Pt = [p1[0] + (ax / la) * r, p1[1] + (ay / la) * r]; // back along the incoming edge
+    const c2: Pt = [p1[0] + (bx / lb) * r, p1[1] + (by / lb) * r]; // forward along the outgoing edge
+    d += i === 0 ? `M${f1(c1[0])},${f1(c1[1])}` : ` L${f1(c1[0])},${f1(c1[1])}`;
+    d += ` Q${f1(p1[0])},${f1(p1[1])} ${f1(c2[0])},${f1(c2[1])}`;
+  }
+  return d + ' Z';
+}
+
 function roundedRectPath(x: number, y: number, w: number, h: number, r: number): string {
   const rr = Math.max(0, Math.min(r, w / 2, h / 2));
   return `M${x + rr},${y} H${x + w - rr} A${rr},${rr} 0 0 1 ${x + w},${y + rr} V${y + h - rr} A${rr},${rr} 0 0 1 ${x + w - rr},${y + h} H${x + rr} A${rr},${rr} 0 0 1 ${x},${y + h - rr} V${y + rr} A${rr},${rr} 0 0 1 ${x + rr},${y} Z`;
@@ -82,8 +104,9 @@ export function pathForPoints(points: Pt[], kind: TerrainKindDef): string {
   return kind.smooth ? smoothClosedPath(points) : polyPath(points);
 }
 
-// The drawable outline for a feature. Falls back to its bounding rectangle when it has no polygon.
+// The drawable outline for a feature: a rigid polygon with rounded corners (per-feature `round`).
+// Falls back to its bounding rectangle when it has no polygon.
 export function terrainPath(f: TerrainFeature, kind: TerrainKindDef): string {
-  if (f.points && f.points.length >= 3) return kind.smooth ? smoothClosedPath(f.points) : polyPath(f.points);
+  if (f.points && f.points.length >= 3) return roundedPolyPath(f.points, f.round ?? DEFAULT_ROUND);
   return roundedRectPath(f.x, f.y, f.w, f.h, kind.round);
 }

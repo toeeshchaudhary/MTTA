@@ -15,8 +15,13 @@ export type TerrainFeature = {
   h: number;
   // the shape: a polygon of map-space points. Optional for back-compat (renders as its bbox).
   points?: Pt[];
+  // corner radius for the rigid polygon: 0 = sharp corners, higher = rounder. undefined → DEFAULT_ROUND.
+  round?: number;
   label?: string;
 };
+
+// default corner radius for water bodies (map units) — used when a feature has no explicit `round`.
+export const DEFAULT_ROUND = 16;
 
 export type TerrainKindDef = {
   id: TerrainKind;

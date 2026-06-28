@@ -3,8 +3,8 @@
 // in content/terrain.json. On the public map they fade in after the notes, before the lines.
 'use client';
 import { motion } from 'framer-motion';
-import { KIND_BY_ID, type TerrainFeature } from './terrain-kinds';
-import { terrainPath, smoothClosedPath, offsetInward } from './terrain-shape';
+import { KIND_BY_ID, DEFAULT_ROUND, type TerrainFeature } from './terrain-kinds';
+import { terrainPath, roundedPolyPath, offsetInward } from './terrain-shape';
 
 export default function Terrain({ features, opacity = 1, started = true, startAt = 0, stagger = 0.08, dur = 0.4 }: { features: TerrainFeature[]; opacity?: number; started?: boolean; startAt?: number; stagger?: number; dur?: number }) {
   if (!features?.length) return null;
@@ -15,7 +15,7 @@ export default function Terrain({ features, opacity = 1, started = true, startAt
         const d = terrainPath(f, k);
         // the inner current line — only on bodies large enough to carry it
         const current = f.points && f.points.length >= 3 && Math.min(f.w, f.h) > 44
-          ? smoothClosedPath(offsetInward(f.points, 8))
+          ? roundedPolyPath(offsetInward(f.points, 8), Math.max(0, (f.round ?? DEFAULT_ROUND) - 8))
           : null;
         return (
           <motion.g key={f.id}

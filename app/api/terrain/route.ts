@@ -29,6 +29,7 @@ export async function POST(req: Request) {
     const box = pts.length >= 3 ? bboxOf(pts) : { x: num(f.x), y: num(f.y), w: Math.max(8, num(f.w, 80)), h: Math.max(8, num(f.h, 80)) };
     const out: Record<string, unknown> = { id: String(f.id || `t-${i}`), kind, x: box.x, y: box.y, w: box.w, h: box.h };
     if (pts.length >= 3) out.points = pts;
+    if (Number.isFinite(Number(f.round))) out.round = Math.max(0, Math.min(200, Math.round(Number(f.round))));
     if (f.label != null && String(f.label).trim()) out.label = String(f.label).trim();
     return out;
   });

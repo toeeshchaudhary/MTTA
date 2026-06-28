@@ -4,8 +4,8 @@
 // from the admin page; fed one props bundle so the page no longer holds ~160 lines of SVG.
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { MAP_VIEWBOX, RIBBON, roundedPath, tunnelRuns, runPts, type Pt } from '@/content/lines';
-import { TERRAIN_KINDS, KIND_BY_ID, type TerrainKind, type TerrainFeature } from '@/components/map/terrain-kinds';
-import { terrainPath, pathForPoints, smoothClosedPath, offsetInward, bboxOf } from '@/components/map/terrain-shape';
+import { TERRAIN_KINDS, KIND_BY_ID, DEFAULT_ROUND, type TerrainKind, type TerrainFeature } from '@/components/map/terrain-kinds';
+import { terrainPath, roundedPolyPath, offsetInward, bboxOf } from '@/components/map/terrain-shape';
 import Bridges from '@/components/map/Bridges';
 import { TOOLS, PALETTE, PIN_KINDS, FAR, INK } from '@/components/admin/lib/constants';
 import { snap } from '@/components/admin/lib/geometry';
@@ -19,7 +19,7 @@ export type CanvasProps = {
   selSt: string | null; selLn: string | null; selTerr: string | null; selPin: string | null;
   draw: Rect | null; pinDraw: Rect | null; track: Pt[]; editId: string | null; nodeDrag: number | null;
   lnDrag: { id: string; i: number } | null; hover: string | null;
-  paint: string; terrainKind: TerrainKind; pinKind: Pin['kind'];
+  paint: string; terrainKind: TerrainKind; pinKind: Pin['kind']; terrainRound: number; setTerrainRound: (v: number) => void;
   flyLabel: string; hasFly: boolean; msg: string;
   selLine: Ln | null; previewPts: Pt[]; editColor: string;
   setPaint: (v: string) => void; setTerrainKind: (v: TerrainKind) => void; setPinKind: (v: Pin['kind']) => void;
@@ -51,7 +51,7 @@ export default function Canvas(p: CanvasProps) {
     setSelPin, setTerrDrag, setPinDrag, setTrack, setNodeDrag, setLnDrag, setLines, setOrigDrag, svgRef, tw, downPt,
     drawStart, pinDrawStart, origGrab, toSvg, toSvgRaw, onCanvasTap, onLine, onStation, lnColor, lnShape,
     commitTerrain, commitPins, pushHistory, finishTrack, cancelTrack,
-    cursor, landDraft, landNode, setTerrain, setLandNode, finishLand, cancelLand,
+    cursor, landDraft, landNode, setTerrain, setLandNode, finishLand, cancelLand, terrainRound, setTerrainRound,
   } = p;
   // terrain is a focused mode: while it's active the rest of the map dims and goes pointer-inert,
   // so editing water never fights nearby stops/threads. Only the water layer stays live.
@@ -68,7 +68,7 @@ export default function Canvas(p: CanvasProps) {
               <label className="cpick" title="custom colour"><input type="color" value={paint} onChange={(e) => setPaint(e.target.value)} /></label>
             </div>
           )}
-          {tool === 'terrain' && <div className="rail-fly kinds">{TERRAIN_KINDS.map((k) => <button key={k.id} className={`kind ${terrainKind === k.id ? 'on' : ''}`} onClick={() => setTerrainKind(k.id)} title={k.label}><span className="k-sw" style={{ background: k.fill }} />{k.label}</button>)}</div>}
+          {tool === 'terrain' && <div className="rail-fly kinds">{TERRAIN_KINDS.map((k) => <button key={k.id} className={`kind ${terrainKind === k.id ? 'on' : ''}`} onClick={() => setTerrainKind(k.id)} title={k.label}><span className="k-sw" style={{ background: k.fill }} />{k.label}</button>)}<label className="terr-round mono" title="corner roundness for new water">corners<input type="range" min={0} max={80} value={terrainRound} onChange={(e) => setTerrainRound(Number(e.target.value))} /><span className="terr-round-v">{terrainRound}</span></label></div>}
           {tool === 'note' && <div className="rail-fly kinds">{PIN_KINDS.map((k) => <button key={k.id} className={`kind ${pinKind === k.id ? 'on' : ''}`} onClick={() => setPinKind(k.id)} title={k.label}><span className="k-ic">{k.id === 'photo' ? '▣' : '✎'}</span>{k.label}</button>)}</div>}
         </div>
       )}
@@ -101,7 +101,7 @@ export default function Canvas(p: CanvasProps) {
                 {terrain.map((f) => { const k = KIND_BY_ID[f.kind] ?? KIND_BY_ID.block; const isSel = selTerr === f.id; const active = tool === 'terrain' || tool === 'bulldoze';
                   const d = terrainPath(f, k);
                   const hasPoly = !!(f.points && f.points.length >= 3);
-                  const coast = hasPoly && Math.min(f.w, f.h) > 44 ? smoothClosedPath(offsetInward(f.points!, 8)) : null;
+                  const coast = hasPoly && Math.min(f.w, f.h) > 44 ? roundedPolyPath(offsetInward(f.points!, 8), Math.max(0, (f.round ?? DEFAULT_ROUND) - 8)) : null;
                   return (
                     <g key={f.id}>
                       <path data-hit={active ? '' : undefined} d={d} fill={k.fill} stroke={isSel ? INK : k.line} strokeWidth={isSel ? 2.5 : 1.5} strokeDasharray={isSel ? '7 6' : undefined} strokeLinejoin="round"
@@ -129,23 +129,27 @@ export default function Canvas(p: CanvasProps) {
                     </g>
                   );
                 })}
-                {/* live pen draft — Figma-style: tap to drop anchors, snap onto the first point to close into water */}
+                {/* live pen draft — a real polygon pen: each tap drops an anchor joined by straight exterior
+                    lines; the water body only forms once the loop closes (snap onto the first anchor / ⏎). */}
                 {tool === 'terrain' && landDraft.length > 0 && (() => {
                   const k = KIND_BY_ID[terrainKind];
                   const first = landDraft[0];
                   const last = landDraft[landDraft.length - 1];
                   const canClose = landDraft.length >= 3;
                   const nearStart = !!(cursor && canClose && Math.hypot(cursor[0] - first[0], cursor[1] - first[1]) < 18);
-                  // when ready to close, preview the finished (smoothed, closed) blob; otherwise trail the cursor as the next anchor
-                  const preview = nearStart || !cursor ? landDraft : [...landDraft, cursor];
+                  const edges = 'M' + landDraft.map((pt) => `${pt[0]},${pt[1]}`).join(' L'); // straight exterior outline so far
                   return (<g style={{ pointerEvents: 'none' }}>
-                    <path d={pathForPoints(preview, k)} fill={landDraft.length >= 2 ? k.fill : 'none'} fillOpacity={nearStart ? 0.5 : 0.3} stroke={INK} strokeWidth={2} strokeDasharray={nearStart ? undefined : '8 6'} />
-                    {/* dotted closing edge back to the first anchor once the loop can close */}
-                    {canClose && nearStart && <line x1={last[0]} y1={last[1]} x2={first[0]} y2={first[1]} stroke={k.coast} strokeWidth={2} strokeDasharray="2 6" />}
+                    {/* faint preview of the finished body — only once the loop can close, with the chosen corner radius */}
+                    {canClose && <path d={roundedPolyPath(landDraft, terrainRound)} fill={k.fill} fillOpacity={nearStart ? 0.5 : 0.16} stroke="none" />}
+                    <path d={edges} fill="none" stroke={INK} strokeWidth={2} strokeLinejoin="round" />
+                    {/* the live edge from the last anchor to the cursor (the line you're about to commit) */}
+                    {cursor && !nearStart && <line x1={last[0]} y1={last[1]} x2={cursor[0]} y2={cursor[1]} stroke={INK} strokeWidth={2} strokeDasharray="6 6" />}
+                    {/* the closing edge back to the first anchor, once you can close */}
+                    {canClose && nearStart && <line x1={last[0]} y1={last[1]} x2={first[0]} y2={first[1]} stroke={INK} strokeWidth={2} />}
                     {/* snap ring on the first anchor — the close target, brightens when the cursor is over it */}
-                    {canClose && <circle cx={first[0]} cy={first[1]} r={nearStart ? 16 : 12} fill="none" stroke={k.coast} strokeWidth={nearStart ? 2.5 : 1.5} strokeDasharray="3 4" opacity={nearStart ? 1 : 0.5} />}
+                    {canClose && <circle cx={first[0]} cy={first[1]} r={nearStart ? 16 : 11} fill="none" stroke={k.line} strokeWidth={nearStart ? 2.5 : 1.5} strokeDasharray="3 4" opacity={nearStart ? 1 : 0.6} />}
                     {landDraft.map((pt, i) => (
-                      <circle key={i} className="rt-drag" data-hit cx={pt[0]} cy={pt[1]} r={i === 0 ? 7 : 4.5} fill={i === 0 ? k.coast : 'var(--ed-face)'} stroke={INK} strokeWidth={2}
+                      <circle key={i} className="rt-drag" data-hit cx={pt[0]} cy={pt[1]} r={i === 0 ? 6 : 4.5} fill={i === 0 ? k.line : 'var(--canvas)'} stroke={INK} strokeWidth={2}
                         style={{ pointerEvents: 'auto', cursor: i === 0 && canClose ? 'pointer' : 'crosshair' }}
                         onPointerDown={(e) => { e.stopPropagation(); if (i === 0 && canClose) finishLand(); }} />
                     ))}

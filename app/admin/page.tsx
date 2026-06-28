@@ -56,6 +56,7 @@ export default function Admin() {
   // terrain — freehand coastline pen: tap to drop polygon vertices, close to finish
   const [terrain, setTerrain] = useState<TerrainFeature[]>([]);
   const [terrainKind, setTerrainKind] = useState<TerrainKind>('water');
+  const [terrainRound, setTerrainRound] = useState(16); // default corner radius for newly drawn water
   const [draw, setDraw] = useState<Rect | null>(null); // legacy rect draw (unused by the pen; kept for prop shape)
   const [terrDrag, setTerrDrag] = useState<{ id: string; mode: 'move' | 'resize'; corner?: number } | null>(null);
   const [landDraft, setLandDraft] = useState<Pt[]>([]); // in-progress polygon
@@ -359,7 +360,7 @@ export default function Admin() {
     if (landDraft.length < 3) { setLandDraft([]); return; }
     pushHistory();
     const id = `t-${Date.now().toString(36)}`;
-    const feat: TerrainFeature = { id, kind: terrainKind, points: landDraft, ...bboxOf(landDraft) };
+    const feat: TerrainFeature = { id, kind: terrainKind, points: landDraft, round: terrainRound, ...bboxOf(landDraft) };
     commitTerrain([...terrain, feat]);
     setSelTerr(id); setLandDraft([]); flash(`${terrainKind} drawn`);
   };
@@ -543,7 +544,7 @@ export default function Admin() {
 <Canvas
             tool={tool} lines={lines} stations={stations} terrain={terrain} pins={pins} origin={origin} form={form}
             selSt={selSt} selLn={selLn} selTerr={selTerr} selPin={selPin} draw={draw} pinDraw={pinDraw} track={track}
-            editId={editId} nodeDrag={nodeDrag} lnDrag={lnDrag} hover={hover} paint={paint} terrainKind={terrainKind} pinKind={pinKind}
+            editId={editId} nodeDrag={nodeDrag} lnDrag={lnDrag} hover={hover} paint={paint} terrainKind={terrainKind} setTerrainRound={setTerrainRound} terrainRound={terrainRound} pinKind={pinKind}
             flyLabel={flyLabel} hasFly={hasFly} msg={msg} selLine={selLine} previewPts={previewPts} editColor={editColor}
             setPaint={setPaint} setTerrainKind={setTerrainKind} setPinKind={setPinKind} setHover={setHover} setCursor={setCursor}
             setDraw={setDraw} setPinDraw={setPinDraw} setSelTerr={setSelTerr} setSelPin={setSelPin} setTerrDrag={setTerrDrag}
