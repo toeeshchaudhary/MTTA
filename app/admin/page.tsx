@@ -7,7 +7,7 @@ import { TERRAIN_KINDS, KIND_BY_ID, type TerrainKind, type TerrainFeature } from
 import { bboxOf } from '@/components/map/terrain-shape';
 import type { Media, St, Ln, Pin, AboutLink, SiteMeta, PlayMeta, Rect, Tool } from '@/components/admin/types';
 import { TOOLS, PIN_KINDS, SHAPES, PALETTE, GRID, FAR, INK } from '@/components/admin/lib/constants';
-import { snap, isLight, clone, clientToSvg, distToPolyline, projectOnLine, snapTrack } from '@/components/admin/lib/geometry';
+import { snap, isLight, clone, clientToSvg, distToPolyline, projectOnLine, snapTrack, arcAt, sliceByArc } from '@/components/admin/lib/geometry';
 import InfiniteGrid from '@/components/admin/canvas/InfiniteGrid';
 import Marker from '@/components/admin/canvas/Marker';
 import Inspector from '@/components/admin/Inspector';
@@ -115,7 +115,32 @@ export default function Admin() {
   // ---- mutations ----
   const commitLines = useCallback(async (next: Ln[]) => { setSaving(true); setLines(next); await fetch('/api/lines', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lines: next }) }); await loadLines(); setSaving(false); }, [loadLines]);
   const saveStation = useCallback(async (s: St) => { setSaving(true); const r = await fetch('/api/stations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(s) }); const j = await r.json(); setSaving(false); if (r.ok) { await loadStations(); flash(`saved → ${j.id}.md`); return j.id as string; } flash(j.error || 'error'); return null; }, [loadStations]);
-  const delStation = useCallback(async (id: string) => { setSaving(true); await fetch('/api/stations', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) }); await loadStations(); setSaving(false); }, [loadStations]);
+  const delStation = useCallback(async (id: string) => {
+    // if the deleted stop is a line's terminus, shrink that line back to the next stop inward
+    // (a line must still begin & end at a station); if nothing's left, the line is dropped.
+    const s = stations.find((q) => q.id === id);
+    if (s) {
+      const isEnd = (pt: Pt) => Math.hypot(pt[0] - s.x, pt[1] - s.y) < 4;
+      const drop = new Set<string>();
+      let next = lines.slice(); let touched = false;
+      for (const l of lines) {
+        const pts = l.pts; if (!pts || pts.length < 2) continue;
+        const atStart = isEnd(pts[0]), atEnd = isEnd(pts[pts.length - 1]);
+        if (!atStart && !atEnd) continue; // not a terminus of this line → geometry unchanged
+        touched = true;
+        const others = stations.filter((q) => q.id && q.id !== id && (q.lines?.length ? q.lines : [q.line]).includes(l.id));
+        if (!others.length) { drop.add(l.id); continue; }
+        const arcs = others.map((q) => arcAt(pts, q.x, q.y));
+        const np = atEnd ? sliceByArc(pts, 0, Math.max(...arcs)) : sliceByArc(pts, Math.min(...arcs), Infinity);
+        if (Math.hypot(np[np.length - 1][0] - np[0][0], np[np.length - 1][1] - np[0][1]) < 8) drop.add(l.id); // collapsed → can't be a line
+        else next = next.map((q) => (q.id === l.id ? { ...q, pts: np, d: roundedPath(np) } : q));
+      }
+      if (touched) { pushHistory(); next = next.filter((l) => !drop.has(l.id)); await commitLines(next); }
+    }
+    setSaving(true);
+    await fetch('/api/stations', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) });
+    await loadStations(); setSaving(false);
+  }, [stations, lines, commitLines, loadStations]);
   const commitTerrain = useCallback(async (next: TerrainFeature[]) => { setSaving(true); setTerrain(next); await fetch('/api/terrain', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ terrain: next }) }); setSaving(false); }, []);
   const updTerr = (id: string, patch: Partial<TerrainFeature>) => setTerrain((arr) => arr.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   const commitPins = useCallback(async (next: Pin[]) => { setSaving(true); setPins(next); await fetch('/api/pins', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pins: next }) }); setSaving(false); }, []);
@@ -300,11 +325,11 @@ export default function Admin() {
   // a line must begin & end at a station (or the origin) — anchor each end to the nearest one,
   // and if there's nothing close, drop a terminus stop right there.
   const SNAP = 46;
-  const anchorEnd = (p: Pt): { p: Pt; bare: boolean } => {
-    if (Math.hypot(p[0] - origin[0], p[1] - origin[1]) <= SNAP) return { p: [origin[0], origin[1]], bare: false };
+  const anchorEnd = (p: Pt): { p: Pt; bare: boolean; sid?: string } => {
+    if (Math.hypot(p[0] - origin[0], p[1] - origin[1]) <= SNAP) return { p: [origin[0], origin[1]], bare: false }; // the origin itself
     let best: St | null = null, bd = SNAP;
     for (const s of stations) { if (!s.id) continue; const dd = Math.hypot(p[0] - s.x, p[1] - s.y); if (dd <= bd) { bd = dd; best = s; } }
-    return best ? { p: [best.x, best.y], bare: false } : { p, bare: true };
+    return best ? { p: [best.x, best.y], bare: false, sid: best.id } : { p, bare: true };
   };
   const finishTrack = async () => {
     if (track.length < 2) { cancelTrack(); return; }
@@ -316,15 +341,14 @@ export default function Admin() {
     const id = isEdit ? editId! : `thread-${Date.now().toString(36)}`;
     if (isEdit) await commitLines(lines.map((l) => (l.id === editId ? { ...l, pts, d } : l)));
     else await commitLines([...lines, { id, label: `thread ${lines.length + 1}`, color: paint, text: isLight(paint) ? '#111' : '#fff', shape: 'circle', blurb: 'a new thread', pts, d }]);
-    // drop a terminus stop on any bare end so the line always starts & ends at a station
-    let made = 0;
+    // every end must be a station/origin: drop a stop on a bare end; on an existing stop
+    // (incl. a grand interchange) add this line to it so it becomes a joint terminus.
     for (const [end, key] of [[a0, 'start'], [aN, 'end']] as const) {
-      if (!end.bare) continue;
-      await saveStation({ id: `${id}-${key}`, title: 'new stop', line: id, lines: [id], date: '', shape: 'circle', x: end.p[0], y: end.p[1], media: [], body: '' });
-      made++;
+      if (end.bare) { await saveStation({ id: `${id}-${key}`, title: 'new stop', line: id, lines: [id], date: '', shape: 'circle', x: end.p[0], y: end.p[1], media: [], body: '' }); }
+      else if (end.sid) { const s = stations.find((q) => q.id === end.sid); if (s && !(s.lines?.length ? s.lines : [s.line]).includes(id)) await saveStation({ ...s, lines: Array.from(new Set([...(s.lines?.length ? s.lines : [s.line]), id])) }); }
     }
     setSelLn(id); setTrack([]); setEditId(null); setNodeDrag(null); setTool('select'); setSelSt(null);
-    flash(isEdit ? `re-routed${made ? ` · +${made} terminus stop` : ''}` : `thread laid${made ? ` · +${made} terminus stop` : ''}`);
+    flash(isEdit ? 'thread re-routed' : 'thread laid');
   };
 
   const paintLine = (id: string) => { const l = lines.find((q) => q.id === id); if (!l) return; pushHistory(); commitLines(lines.map((q) => (q.id === id ? { ...q, color: paint, text: isLight(paint) ? '#111' : '#fff' } : q))); flash(`recoloured “${l.label || id}” → ${paint}`); };

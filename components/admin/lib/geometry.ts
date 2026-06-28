@@ -64,6 +64,36 @@ export function neighborMagnet(pt: Pt, neighbors: (Pt | undefined)[], grid = GRI
   return [x, y];
 }
 
+// arc-length position of (x,y) projected onto a polyline (used to order stops along a line)
+export function arcAt(pts: Pt[], x: number, y: number): number {
+  let best = Infinity, bestArc = 0, acc = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+    const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy || 1, seg = Math.hypot(dx, dy);
+    let t = ((x - ax) * dx + (y - ay) * dy) / len2; t = Math.max(0, Math.min(1, t));
+    const px = ax + t * dx, py = ay + t * dy, dd = (x - px) ** 2 + (y - py) ** 2;
+    if (dd < best) { best = dd; bestArc = acc + seg * t; }
+    acc += seg;
+  }
+  return bestArc;
+}
+
+// the sub-polyline between two arc-lengths (used to shrink a line back to a remaining stop)
+export function sliceByArc(pts: Pt[], a0: number, a1: number): Pt[] {
+  const cum: number[] = [0]; let total = 0;
+  for (let i = 0; i < pts.length - 1; i++) { total += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]); cum.push(total); }
+  a0 = Math.max(0, Math.min(total, a0)); a1 = Math.max(0, Math.min(total, a1));
+  if (a1 < a0) { const t = a0; a0 = a1; a1 = t; }
+  const at = (d: number): Pt => {
+    for (let i = 0; i < pts.length - 1; i++) { if (cum[i + 1] >= d) { const seg = cum[i + 1] - cum[i] || 1, t = (d - cum[i]) / seg; return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t]; } }
+    return pts[pts.length - 1];
+  };
+  const out: Pt[] = [at(a0)];
+  for (let i = 0; i < pts.length; i++) if (cum[i] > a0 + 0.5 && cum[i] < a1 - 0.5) out.push(pts[i]);
+  out.push(at(a1));
+  return out;
+}
+
 // resize a rect by dragging one corner (0=tl 1=tr 2=br 3=bl) to point `pt`
 export function resizeRect(rect: Rect, corner: number, pt: Pt, min = GRID): Rect {
   const [x, y] = pt, x2 = rect.x + rect.w, y2 = rect.y + rect.h;
