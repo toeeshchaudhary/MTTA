@@ -19,8 +19,9 @@ import { setSfxEnabled, chimeOpen, chimeClose } from '@/lib/sfx';
 
 type AboutData = { name: string; role: string; blurb: string; links: { label: string; url: string }[] };
 const DEFAULT_ABOUT: AboutData = { name: 'Toeesh Chaudhary', role: '', blurb: '', links: [] };
+const LABEL_ZOOM = 1.1; // initialScale is 0.92, so the at-rest overview stays clean; names fade in once you zoom in
 
-export default function Experience({ lines, stations, terrain = [], pins = [], origin = [700, 96], originLabel = 'the origin — toeesh', originCue = 'about ↗', about = DEFAULT_ABOUT, play = PLAY_DEFAULTS, initialStop }: { lines: Line[]; stations: Station[]; terrain?: TerrainFeature[]; pins?: Pin[]; origin?: [number, number]; originLabel?: string; originCue?: string; about?: AboutData; play?: Play; initialStop?: string }) {
+export default function Experience({ lines, stations, terrain = [], pins = [], origin = [700, 96], originLabel = 'the origin — toeesh', originCue = 'about ↗', about = DEFAULT_ABOUT, play = PLAY_DEFAULTS, featured: featuredIds = [], initialStop }: { lines: Line[]; stations: Station[]; terrain?: TerrainFeature[]; pins?: Pin[]; origin?: [number, number]; originLabel?: string; originCue?: string; about?: AboutData; play?: Play; featured?: string[]; initialStop?: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoveredLines, setHoveredLines] = useState<string[]>([]);
   const [focusLine, setFocusLine] = useState<string | null>(null);
@@ -31,8 +32,11 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
   const [showOnboard, setShowOnboard] = useState(false);
   const [nudge, setNudge] = useState(false);
   const [motionOff, setMotionOff] = useState(false);
+  const [coarse, setCoarse] = useState(false); // touch device — skip the disorienting auto camera glide
   const [expanded, setExpanded] = useState(false);
   const [reduced, setReduced] = useState(false);
+  const [labelsOpen, setLabelsOpen] = useState(false); // station names reveal once zoomed in past LABEL_ZOOM
+  const [legendOpen, setLegendOpen] = useState(true); // on touch the legend starts collapsed (a tap-to-expand bottom bar)
   const tw = useRef<ReactZoomPanPinchRef>(null);
   // trains run by default and are controlled by the motion toggle. (We don't auto-suppress
   // on prefers-reduced-motion — they'd silently never show on motion-averse setups; the
@@ -43,7 +47,18 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
   const [tripOpen, setTripOpen] = useState(false);
   const [tripResult, setTripResult] = useState<TripResult>(null);
 
-  useEffect(() => { try { setReduced(matchMedia('(prefers-reduced-motion: reduce)').matches); } catch {} }, []);
+  useEffect(() => { try { setReduced(matchMedia('(prefers-reduced-motion: reduce)').matches); setCoarse(matchMedia('(pointer: coarse)').matches); } catch {} }, []);
+
+  // legend starts collapsed on touch (it would otherwise eat most of a phone screen); a stored
+  // pref wins, else default open on desktop / closed on coarse pointers.
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem('legend-open');
+      if (v != null) setLegendOpen(v === '1');
+      else if (matchMedia('(pointer: coarse)').matches) setLegendOpen(false);
+    } catch {}
+  }, []);
+  const toggleLegend = useCallback(() => setLegendOpen((o) => { const n = !o; try { localStorage.setItem('legend-open', n ? '1' : '0'); } catch {} return n; }), []);
 
   // hold the trains until the intro cascade (origin → notes → terrain → lines → stops) has
   // played, then let them fade in — otherwise they're already mid-run the instant the map appears
@@ -77,7 +92,19 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
 
   const bounds = useMemo(() => contentBounds(lines, [...stations, { x: origin[0], y: origin[1] }], [...terrain, ...pins]), [lines, stations, terrain, pins, origin]);
   const byId = useMemo(() => Object.fromEntries(stations.map((s) => [s.id, s])), [stations]);
-  const featured = useMemo(() => ['hello', 'the-rice', 'the-map-editor', 'why-a-map'].filter((id) => byId[id]).slice(0, 3), [byId]);
+  // spotlight stops: site-authored order wins; otherwise self-heal to real content so the
+  // "start here" CTA + pulse are never dead (welcome first, skipping auto-generated termini).
+  const featured = useMemo(() => {
+    const fromSite = (featuredIds ?? []).filter((id) => byId[id]).slice(0, 3);
+    if (fromSite.length) return fromSite;
+    const auto: string[] = [];
+    if (byId['welcome-mtta']) auto.push('welcome-mtta');
+    for (const s of stations) {
+      if (auto.length >= 3) break;
+      if (s.id !== 'welcome-mtta' && !/(^terminus-|-terminus$)/.test(s.id)) auto.push(s.id);
+    }
+    return auto.slice(0, 3);
+  }, [featuredIds, byId, stations]);
   const countByLine = useMemo(() => { const m: Record<string, number> = {}; for (const s of stations) m[s.line] = (m[s.line] || 0) + 1; return m; }, [stations]);
   const pad2 = (n: number) => String(n).padStart(2, '0');
   // system codes — line-no · stop-index (e.g. 02·01), stations come pre-sorted by line then position
@@ -111,13 +138,13 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
 
   // ride-the-line camera glide — once per session, skipped on shared-stop links or reduced motion
   useEffect(() => {
-    if (!started || initialStop || reduced || motionOff) return;
+    if (!started || initialStop || reduced || motionOff || coarse) return; // coarse: the camera glide stutters on phones
     let did = false; try { did = sessionStorage.getItem('glided') === '1'; } catch {}
     if (did) return;
     try { sessionStorage.setItem('glided', '1'); } catch {}
     const t = setTimeout(rideTheLine, 900);
     return () => clearTimeout(t);
-  }, [started, initialStop, reduced, motionOff, rideTheLine]);
+  }, [started, initialStop, reduced, motionOff, coarse, rideTheLine]);
 
   // tracks whether we've pushed a stop entry onto history (so Back closes the drawer)
   const pushedRef = useRef(false);
@@ -296,10 +323,11 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         maxScale={4}
         centerOnInit
         limitToBounds={false}
-        smooth={false}
-        wheel={{ step: 0.14 }}
+        smooth
+        wheel={{ step: 0.06 }}
         doubleClick={{ disabled: true }}
         panning={{ velocityDisabled: false }}
+        onTransform={(_r, state) => { const open = state.scale >= LABEL_ZOOM; setLabelsOpen((o) => (o === open ? o : open)); }}
       >
         <TransformComponent wrapperClass="tc-wrap" wrapperStyle={{ width: '100vw', height: '100vh' }} contentStyle={{ width: bounds.w, height: bounds.h }}>
           <TransitMap
@@ -309,6 +337,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
             pins={pins}
             selectedId={selectedId}
             activeLines={activeLines}
+            zoomedIn={labelsOpen}
             started={started}
             trains={trains}
             stationPulse={play.stationPulse}
@@ -346,17 +375,19 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
       <div className="hud-tl">
         <div className="hud-actions">
           {featured.length > 0 && <button className={`start-here ${nudge ? 'nudge' : ''}`} onClick={() => { setExpanded(false); select(featured[0]); }}>start here ↘</button>}
-          <button className="open-index" onClick={() => setAboutOpen(true)}>⊙ about</button>
+          <button className="open-index" onClick={() => setShowOnboard(true)}>? what is this</button>
+          <button className="open-index hud-about" onClick={() => setAboutOpen(true)}>⊙ about</button>
           <button className="open-index" onClick={() => setIndexOpen(true)}>⊕ index <span className="mono">/</span></button>
         </div>
         <div className="mono tag">drag · zoom · tap a stop</div>
       </div>
 
-      <aside className="legend" aria-label="The network key">
-        <div className="legend-head">
+      <aside className={`legend ${legendOpen ? '' : 'min'}`} aria-label="The network key">
+        <button className="legend-head" onClick={toggleLegend} aria-expanded={legendOpen} aria-label={legendOpen ? 'Collapse the network key' : 'Expand the network key'}>
           <span className="mono legend-title">the network</span>
           <span className="mono legend-count">{pad2(lines.length)} threads · {pad2(stations.length)} stops</span>
-        </div>
+          <span className="legend-chev mono" aria-hidden>{legendOpen ? '▾' : '▸'}</span>
+        </button>
         <div className={`leg-status mono ${touring ? 'touring' : ''}`}><span className="leg-live" />{touring ? 'now touring · enjoy the ride' : 'all lines running · slowly living'}</div>
         <ol className="leg-list">
           {lines.map((l, i) => (
@@ -429,7 +460,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         <div className="onboard">
           <button className="ob-x" onClick={dismissOnboard} aria-label="dismiss">✕</button>
           <span className="ob-k mono">new here?</span>
-          <p className="ob-p">This is <b>toeesh</b> drawn as a transit map. <b>Tap any stop</b> to read it, follow a <b>thread</b> from the legend, or jump to a highlighted <b>start here</b> stop.</p>
+          <p className="ob-p">This is <b>toeesh</b> drawn as a transit map — each <b>line</b> is a thread of his life, each <b>stop</b> a thing he made or thinks about. <b>Tap any stop</b> to read it, follow a <b>thread</b> from the legend, or jump to a highlighted <b>start here</b> stop.</p>
           <div className="ob-act">
             {featured[0] && <button className="ob-go" onClick={() => { dismissOnboard(); setExpanded(false); select(featured[0]); }}>start here ↘</button>}
             <button className="ob-dismiss" onClick={dismissOnboard}>explore freely</button>
@@ -470,7 +501,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         .mast-dot { opacity: 0.5; }
         .hud-tl { position: absolute; top: 20px; left: 22px; z-index: 15; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
         .tag { color: var(--ink-soft); letter-spacing: 0.16em; }
-        :global(.mini) { position: absolute !important; right: 70px; bottom: 22px; z-index: 14; overflow: hidden; background: var(--canvas); border: 3px solid var(--ink) !important; box-shadow: 5px 5px 0 var(--ink); }
+        :global(.mini) { position: absolute !important; right: 70px; bottom: 22px; z-index: 14; overflow: hidden; background: var(--canvas); border: 3px solid var(--edge) !important; box-shadow: 5px 5px 0 var(--shadow); }
         /* keep the viewport indicator's "spotlight" contained to the minimap — the library's
            default box-shadow spreads 10,000,000px and would veil the whole page (grey overlay). */
         :global(.mini-vp) { border: 2px solid var(--ink) !important; background: rgba(20,20,20,0.08) !important; box-shadow: rgba(20,20,20,0.18) 0 0 0 10000000px !important; }
@@ -511,20 +542,21 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         /* About card styles live in globals.css — motion components don't pick up styled-jsx scoping */
         .legend {
           position: absolute; left: 22px; bottom: 20px; z-index: 15;
-          background: var(--panel); border: 2px solid var(--ink); padding: 0;
-          display: flex; flex-direction: column; box-shadow: 6px 6px 0 var(--ink);
+          background: var(--panel); border: 2px solid var(--edge); padding: 0;
+          display: flex; flex-direction: column; box-shadow: 6px 6px 0 var(--shadow);
           width: 296px;
         }
-        .legend-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 11px 14px 10px; border-bottom: 1.5px solid var(--ink); }
+        .legend-head { width: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 11px 14px 10px; border: 0; border-bottom: 1.5px solid var(--ink); background: none; color: inherit; font: inherit; text-align: left; cursor: default; }
+        .legend-chev { display: none; color: var(--ink-soft); font-size: 0.7rem; align-self: center; }
         .legend-title { color: var(--ink); font-size: 0.62rem; letter-spacing: 0.18em; }
         .legend-count { color: var(--ink-soft); font-size: 0.54rem; letter-spacing: 0.1em; }
         /* LED status readout — inset dark strip, matches the departures board "LIVE" pill */
         .leg-status { display: flex; align-items: center; gap: 7px; margin: 9px 12px; padding: 6px 10px;
-          background: #0e0e10; border: 1.5px solid var(--ink); color: #6fe08a;
+          background: #0e0e10; border: 1.5px solid var(--edge); color: #6fe08a;
           font-size: 0.52rem; letter-spacing: 0.12em; text-transform: uppercase; }
-        .leg-status.touring { color: #ffcf00; }
+        .leg-status.touring { color: var(--hi); }
         .leg-live { width: 7px; height: 7px; border-radius: 50%; background: #6fe08a; flex: none; animation: leg-pulse 2.2s ease-out infinite; }
-        .leg-status.touring .leg-live { background: #ffcf00; }
+        .leg-status.touring .leg-live { background: var(--hi); }
         @keyframes leg-pulse { 0% { box-shadow: 0 0 0 0 rgba(111,224,138,0.5); } 70% { box-shadow: 0 0 0 6px rgba(111,224,138,0); } 100% { box-shadow: 0 0 0 0 rgba(111,224,138,0); } }
         /* .leg-live pulse is paused by the MOTION toggle (.no-motion), not prefers-reduced-motion */
         .leg-list { list-style: none; margin: 0; padding: 0; max-height: 46vh; overflow: auto; }
@@ -533,7 +565,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         .leg-li .leg { flex: 1; min-width: 0; }
         .leg-ride { flex: none; width: 30px; background: none; border: 0; border-left: 1px solid var(--line); color: var(--ink-soft); cursor: pointer; font-size: 0.7rem; }
         .leg-ride:hover { background: var(--ink); color: var(--bg); }
-        .leg-ride.on { background: var(--yellow); color: #111; }
+        .leg-ride.on { background: var(--hi); color: var(--hi-ink); }
         .leg { display: grid; grid-template-columns: auto 15px auto 1fr auto; align-items: center; column-gap: 10px; width: 100%; background: none; border: 0; cursor: pointer; color: var(--ink); padding: 9px 14px; text-align: left; }
         .leg:hover, .leg-on { background: var(--ink); color: var(--bg); }
         .leg-no { font-size: 0.58rem; letter-spacing: 0.05em; color: var(--ink-soft); }
@@ -549,6 +581,14 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         :global(.tt) { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 5px 8px; cursor: pointer; }
         :global(.tt:hover) { background: var(--ink); color: var(--bg); border-color: var(--ink); }
         :global(.tt.on) { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+        /* touch feedback — no hover on phones, so mirror the invert/press onto :active */
+        @media (hover: none), (pointer: coarse) {
+          .leg:active { background: var(--ink); color: var(--bg); }
+          .leg:active .leg-no, .leg:active .leg-blurb, .leg:active .leg-n { color: var(--bg); }
+          .leg-ride:active { background: var(--ink); color: var(--bg); }
+          .start-here:active, .open-index:active { transform: translate(1px, 1px); box-shadow: 2px 2px 0 rgba(0,0,0,0.3); }
+          :global(.tt:active) { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+        }
         @media (max-width: 700px) {
           :global(.mini) { display: none !important; }
           .masthead { top: 12px; right: 12px; }
@@ -556,17 +596,27 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
           .bm-net, .mast-desc { display: none; }
           .hud-tl { top: 12px; left: 12px; gap: 8px; }
           .tag { display: none; }
-          .hud-actions { gap: 5px; }
+          .hud-actions { gap: 5px; flex-wrap: wrap; }
+          .hud-about { display: none; } /* About is still reachable via the masthead brandmark */
           .open-index, .start-here { font-size: 0.55rem; padding: 6px 8px; border-width: 2px; box-shadow: 3px 3px 0 rgba(0,0,0,0.3); }
           .open-index .mono { display: none; }
-          .legend { left: 12px; right: 12px; bottom: 12px; width: auto; max-width: none; }
+          /* legend clears the 44px controls column (right:18 + 44 ≈ 62) and collapses to a tap bar */
+          .legend { left: 12px; right: 66px; bottom: 12px; width: auto; max-width: none; }
+          .legend-head { cursor: pointer; align-items: center; }
+          .legend-chev { display: inline; }
+          .legend.min .legend-head { border-bottom: 0; }
+          .legend.min .leg-status,
+          .legend.min .leg-list,
+          .legend.min .legend-ctl,
+          .legend.min .legend-links,
+          .legend.min .colophon { display: none; }
           .leg-blurb { display: none; }
           .leg-list { max-height: 34vh; }
           .leg { padding: 12px 14px; } /* bigger tap targets */
           .leg-ride { width: 44px; font-size: 0.85rem; }
           .leg-status, .colophon { display: none; }
           .legend-links { flex-wrap: wrap; }
-          .onboard { top: 64px; bottom: auto; left: 12px; right: 12px; width: auto; transform: none; }
+          .onboard { top: 108px; bottom: auto; left: 12px; right: 12px; width: auto; transform: none; } /* clear the HUD row + the departure bar below it */
         }
       `}</style>
     </div>

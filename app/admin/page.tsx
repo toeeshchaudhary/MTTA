@@ -14,6 +14,7 @@ import Inspector from '@/components/admin/Inspector';
 import Canvas from '@/components/admin/Canvas';
 import { onDrag } from '@/components/admin/hooks/usePointerDrag';
 import { useAdminTheme } from '@/components/admin/hooks/useAdminTheme';
+import PublishButton from '@/components/admin/PublishButton';
 
 type Snap = { lines: Ln[]; stations: St[]; terrain: TerrainFeature[]; pins: Pin[]; site: SiteMeta; origin: Pt };
 
@@ -504,6 +505,8 @@ export default function Admin() {
           <span className="adm-div" />
           <button className="tbtn" onClick={toggleTheme} title="toggle theme">{theme === 'dark' ? '◐ dark' : '◑ light'}</button>
           <button className={`tbtn ${view === 'dashboard' ? 'on' : ''}`} onClick={() => setView(view === 'build' ? 'dashboard' : 'build')}>{view === 'build' ? '≡ list' : '▦ map'}</button>
+          <span className="adm-div" />
+          <PublishButton />
           <a className="tbtn" href="/">view →</a>
         </div>
       </div>

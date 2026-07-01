@@ -28,7 +28,12 @@ export default function DepartureBoard({ lines, stations, focusLine = null, quip
   const [quip, setQuip] = useState<string | null>(null);  // occasional witty service message
 
   useEffect(() => {
-    try { const v = localStorage.getItem('depboard-open'); if (v != null) setOpen(v === '1'); } catch {}
+    // stored pref wins; otherwise start minimised on touch so it doesn't crowd the top-left HUD
+    try {
+      const v = localStorage.getItem('depboard-open');
+      if (v != null) setOpen(v === '1');
+      else if (matchMedia('(pointer: coarse)').matches) setOpen(false);
+    } catch {}
   }, []);
   const toggle = () => setOpen((o) => { const n = !o; try { localStorage.setItem('depboard-open', n ? '1' : '0'); } catch {} return n; });
 
@@ -103,14 +108,14 @@ export default function DepartureBoard({ lines, stations, focusLine = null, quip
       <style jsx>{`
         .depboard { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 14;
           width: min(430px, 62vw); background: #0e0e10; color: #f4f1e9;
-          border: 2px solid var(--ink); box-shadow: 5px 5px 0 var(--ink);
+          border: 1px solid var(--edge); box-shadow: 5px 5px 0 var(--shadow);
           font-family: var(--font-mono); overflow: hidden; }
         .dep-top { width: 100%; display: flex; align-items: center; justify-content: space-between;
           padding: 6px 11px; background: #161616; border: 0; border-bottom: 1px solid #2a2a2a;
           color: inherit; font: inherit; cursor: pointer; }
         .dep-top:hover { background: #1d1d1d; }
         .depboard.min .dep-top { border-bottom-color: transparent; }
-        .dep-title { display: flex; align-items: center; gap: 7px; color: #ffcf00;
+        .dep-title { display: flex; align-items: center; gap: 7px; color: var(--hi);
           text-transform: uppercase; font-size: 0.6rem; letter-spacing: 0.22em; font-weight: 700; }
         .dep-chev { color: #6c6c72; font-size: 0.55rem; letter-spacing: 0; margin-left: 1px; }
         .dep-peek { color: #c9c6bd; font-size: 0.66rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -118,8 +123,8 @@ export default function DepartureBoard({ lines, stations, focusLine = null, quip
         /* collapse the rows when minimised */
         .dep-rows { max-height: 220px; transition: max-height 0.32s cubic-bezier(0.2,0.7,0.2,1), opacity 0.2s ease; }
         .depboard.min .dep-rows { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; overflow: hidden; pointer-events: none; }
-        .dep-led { width: 7px; height: 7px; background: #ffcf00; box-shadow: 0 0 6px #ffcf00aa; flex: none; }
-        .dep-clock { display: flex; align-items: center; gap: 1px; color: #ffcf00;
+        .dep-led { width: 7px; height: 7px; background: var(--hi); box-shadow: 0 0 6px color-mix(in srgb, var(--hi) 67%, transparent); flex: none; }
+        .dep-clock { display: flex; align-items: center; gap: 1px; color: var(--hi);
           font-size: 0.72rem; letter-spacing: 0.05em; font-variant-numeric: tabular-nums; }
         .dep-colon { transition: opacity 0.12s; }
         .dep-colon.off { opacity: 0.15; }
@@ -132,7 +137,7 @@ export default function DepartureBoard({ lines, stations, focusLine = null, quip
           padding: 7px 11px; background: none; border: 0; border-left: 3px solid transparent;
           color: inherit; font: inherit; cursor: pointer; text-align: left; }
         .dep-row:hover { background: rgba(255,255,255,0.05); }
-        .dep-row.due { border-left-color: #ffcf00; background: rgba(255,207,0,0.06); }
+        .dep-row.due { border-left-color: var(--hi); background: color-mix(in srgb, var(--hi) 9%, transparent); }
         .dep-trk { color: #6c6c72; font-size: 0.6rem; letter-spacing: 0.05em; font-variant-numeric: tabular-nums; }
         .dep-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; box-shadow: 0 0 0 2px #0e0e10, 0 0 5px rgba(0,0,0,0.6); }
         .dep-line { text-transform: uppercase; font-weight: 700; font-size: 0.64rem; letter-spacing: 0.05em;
@@ -140,17 +145,24 @@ export default function DepartureBoard({ lines, stations, focusLine = null, quip
         .dep-dest { color: #f4f1e9; font-size: 0.74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
           animation: dep-flip 0.42s cubic-bezier(0.2,0.7,0.2,1) both; }
         .dep-min { justify-self: end; color: #9a9aa0; font-size: 0.66rem; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-        .dep-min.now { color: #ffcf00; font-weight: 700; letter-spacing: 0.1em; }
-        .dep-row.quip { grid-template-columns: 14px 1fr; cursor: default; border-left-color: #ffcf00; background: rgba(255,207,0,0.08);
+        .dep-min.now { color: var(--hi); font-weight: 700; letter-spacing: 0.1em; }
+        .dep-row.quip { grid-template-columns: 14px 1fr; cursor: default; border-left-color: var(--hi); background: color-mix(in srgb, var(--hi) 11%, transparent);
           animation: dep-flip 0.42s cubic-bezier(0.2,0.7,0.2,1) both; }
-        .dep-quip-led { width: 8px; height: 8px; border-radius: 50%; background: #ffcf00; box-shadow: 0 0 6px #ffcf00aa;
+        .dep-quip-led { width: 8px; height: 8px; border-radius: 50%; background: var(--hi); box-shadow: 0 0 6px color-mix(in srgb, var(--hi) 67%, transparent);
           animation: dep-pulse 1.4s ease-in-out infinite; }
-        .dep-quip-text { color: #ffcf00; font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .dep-quip-text { color: var(--hi); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         @keyframes dep-flip { 0% { opacity: 0; transform: translateY(-8px) scaleY(0.55); transform-origin: top; }
           60% { opacity: 1; } 100% { opacity: 1; transform: none; } }
         @keyframes dep-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-        @media (max-width: 680px) { .depboard { width: 86vw; } .dep-row { grid-template-columns: 18px 10px 1fr auto; }
+        /* phones: drop the board onto its own row below the top-left HUD + wordmark so it stops
+           colliding with them (it was centred on the same top row). */
+        @media (max-width: 680px) { .depboard { width: 86vw; top: 56px; } .dep-row { grid-template-columns: 18px 10px 1fr auto; }
           .dep-line { display: none; } }
+        /* touch has no hover — mirror the row/header highlight onto :active */
+        @media (hover: none), (pointer: coarse) {
+          .dep-top:active { background: #1d1d1d; }
+          .dep-row:active { background: rgba(255,255,255,0.08); }
+        }
         /* motion is controlled by the in-app MOTION toggle (.no-motion freezes all of this),
            not prefers-reduced-motion — which is 'reduce' on the owner's setup. */
       `}</style>

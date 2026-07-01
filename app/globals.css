@@ -39,7 +39,9 @@
   --tunnel-mouth: #16181f; /* the dark opening of a tunnel portal */
 }
 
-/* theme: whiteboard (default) — bright, airy paper */
+/* theme: whiteboard (default) — bright, airy paper.
+   --edge = chrome border, --shadow = hard-shadow colour, --hi = UI highlight accent.
+   In light they collapse to the ink so the Bauhaus look is unchanged. */
 :root, :root[data-theme="light"] {
   --bg: #ffffff;
   --panel: #ffffff;
@@ -48,31 +50,44 @@
   --line: #ededf2;
   --canvas: #ffffff;
   --canvas-grid: #e8e9f0;
+  --edge: var(--ink);
+  --shadow: var(--ink);
+  --hi: #0f9fb2;         /* teal highlight (replaces the old yellow accent) */
+  --hi-ink: #ffffff;     /* text on a --hi fill */
 }
-/* theme: night — toeesh's Cosmos mood (near-black + plum + periwinkle) */
+/* theme: night — Mini Metro dark: warm charcoal field, near-black station tiles,
+   soft chrome (no harsh white borders / hard shadows). Line colours come from the
+   content, so they stay vivid on the charcoal. */
 :root[data-theme="dark"] {
-  --bg: #121116;
-  --panel: #1b1922;
-  --ink: #e9e6f0;
-  --ink-soft: #9991ab;
-  --line: #2e2a39;
-  --canvas: #161517;
-  --canvas-grid: #2b2836;
-  /* terrain — Mini-Metro water, muted for night so it sits under the dark canvas */
-  --water: #1f3a4a;       --water-line: #356881;       --water-coast: #4d8aa6;
-  --terrain-label: rgba(190,225,240,0.55);
+  --bg: #2b2a2f;         /* warm charcoal, not pure black */
+  --panel: #1b1a1e;      /* station-tile / card — darker than the field */
+  --ink: #f3f2f5;
+  --ink-soft: #9d9ba6;   /* neutral grey secondary (no purple tint) */
+  --line: #3a3942;       /* subtle divider */
+  --canvas: #262529;     /* map field — sits just under the chrome */
+  --canvas-grid: #37363e;
+  --edge: rgba(255,255,255,0.14);   /* soft hairline instead of white borders */
+  --shadow: rgba(0,0,0,0.45);       /* soft dark drop instead of white blocks */
+  --hi: #29c1d6;         /* brighter teal for the dark field */
+  --hi-ink: #10242a;
+  /* terrain — Mini-Metro water, muted steel-blue for night */
+  --water: #24414f;       --water-line: #3a6a80;       --water-coast: #4d8399;
+  --terrain-label: rgba(200,225,238,0.5);
   /* bridges — concrete deck + light ties read on the dark water */
-  --bridge-deck: #34505f;
-  --bridge-rail: rgba(200,228,242,0.55);
-  --tunnel-mouth: #05060a;
+  --bridge-deck: #384f5c;
+  --bridge-rail: rgba(205,228,240,0.5);
+  --tunnel-mouth: #17161a;
 }
 
 /* admin editor chrome — handle/stroke inks that resolve per theme so the map editor
    stays legible in dark mode. --ed-face is the white disc/handle fill (reads on both). */
 :root, :root[data-theme="light"] { --ed-ink: #2b2b33; --ed-face: #ffffff; }
-:root[data-theme="dark"] { --ed-ink: #e9e6f0; --ed-face: #ffffff; }
+:root[data-theme="dark"] { --ed-ink: #ffffff; --ed-face: #ffffff; }
 
 * , *::before, *::after { box-sizing: border-box; }
+
+/* subtle crossfade when switching light <-> dark (View Transitions API) */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.38s; animation-timing-function: ease; }
 html, body { padding: 0; margin: 0; height: 100%; }
 body {
   background: var(--bg);
@@ -86,7 +101,7 @@ body {
 a { color: inherit; }
 ::selection { background: var(--ink); color: var(--bg); }
 button { font-family: inherit; }
-:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--edge); outline-offset: 2px; }
 
 /* ---- type ---- */
 .mono { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.66rem; }
@@ -114,12 +129,12 @@ button { font-family: inherit; }
 .drawer .d-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .drawer .d-line { font-weight: 700; color: var(--line-c); }
 .drawer .d-actions { display: flex; gap: 8px; }
-.drawer .d-btn { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 6px 9px; cursor: pointer; }
+.drawer .d-btn { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--edge); color: var(--ink); padding: 6px 9px; cursor: pointer; }
 .drawer .d-btn:hover { background: var(--line-c); color: #fff; border-color: var(--line-c); }
 .drawer .d-btn.x { width: 34px; }
 .drawer .d-title { font-size: clamp(2rem, 6vw, 3.1rem); font-weight: 800; letter-spacing: -0.035em; line-height: 0.96; margin: 14px 0 10px; position: relative; z-index: 1; }
 .drawer .d-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 28px; border-top: 2px solid var(--line); padding-top: 16px; }
-.drawer .d-nav button { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 8px 12px; cursor: pointer; }
+.drawer .d-nav button { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--edge); color: var(--ink); padding: 8px 12px; cursor: pointer; }
 .drawer .d-nav button:disabled { opacity: 0.3; cursor: default; }
 .drawer .d-nav button:not(:disabled):hover { background: var(--line-c); color: #fff; border-color: var(--line-c); }
 .drawer .d-readmore { background: var(--line-c) !important; color: #fff !important; border-color: var(--line-c) !important; }
@@ -148,25 +163,25 @@ button { font-family: inherit; }
 
 /* trip planner panel */
 .trip-panel { position: fixed; left: 22px; bottom: 20px; z-index: 24; width: 250px;
-  background: var(--panel); color: var(--ink); border: 3px solid var(--ink); box-shadow: 8px 8px 0 var(--ink);
+  background: var(--panel); color: var(--ink); border: 3px solid var(--edge); box-shadow: 8px 8px 0 var(--shadow);
   padding: 12px 13px 13px; display: flex; flex-direction: column; gap: 9px; font-family: var(--font-mono); }
 .trip-head { display: flex; align-items: center; justify-content: space-between; }
 .trip-head .mono { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
-.trip-x { background: none; border: 2px solid var(--ink); color: var(--ink); width: 26px; height: 26px; cursor: pointer; font-size: 0.7rem; }
+.trip-x { background: none; border: 2px solid var(--edge); color: var(--ink); width: 26px; height: 26px; cursor: pointer; font-size: 0.7rem; }
 .trip-x:hover { background: var(--ink); color: var(--bg); }
 .trip-f { display: flex; flex-direction: column; gap: 4px; font-size: 0.54rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-soft); }
-.trip-f select { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink); background: var(--bg); border: 2px solid var(--ink); padding: 6px 7px; cursor: pointer; }
-.trip-go { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: var(--ink); color: var(--bg); border: 2px solid var(--ink); padding: 8px; cursor: pointer; }
+.trip-f select { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink); background: var(--bg); border: 2px solid var(--edge); padding: 6px 7px; cursor: pointer; }
+.trip-go { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: var(--ink); color: var(--bg); border: 2px solid var(--edge); padding: 8px; cursor: pointer; }
 .trip-go:disabled { opacity: 0.4; cursor: default; }
-.trip-res { font-size: 0.72rem; border-left: 3px solid var(--ink); padding: 6px 0 6px 9px; }
+.trip-res { font-size: 0.72rem; border-left: 3px solid var(--edge); padding: 6px 0 6px 9px; }
 .trip-res.err { color: #b5402e; border-left-color: #b5402e; }
 @media (max-width: 700px) { .trip-panel { left: 12px; right: 12px; width: auto; } }
 
 /* about card (origin window) — global so framer-motion components are styled */
 .about-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(10,10,10,0.45); display: grid; place-items: center; padding: 24px; }
-.about-card { position: relative; width: min(560px, 92vw); background: var(--panel); color: var(--ink); border: 3px solid var(--ink); box-shadow: 10px 10px 0 var(--ink); padding: 30px 32px 28px; }
+.about-card { position: relative; width: min(560px, 92vw); background: var(--panel); color: var(--ink); border: 3px solid var(--edge); box-shadow: 10px 10px 0 var(--shadow); padding: 30px 32px 28px; }
 .about-band { position: absolute; top: 0; left: 0; right: 0; height: 12px; background: var(--ink); }
-.about-x { position: absolute; top: 14px; right: 14px; background: none; border: 2px solid var(--ink); color: var(--ink); width: 30px; height: 30px; cursor: pointer; }
+.about-x { position: absolute; top: 14px; right: 14px; background: none; border: 2px solid var(--edge); color: var(--ink); width: 30px; height: 30px; cursor: pointer; }
 .about-x:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .about-kicker { color: var(--ink-soft); font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; margin-top: 6px; }
 .about-name { font-size: clamp(2.4rem, 7vw, 3.6rem); font-weight: 800; letter-spacing: -0.03em; margin: 4px 0 6px; }
@@ -174,7 +189,7 @@ button { font-family: inherit; }
 .about-tags { color: var(--ink-soft); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 8px; }
 .about-blurb { color: var(--ink-soft); line-height: 1.6; margin: 12px 0 18px; }
 .about-links { display: flex; flex-wrap: wrap; gap: 8px; }
-.about-links a, .about-links button { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 8px 12px; cursor: pointer; text-decoration: none; }
+.about-links a, .about-links button { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--edge); color: var(--ink); padding: 8px 12px; cursor: pointer; text-decoration: none; }
 .about-links a:hover, .about-links button:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .about-links button { background: var(--ink); color: var(--bg); }
 
@@ -182,20 +197,20 @@ button { font-family: inherit; }
 .share-scrim { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(8,8,8,0.62); backdrop-filter: blur(2px); padding: 24px; }
 .share-card {
   width: min(560px, 94vw); background: var(--panel); color: var(--ink);
-  border: 3px solid var(--ink); box-shadow: 12px 12px 0 var(--line-c);
+  border: 3px solid var(--edge); box-shadow: 12px 12px 0 var(--line-c);
   padding: 18px 18px 20px;
 }
 .share-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .share-k { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--line-c); font-weight: 700; }
-.share-x { background: none; border: 2px solid var(--ink); color: var(--ink); width: 30px; height: 30px; cursor: pointer; font-size: 0.8rem; }
+.share-x { background: none; border: 2px solid var(--edge); color: var(--ink); width: 30px; height: 30px; cursor: pointer; font-size: 0.8rem; }
 .share-x:hover { background: var(--line-c); color: #fff; border-color: var(--line-c); }
-.share-pass { position: relative; aspect-ratio: 1200 / 630; width: 100%; border: 2px solid var(--ink); background: #141414; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.share-pass { position: relative; aspect-ratio: 1200 / 630; width: 100%; border: 2px solid var(--edge); background: #141414; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 .share-pass img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s ease; }
 .share-pass.ready img { opacity: 1; }
 .share-loading { position: absolute; color: #8a8a8a; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; }
 .share-url { margin: 12px 0 14px; font-size: 0.72rem; color: var(--muted, #777); word-break: break-all; border-left: 3px solid var(--line-c); padding-left: 10px; }
 .share-acts { display: flex; flex-wrap: wrap; gap: 8px; }
-.share-btn { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 9px 12px; cursor: pointer; text-decoration: none; display: inline-block; }
+.share-btn { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em; background: none; border: 2px solid var(--edge); color: var(--ink); padding: 9px 12px; cursor: pointer; text-decoration: none; display: inline-block; }
 .share-btn:hover { background: var(--line-c); color: #fff; border-color: var(--line-c); }
 .share-btn.primary { background: var(--line-c); color: #fff; border-color: var(--line-c); }
 @media (prefers-reduced-motion: reduce) { .share-pass img { transition: none; } }
@@ -224,7 +239,7 @@ button { font-family: inherit; }
 .tile-photo { padding: 0; }
 .tile-photo .tile-frame { flex: 1; min-height: 0; overflow: hidden; }
 .tile-photo img, .tile-photo .tile-ph { width: 100%; height: 100%; object-fit: cover; display: block; background: var(--line); }
-.tile-photo .tile-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--ink); }
+.tile-photo .tile-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--edge); }
 .tile-photo .tile-cap { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.04em; color: var(--ink); }
 .terrain-label {
   font-family: var(--font-mono); font-size: 12px; font-weight: 600;
@@ -268,7 +283,7 @@ button { font-family: inherit; }
 .train:not(.express) { transition: opacity 0.55s ease; }
 
 /* the express car glows a little as it tears past */
-.train.express { filter: drop-shadow(0 0 3px rgba(255,207,0,0.55)); }
+.train.express { filter: drop-shadow(0 0 3px color-mix(in srgb, var(--hi) 60%, transparent)); }
 
 /* station arrival ping — a ring that blooms when a train dwells at a stop */
 .mta-ping { fill: none; stroke-width: 3; pointer-events: none; animation: mta-ping 0.72s ease-out forwards; }
@@ -288,17 +303,17 @@ button { font-family: inherit; }
 .intro { position: fixed; inset: 0; z-index: 100; background: var(--canvas); display: grid; place-items: center; cursor: pointer; overflow: hidden; }
 .i-shape { position: absolute; width: 120px; height: 120px; z-index: 1; }
 .i-shape.tri { width: 0; height: 0; border-left: 70px solid transparent; border-right: 70px solid transparent; border-bottom: 120px solid #b8b8bd; background: transparent; }
-.i-title { position: relative; text-align: center; z-index: 3; color: #141414; }
+.i-title { position: relative; text-align: center; z-index: 3; color: var(--ink); }
 .i-wm { font-weight: 800; font-size: clamp(2.5rem, 9vw, 6rem); letter-spacing: -0.05em; line-height: 0.9; }
-.i-sub { color: #5c5a52; margin-top: 10px; font-size: 0.8rem; }
-.i-skip { position: absolute; bottom: 30px; color: #5c5a52; z-index: 2; }
+.i-sub { color: var(--ink-soft); margin-top: 10px; font-size: 0.8rem; }
+.i-skip { position: absolute; bottom: 30px; color: var(--ink-soft); z-index: 2; }
 
 /* ---- index panel (global) ---- */
 .ip-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
-.ip { position: fixed; top: 0; left: 0; bottom: 0; z-index: 41; width: min(380px, 90vw); background: var(--panel); border-right: 4px solid var(--ink); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.ip { position: fixed; top: 0; left: 0; bottom: 0; z-index: 41; width: min(380px, 90vw); background: var(--panel); border-right: 4px solid var(--edge); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
 .ip-head { display: flex; justify-content: space-between; align-items: center; color: var(--ink-soft); }
-.ip-x { background: none; border: 2px solid var(--ink); color: var(--ink); width: 30px; height: 30px; cursor: pointer; }
-.ip-search { font: inherit; padding: 10px 12px; border: 3px solid var(--ink); background: var(--bg); color: var(--ink); }
+.ip-x { background: none; border: 2px solid var(--edge); color: var(--ink); width: 30px; height: 30px; cursor: pointer; }
+.ip-search { font: inherit; padding: 10px 12px; border: 3px solid var(--edge); background: var(--bg); color: var(--ink); }
 .ip-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--line); color: var(--ink); padding: 4px 8px; cursor: pointer; }
 .chip.on { background: var(--ink); color: var(--bg); }
@@ -310,3 +325,16 @@ button { font-family: inherit; }
 .ip-line { color: var(--ink-soft); }
 .ip-item:hover .ip-line { color: #111; }
 .ip-empty { color: var(--ink-soft); padding: 12px 0; }
+
+/* touch devices have no hover — mirror the hover feedback onto :active so taps feel alive */
+@media (hover: none), (pointer: coarse) {
+  .drawer .d-btn:active { background: var(--line-c); color: #fff; border-color: var(--line-c); }
+  .drawer .d-nav button:not(:disabled):active { background: var(--line-c); color: #fff; border-color: var(--line-c); }
+  .trip-x:active { background: var(--ink); color: var(--bg); }
+  .about-x:active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .about-links a:active, .about-links button:active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .share-x:active { background: var(--line-c); color: #fff; border-color: var(--line-c); }
+  .share-btn:active { background: var(--line-c); color: #fff; border-color: var(--line-c); }
+  .ip-item:active { background: var(--ink); color: var(--bg); }
+  .ip-item:active .ip-line { color: #111; }
+}
