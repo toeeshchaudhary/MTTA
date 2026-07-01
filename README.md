@@ -4,7 +4,9 @@ A personal site built as a **transit map of a person**. Instead of a résumé, i
 
 > *"This isn't a résumé, it's a network. Take it slow — ride a line, or jump in anywhere."*
 
-🚇 **Live:** _add your Vercel URL here_
+🚇 **Live:** https://toeeshnetwork.vercel.app
+
+**Authoring:** launch **MTTA Studio** (the local desktop app — `bun run studio`), edit the map, hit **Publish** — it commits + pushes and Vercel redeploys. Or from the CLI: `bun run daily <photo>` for a daily note, `bun run publish` to push pending content.
 
 ---
 

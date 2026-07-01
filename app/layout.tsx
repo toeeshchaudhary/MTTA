@@ -1,12 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-
-// The canonical URL embeds (Discord/Twitter/etc.) resolve against. Must match where the
-// site is actually served: the live host is the Vercel URL. This auto-follows a custom
-// production domain if one is later assigned in Vercel.
-const SITE_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
-  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-  : 'https://toeeshnetwork.vercel.app';
+import { SITE_URL } from '@/lib/site-url';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

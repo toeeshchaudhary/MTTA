@@ -1,0 +1,18 @@
+{
+  "name": "mtta-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local desktop authoring app for toeesh.network — edit the map + one-click Publish.",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "dev": "node esbuild.mjs && electron dist/main.js",
+    "dist": "node esbuild.mjs && electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.24.2"
+  },
+  "trustedDependencies": ["electron", "esbuild", "electron-builder"]
+}

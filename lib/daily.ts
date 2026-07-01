@@ -66,12 +66,14 @@ function listDailyStations(): DailyStation[] {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export type DailyImage = { src: string; caption?: string };
 export type DailyInput = {
   dateISO: string;     // YYYY-MM-DD
   title?: string;      // defaults to the formatted date
   note?: string;       // markdown body
-  imageSrc: string;    // public path already saved, e.g. /media/daily/2026-07-01.jpg
-  caption?: string;    // caption under the photo
+  imageSrc?: string;   // single public path, e.g. /media/daily/2026-07-01.jpg
+  caption?: string;    // caption for the single image
+  images?: DailyImage[]; // multi-page day: several photos on one stop, in order
 };
 
 export type DailyResult = { id: string; file: string; x: number; y: number; updated: boolean; count: number };
@@ -85,7 +87,12 @@ export function createDailyEntry(input: DailyInput): DailyResult {
   const updated = fs.existsSync(file);
 
   const title = (input.title || '').trim() || formatDate(input.dateISO);
-  const media = [{ type: 'image', src: input.imageSrc, ...(input.caption ? { caption: input.caption } : {}) }];
+  const imgs: DailyImage[] = input.images?.length
+    ? input.images
+    : input.imageSrc
+      ? [{ src: input.imageSrc, caption: input.caption }]
+      : [];
+  const media = imgs.map((im) => ({ type: 'image', src: im.src, ...(im.caption ? { caption: im.caption } : {}) }));
   const body = (input.note || '').trim() || `Notes from ${formatDate(input.dateISO)}.`;
 
   // x/y are placeholders here; relayoutDaily() assigns the real column position.
