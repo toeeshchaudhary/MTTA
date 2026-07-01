@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=MTTA Studio
+GenericName=Site Authoring
+Comment=Edit the toeesh.network map and publish it live
+Exec=__BIN__/mtta-studio
+Icon=__ICON__
+Terminal=false
+Categories=Development;
+Keywords=mtta;toeesh;map;studio;publish;transit;
+StartupWMClass=electron

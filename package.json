@@ -10,7 +10,7 @@
     "lint": "next lint",
     "daily": "bun scripts/daily.ts",
     "publish": "bun scripts/publish.ts",
-    "studio": "bun --cwd desktop run dev"
+    "studio": "bun run --cwd desktop dev"
   },
   "dependencies": {
     "next": "^16.2.9",

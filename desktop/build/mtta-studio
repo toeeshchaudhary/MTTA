@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# MTTA Studio launcher — starts the local authoring app for toeesh.network.
+# Installed to ~/.local/bin by desktop/install.sh (which bakes in the repo path).
+# Override the repo location with MTTA_REPO if the checkout moves.
+REPO="${MTTA_REPO:-__REPO__}"
+export PATH="$HOME/.bun/bin:$PATH"
+
+if [ ! -d "$REPO/desktop" ]; then
+  command -v notify-send >/dev/null 2>&1 && notify-send "MTTA Studio" "repo not found at $REPO"
+  echo "MTTA Studio: repo not found at $REPO (set MTTA_REPO)" >&2
+  exit 1
+fi
+
+exec bun run --cwd "$REPO/desktop" dev
