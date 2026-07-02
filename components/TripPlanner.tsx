@@ -15,7 +15,7 @@ export default function TripPlanner({ lines, stations, result, onPlan, onClose }
   const lineLabel = (s: Station) => lines.find((l) => l.id === s.line)?.label ?? s.line;
   const opts = stations.map((s) => <option key={s.id} value={s.id}>{s.title} · {lineLabel(s)}</option>);
   return (
-    <div className="trip-panel" role="dialog" aria-label="Plan a trip">
+    <div className="trip-panel" role="dialog" aria-modal="true" aria-label="Plan a trip">
       <div className="trip-head"><span className="mono">🚉 plan a trip</span><button className="trip-x" onClick={onClose} aria-label="close">✕</button></div>
       <label className="trip-f mono">from
         <select value={from} onChange={(e) => setFrom(e.target.value)}><option value="">— pick a stop —</option>{opts}</select>

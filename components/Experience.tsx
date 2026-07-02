@@ -430,6 +430,9 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         <motion.div className="about-scrim" onClick={() => setAboutOpen(false)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22, ease: 'easeOut' }}>
           <motion.div
             className="about-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="about-name"
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.9, y: 18 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -439,7 +442,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
             <button className="about-x" onClick={() => setAboutOpen(false)} aria-label="close">✕</button>
             <div className="about-band" />
             <div className="mono about-kicker">slowly living</div>
-            <h1 className="about-name">{about.name}</h1>
+            <h1 className="about-name" id="about-name">{about.name}</h1>
             <div className="about-role">{about.role}</div>
             <div className="mono about-tags">artist · gamedev · ricer · curator</div>
             <p className="about-blurb">{about.blurb}</p>

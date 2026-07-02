@@ -86,7 +86,9 @@ export default function StationDrawer({ station, code, line, expanded, hasPrev, 
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ x: { type: 'spring', stiffness: 320, damping: 34 }, layout: { type: 'spring', stiffness: 260, damping: 30 } }}
-            aria-label={station.title}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${station.title} — ${line.label} line`}
           >
             {/* colored theme band — the station's line color */}
             <div className="d-band" />
@@ -141,6 +143,9 @@ export default function StationDrawer({ station, code, line, expanded, hasPrev, 
                 <motion.div
                   className={`share-card${dead ? ' ghost' : ''}`}
                   style={{ ['--line-c' as string]: accent }}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={`Share ${station.title}`}
                   onClick={(e) => e.stopPropagation()}
                   initial={{ opacity: 0, scale: 0.9, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}

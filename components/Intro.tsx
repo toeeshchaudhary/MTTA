@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 
 export default function Intro({ onDone }: { onDone: () => void }) {
   const [show, setShow] = useState<boolean | null>(null);
@@ -24,9 +24,15 @@ export default function Intro({ onDone }: { onDone: () => void }) {
   return (
     <AnimatePresence>
       {show && (
+        <MotionConfig reducedMotion="user">
         <motion.div
           className="intro"
+          role="button"
+          tabIndex={0}
+          aria-label="Enter toeesh.network"
+          autoFocus
           onClick={finish}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { e.preventDefault(); finish(); } }}
           initial={{ opacity: 1 }}
           exit={{ y: '-100%' }}
           transition={{ duration: 0.5, ease: [0.7, 0, 0.2, 1] }}
@@ -42,8 +48,9 @@ export default function Intro({ onDone }: { onDone: () => void }) {
             <div className="i-wm">toeesh<span style={{ color: '#6b6b72' }}>.network</span></div>
             <div className="i-sub mono">slowly living · each line a thread, each stop a thing i made</div>
           </motion.div>
-          <div className="i-skip mono">click anywhere to enter</div>
+          <div className="i-skip mono">click anywhere — or press enter — to enter</div>
         </motion.div>
+        </MotionConfig>
       )}
     </AnimatePresence>
   );

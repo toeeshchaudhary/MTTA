@@ -45,13 +45,15 @@ export default function IndexPanel({ open, lines, stations, onClose, onSelect }:
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 34 }}
+            role="dialog"
+            aria-modal="true"
             aria-label="Station index"
           >
             <div className="ip-head">
               <span className="mono">index · {stations.length} stops</span>
               <button className="ip-x" onClick={onClose} aria-label="Close">✕</button>
             </div>
-            <input ref={inputRef} className="ip-search" placeholder="search stops…  (⌘K)" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && results[0]) { e.preventDefault(); onSelect(results[0].id); } }} />
+            <input ref={inputRef} className="ip-search" aria-label="Search stops" placeholder="search stops…  (⌘K)" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && results[0]) { e.preventDefault(); onSelect(results[0].id); } }} />
             <div className="ip-chips">
               <button className={`chip ${!filter ? 'on' : ''}`} onClick={() => setFilter(null)}>all</button>
               {lines.map((l) => (
