@@ -1,7 +1,7 @@
 {
   "origin": [
-    800,
-    120
+    860,
+    100
   ],
   "originLabel": "the origin — toeesh",
   "originCue": "about ↗",
@@ -29,7 +29,7 @@
     "stationPulse": true,
     "expressTrain": true,
     "serviceQuips": true,
-    "sounds": true,
+    "sounds": false,
     "nightOwl": true,
     "quips": [
       "GOOD SERVICE · slowly living",
@@ -39,5 +39,6 @@
       "MIND THE GAP · between plan and ship",
       "NEXT · whatever comes"
     ]
-  }
+  },
+  "featured": []
 }

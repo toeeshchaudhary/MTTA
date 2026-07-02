@@ -29,6 +29,7 @@ export async function POST(req: Request) {
       links: Array.isArray(body.about.links) ? body.about.links.filter((l: AboutLink) => l && typeof l.label === 'string').map((l: AboutLink) => ({ label: String(l.label), url: String(l.url || '') })) : cur.about.links,
     } : cur.about,
     play: body.play && typeof body.play === 'object' ? normalizePlay({ ...cur.play, ...body.play }) : cur.play,
+    featured: Array.isArray(body.featured) ? body.featured.map(String) : cur.featured,
   };
   await fs.writeFile(FILE, JSON.stringify(site, null, 2) + '\n', 'utf8');
   return NextResponse.json({ ok: true, site });

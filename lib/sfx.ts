@@ -42,8 +42,7 @@ export function chimeClose() {
   tone(520, 0.12, 0.5, 0.05);
 }
 // a quick filtered-noise burst — MetroCard swipe
-export function swipe() {
-  if (!enabled) return;
+function swipeBurst(peak: number) {
   const c = ac(); if (!c) return;
   const t0 = c.currentTime;
   const len = Math.floor(c.sampleRate * 0.16);
@@ -52,7 +51,13 @@ export function swipe() {
   for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
   const src = c.createBufferSource(); src.buffer = buf;
   const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(900, t0); bp.frequency.exponentialRampToValueAtTime(3200, t0 + 0.14); bp.Q.value = 0.8;
-  const g = c.createGain(); g.gain.setValueAtTime(0.12, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+  const g = c.createGain(); g.gain.setValueAtTime(peak, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
   src.connect(bp).connect(g).connect(c.destination);
   src.start(t0); src.stop(t0 + 0.18);
 }
+export function swipe() { if (!enabled) return; swipeBurst(0.12); }
+
+// a soft tick played when stepping prev/next between stops. Deliberately NOT gated by the
+// ambient-sound toggle — it's tactile feedback on an explicit tap, and the tap itself is the
+// user gesture WebAudio needs. Kept quiet so it never feels like "sound is on".
+export function navTick() { swipeBurst(0.05); }

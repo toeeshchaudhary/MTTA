@@ -1,9 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { swipe } from '@/lib/sfx';
+import { swipe, navTick } from '@/lib/sfx';
 import type { Line } from '@/content/lines';
 import type { Station } from '@/lib/content';
 import MediaBlock from './media/MediaBlock';
@@ -26,9 +26,20 @@ export default function StationDrawer({ station, code, line, expanded, hasPrev, 
   const [share, setShare] = useState(false);     // boarding-pass share sheet
   const [imgReady, setImgReady] = useState(false);
   const [copied, setCopied] = useState(false);
+  // touch: skip the collapsed "preview" entirely — a tapped stop opens straight into full
+  // reading mode (no "read more" step). `full` drives the layout; coarse also closes on scrim/esc.
+  const [coarse, setCoarse] = useState(false);
+  useEffect(() => { try { setCoarse(matchMedia('(pointer: coarse)').matches); } catch {} }, []);
+  const full = expanded || coarse;
 
   // reset the share sheet whenever the station changes / drawer closes
   useEffect(() => { setShare(false); }, [station?.id]);
+  // stepping prev/next reuses the same scroll container — snap back to the heading so the
+  // next stop doesn't open scrolled to the bottom (where the nav buttons sit).
+  const innerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { innerRef.current?.scrollTo({ top: 0 }); }, [station?.id]);
+  const goPrev = () => { navTick(); onPrev(); };
+  const goNext = () => { navTick(); onNext(); };
   useEffect(() => { if (!share) { setImgReady(false); setCopied(false); } }, [share]);
 
   const shareUrl = station ? (typeof window !== 'undefined' ? `${window.location.origin}/s/${station.id}` : `/s/${station.id}`) : '';
@@ -48,23 +59,23 @@ export default function StationDrawer({ station, code, line, expanded, hasPrev, 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!station) return;
-      if (e.key === 'Escape') { if (share) { setShare(false); return; } expanded ? onCollapse() : onClose(); return; }
+      if (e.key === 'Escape') { if (share) { setShare(false); return; } (expanded && !coarse) ? onCollapse() : onClose(); return; }
       if (share) return; // don't navigate stops while the share sheet is up
-      if (e.key === 'ArrowLeft' && hasPrev) onPrev();
-      if (e.key === 'ArrowRight' && hasNext) onNext();
+      if (e.key === 'ArrowLeft' && hasPrev) { navTick(); onPrev(); }
+      if (e.key === 'ArrowRight' && hasNext) { navTick(); onNext(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [station, expanded, hasPrev, hasNext, onPrev, onNext, onCollapse, onClose, share]);
+  }, [station, expanded, coarse, hasPrev, hasNext, onPrev, onNext, onCollapse, onClose, share]);
 
   return (
     <AnimatePresence>
       {station && line && (
         <>
-          <motion.div className="scrim" initial={{ opacity: 0 }} animate={{ opacity: expanded ? 1 : 0.5 }} exit={{ opacity: 0 }} onClick={() => (expanded ? onCollapse() : onClose())} />
+          <motion.div className="scrim" initial={{ opacity: 0 }} animate={{ opacity: full ? 1 : 0.5 }} exit={{ opacity: 0 }} onClick={() => ((expanded && !coarse) ? onCollapse() : onClose())} />
           <motion.aside
             layout
-            className={`drawer ${expanded ? 'full' : ''}`}
+            className={`drawer ${full ? 'full' : ''}`}
             style={{ ['--line-c' as string]: line.color }}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
@@ -75,21 +86,24 @@ export default function StationDrawer({ station, code, line, expanded, hasPrev, 
             {/* colored theme band — the station's line color */}
             <div className="d-band" />
 
-            <div className="d-inner">
+            <div className="d-inner" ref={innerRef}>
               <div className="d-head">
                 <span className="d-line mono">{code ? `${code} · ` : ''}● {line.label}{station.date ? ` · ${station.date}` : ''}</span>
                 <div className="d-actions">
                   <button className="d-btn" onClick={() => setShare(true)} aria-label="Share this stop">⤴ share</button>
-                  <button className="d-btn" onClick={expanded ? onCollapse : onExpand} aria-label={expanded ? 'Minimize' : 'Read more, full screen'}>
-                    {expanded ? '⤡ minimize' : '⤢ read more'}
-                  </button>
+                  {/* on touch the drawer is always full, so the read-more/minimize toggle is dropped */}
+                  {!coarse && (
+                    <button className="d-btn" onClick={expanded ? onCollapse : onExpand} aria-label={expanded ? 'Minimize' : 'Read more, full screen'}>
+                      {expanded ? '⤡ minimize' : '⤢ read more'}
+                    </button>
+                  )}
                   <button className="d-btn x" onClick={onClose} aria-label="Close">✕</button>
                 </div>
               </div>
 
               <motion.h1 layout="position" className="d-title display">{station.title}</motion.h1>
 
-              {expanded && <div className="d-watermark" aria-hidden="true">{line.label}</div>}
+              {full && <div className="d-watermark" aria-hidden="true">{line.label}</div>}
 
               <MediaBlock media={station.media} />
 
@@ -98,9 +112,9 @@ export default function StationDrawer({ station, code, line, expanded, hasPrev, 
               </div>
 
               <div className="d-nav">
-                <button disabled={!hasPrev} onClick={onPrev}>← prev stop</button>
-                {!expanded && <button className="d-readmore" onClick={onExpand}>open full ⤢</button>}
-                <button disabled={!hasNext} onClick={onNext}>next stop →</button>
+                <button disabled={!hasPrev} onClick={goPrev}>← prev stop</button>
+                {!full && <button className="d-readmore" onClick={onExpand}>open full ⤢</button>}
+                <button disabled={!hasNext} onClick={goNext}>next stop →</button>
               </div>
             </div>
           </motion.aside>

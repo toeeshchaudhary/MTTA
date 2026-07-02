@@ -10,7 +10,7 @@ export default function Intro({ onDone }: { onDone: () => void }) {
     try { seen = sessionStorage.getItem('introSeen') === '1'; } catch {}
     if (seen) { setShow(false); onDone(); return; }
     setShow(true);
-    const t = setTimeout(finish, 1100);
+    const t = setTimeout(finish, 1700);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -40,7 +40,7 @@ export default function Intro({ onDone }: { onDone: () => void }) {
 
           <motion.div className="i-title" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.5 }}>
             <div className="i-wm">toeesh<span style={{ color: '#6b6b72' }}>.network</span></div>
-            <div className="i-sub mono">slowly living · a map of a person</div>
+            <div className="i-sub mono">slowly living · each line a thread, each stop a thing i made</div>
           </motion.div>
           <div className="i-skip mono">click anywhere to enter</div>
         </motion.div>

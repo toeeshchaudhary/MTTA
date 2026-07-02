@@ -37,6 +37,7 @@ export type Site = {
   originCue: string;     // the small "about ↗" cue/button on the pill
   about: { name: string; role: string; blurb: string; links: AboutLink[] };
   play: Play;
+  featured: string[];    // ordered stop ids to spotlight; featured[0] is the "start here" target
 };
 
 const DEFAULTS: Site = {
@@ -54,6 +55,7 @@ const DEFAULTS: Site = {
     ],
   },
   play: PLAY_DEFAULTS,
+  featured: [],
 };
 
 export function getSite(): Site {
@@ -73,6 +75,7 @@ export function getSite(): Site {
         links: Array.isArray(a.links) ? a.links.filter((l: AboutLink) => l && typeof l.label === 'string').map((l: AboutLink) => ({ label: String(l.label), url: String(l.url || '') })) : DEFAULTS.about.links,
       },
       play: normalizePlay(raw?.play),
+      featured: Array.isArray(raw?.featured) ? raw.featured.map(String) : [],
     };
   } catch {}
   return DEFAULTS;

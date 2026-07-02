@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RIBBON, roundedPath, contentBounds, tunnelRuns, runPts, type Line, type Pt } from '@/content/lines';
 import type { Station, Pin } from '@/lib/content';
@@ -92,6 +92,7 @@ type Props = {
   pins?: Pin[];
   selectedId: string | null;
   activeLines: string[]; // hovered or focused threads (an interchange lights all of its lines)
+  zoomedIn?: boolean; // past the label-reveal zoom threshold → name every stop at rest
   started: boolean; // intro finished → run draw-on
   trains: boolean; // run the moving beads
   stationPulse?: boolean; // pulse a stop when a train dwells
@@ -107,8 +108,10 @@ type Props = {
   codeOf?: Record<string, string>; // station id → system code (e.g. 02·01)
 };
 
-export default function TransitMap({ lines, stations, terrain, pins = [], selectedId, activeLines, started, trains, stationPulse = true, expressTrain = true, crittersRun = false, onHoverLine, onSelect, onOrigin, origin = [700, 96], originLabel = 'the origin — toeesh', originCue = 'about ↗', featured = [], codeOf = {} }: Props) {
+export default function TransitMap({ lines, stations, terrain, pins = [], selectedId, activeLines, zoomedIn = false, started, trains, stationPulse = true, expressTrain = true, crittersRun = false, onHoverLine, onSelect, onOrigin, origin = [700, 96], originLabel = 'the origin — toeesh', originCue = 'about ↗', featured = [], codeOf = {} }: Props) {
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [coarse, setCoarse] = useState(false); // touch: no hover, so name key stops at rest + enlarge hit areas
+  useEffect(() => { try { setCoarse(matchMedia('(pointer: coarse)').matches); } catch {} }, []);
   const dim = (lineId: string) => (activeLines.length > 0 && !activeLines.includes(lineId) ? 0.14 : 1);
   const [ox, oy] = origin;
 
@@ -269,11 +272,16 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
       {/* stations */}
       {stations.map((s, i) => {
         const sel = s.id === selectedId;
-        const isFeatured = featured.includes(s.id);
         const onLine = (l: string) => s.line === l || (s.lines?.includes(l) ?? false);
-        // reveal tablet: this stop, a single focused/hovered thread it sits on, or featured-at-rest.
-        // (a multi-line interchange hover lights the ribbons but doesn't flood every stop's label)
-        const show = sel || hoverId === s.id || (activeLines.length === 1 && onLine(activeLines[0])) || (isFeatured && activeLines.length === 0 && !selectedId);
+        // keep the name tablets OUT of the at-rest overview — solid pills sitting over the
+        // ribbons hid the lines and looked messy. They reveal on hover/focus, when a single
+        // thread is active, or once you zoom in past the threshold. featured stops still pulse
+        // (a thin stroke-only ring, no fill) so the eye is guided without covering anything.
+        const atRest = activeLines.length === 0 && !selectedId;
+        // touch has no hover, so at rest name the wayfinding anchors (featured + interchanges) —
+        // a curated few, never the full set (320px plates would overlap).
+        const anchorOnTouch = coarse && atRest && (featured.includes(s.id) || (s.lines?.length ?? 0) >= 2);
+        const show = sel || hoverId === s.id || (activeLines.length === 1 && onLine(activeLines[0])) || (zoomedIn && atRest) || anchorOnTouch;
         const labelRight = s.x < 980;
         return (
           <g key={s.id} id={`st-${s.id}`} transform={`translate(${s.x},${s.y})`}>
@@ -294,6 +302,8 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
               onClick={() => onSelect(s.id)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(s.id); } }}
             >
+              {/* touch-only: an invisible 44px hit target so small dots are thumb-tappable */}
+              {coarse && <circle r={22} fill="transparent" />}
               {(sel || (featured.includes(s.id) && !selectedId)) && (
                 <motion.circle
                   r={RSEL + 8}
@@ -315,7 +325,10 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.16, ease: 'easeOut' }}
-                    x={labelRight ? RSEL + 12 : -(320 + RSEL + 12)} y={-42} width={320} height={84} style={{ overflow: 'visible' }}>
+                    x={labelRight ? RSEL + 12 : -(320 + RSEL + 12)} y={-42} width={320} height={84}
+                    // visual-only: a 320-wide tablet would otherwise overlap a neighbouring
+                    // stop's marker and hijack its clicks (you'd open the wrong station).
+                    style={{ overflow: 'visible', pointerEvents: 'none' }}>
                     <div className="plate-wrap" style={{ justifyContent: labelRight ? 'flex-start' : 'flex-end' }}>
                       <span className="plate">{codeOf[s.id] && <span className="plate-code">{codeOf[s.id]}</span>}<span className="dot" style={{ background: s.color }} /><span className="plate-title">{s.title}</span></span>
                     </div>
