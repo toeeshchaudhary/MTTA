@@ -52,8 +52,8 @@
   --canvas-grid: #e8e9f0;
   --edge: var(--ink);
   --shadow: var(--ink);
-  --hi: #0f9fb2;         /* teal highlight (replaces the old yellow accent) */
-  --hi-ink: #ffffff;     /* text on a --hi fill */
+  --hi: #ffcf00;         /* signature yellow highlight (Bauhaus primary) */
+  --hi-ink: #141414;     /* dark text on the yellow fill — high contrast */
 }
 /* theme: night — Mini Metro dark: warm charcoal field, near-black station tiles,
    soft chrome (no harsh white borders / hard shadows). Line colours come from the
@@ -68,8 +68,8 @@
   --canvas-grid: #37363e;
   --edge: rgba(255,255,255,0.14);   /* soft hairline instead of white borders */
   --shadow: rgba(0,0,0,0.45);       /* soft dark drop instead of white blocks */
-  --hi: #29c1d6;         /* brighter teal for the dark field */
-  --hi-ink: #10242a;
+  --hi: #ffd21f;         /* signature yellow, a touch brighter for the charcoal field */
+  --hi-ink: #141414;     /* dark text on yellow */
   /* terrain — Mini-Metro water, muted steel-blue for night */
   --water: #24414f;       --water-line: #3a6a80;       --water-coast: #4d8399;
   --terrain-label: rgba(200,225,238,0.5);
