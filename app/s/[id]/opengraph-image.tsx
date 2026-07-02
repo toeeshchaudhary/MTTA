@@ -69,7 +69,7 @@ export default async function StopOG({ params }: { params: Promise<{ id: string 
           {/* torn stub */}
           <div style={{ width: 220, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', borderLeft: '4px dashed #141414', background: band, padding: '30px 0' }}>
             <div style={{ display: 'flex', color: '#fff', fontSize: 22, letterSpacing: 6, textTransform: 'uppercase' }}>{dead ? 'no service' : 'admit one'}</div>
-            <div style={{ display: 'flex', fontSize: 120, fontWeight: 800, color: '#fff' }}>{dead ? '✕' : lineNo}</div>
+            <div style={{ display: 'flex', fontSize: 120, fontWeight: 800, color: '#fff' }}>{dead ? '×' : lineNo}</div>
             <div style={{ display: 'flex', fontFamily: 'monospace', fontSize: 24, color: '#fff', letterSpacing: 3 }}>{code}</div>
           </div>
         </div>

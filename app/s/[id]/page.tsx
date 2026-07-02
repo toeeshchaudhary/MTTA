@@ -17,8 +17,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const title = `${s.title} — toeesh.network`;
   const description = excerpt(s.body);
   return {
-    title,
+    title: s.title, // root layout's template appends " — toeesh.network"
     description,
+    alternates: { canonical: `/s/${id}` },
     openGraph: { title, description, url: `/s/${id}`, type: 'article' },
     twitter: { card: 'summary_large_image', title, description },
   };
