@@ -33,6 +33,8 @@ export async function POST(req: Request) {
       blurb: String(l.blurb || ''),
       pts,
       ...(under.length ? { under } : {}),
+      ...(l.abandoned ? { abandoned: true } : {}),
+      ...(l.abandoned && String(l.closed || '').trim() ? { closed: String(l.closed).trim() } : {}),
       d: pts.length >= 2 ? roundedPath(pts) : String(l.d || ''),
     };
   });

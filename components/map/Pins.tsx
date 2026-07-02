@@ -19,18 +19,18 @@ export default function Pins({ pins, started = true, startAt = 0, stagger = 0.12
             transition={{ delay: started ? startAt + i * stagger : 0, duration: dur, ease: [0.22, 1, 0.36, 1] }}
           >
             <foreignObject x={p.x} y={p.y} width={p.w} height={p.h} style={{ overflow: 'visible' }}>
-              <div className={`tile tile-${p.kind}`} style={{ width: p.w, height: p.h }}>
+              <div className={`tile tile-${p.kind}${p.abandoned ? ' tile-abandoned' : ''}`} style={{ width: p.w, height: p.h }}>
                 {p.kind === 'photo' ? (
                   <>
                     <div className="tile-frame">{p.src ? <img src={p.src} alt={p.caption || ''} draggable={false} /> : <span className="tile-ph" />}</div>
                     <div className="tile-meta">
-                      <span className="tile-tag"><span className="tile-no">{no}</span>{p.tag || 'photo'}</span>
+                      <span className="tile-tag"><span className="tile-no">{no}</span>{p.abandoned ? 'disused' : (p.tag || 'photo')}</span>
                       {p.caption && <span className="tile-cap">{p.caption}</span>}
                     </div>
                   </>
                 ) : (
                   <>
-                    <span className="tile-tag"><span className="tile-no">{no}</span>{p.tag || 'note'}</span>
+                    <span className="tile-tag"><span className="tile-no">{no}</span>{p.abandoned ? 'disused' : (p.tag || 'note')}</span>
                     <p>{p.text}</p>
                   </>
                 )}

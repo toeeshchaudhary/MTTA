@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RIBBON, roundedPath, contentBounds, tunnelRuns, runPts, type Line, type Pt } from '@/content/lines';
+import { RIBBON, roundedPath, contentBounds, tunnelRuns, runPts, ghost, type Line, type Pt } from '@/content/lines';
 import type { Station, Pin } from '@/lib/content';
 import type { TerrainFeature } from './terrain-kinds';
 import Trains from './Trains';
@@ -50,6 +50,21 @@ function ShapeMarker({ shape, sel }: { shape: Station['shape']; sel: boolean }) 
   }
   if (shape === 'semi') return <path d={`M ${-r},${r * 0.55} A ${r},${r} 0 0 1 ${r},${r * 0.55} Z`} fill="#fff" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />;
   return <circle r={r} fill="#fff" stroke={stroke} strokeWidth={sw} />;
+}
+
+// Boarded-up stop — every thread it sat on has been abandoned. A hollow, drained
+// ring with an "×" struck through it, so it reads as a shuttered station rather than
+// an active stop. Ghost-grey, no white fill, no shadow — it recedes into the disused line.
+function GhostMarker({ sel }: { sel: boolean }) {
+  const r = (sel ? RSEL : R) + 1;
+  const c = '#8f8f96';
+  return (
+    <g opacity={0.72}>
+      <circle r={r + 4} fill="var(--canvas)" />
+      <circle r={r} fill="var(--canvas)" stroke={c} strokeWidth={2.5} strokeDasharray="3 3" />
+      <path d={`M ${-r * 0.5} ${-r * 0.5} L ${r * 0.5} ${r * 0.5} M ${r * 0.5} ${-r * 0.5} L ${-r * 0.5} ${r * 0.5}`} stroke={c} strokeWidth={2.5} strokeLinecap="round" />
+    </g>
+  );
 }
 
 // Interchange / joint stop — where threads merge. A raised white hub wrapped by a
@@ -114,11 +129,16 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
   useEffect(() => { try { setCoarse(matchMedia('(pointer: coarse)').matches); } catch {} }, []);
   const dim = (lineId: string) => (activeLines.length > 0 && !activeLines.includes(lineId) ? 0.14 : 1);
   const [ox, oy] = origin;
+  // abandoned threads: no train ever rides them, their ribbon ghosts + breaks up, and a
+  // stop whose every thread is abandoned gets boarded up. (An interchange keeps its life
+  // as long as one live thread still passes through it.)
+  const deadSet = useMemo(() => new Set(lines.filter((l) => l.abandoned).map((l) => l.id)), [lines]);
+  const stopIsDead = (s: Station) => { const ls = s.lines && s.lines.length ? s.lines : [s.line]; return ls.length > 0 && ls.every((id) => deadSet.has(id)); };
 
   // frame the map to whatever has been drawn — no fixed cut-off rectangle (origin included)
   const b = useMemo(() => contentBounds(lines, [...stations, { x: ox, y: oy }], terrain), [lines, stations, terrain, ox, oy]);
   // stable identity so <Trains> doesn't restart every render (e.g. when a station is selected)
-  const trainLines = useMemo(() => lines.map((l) => ({ id: l.id, color: l.color, pts: l.pts, under: l.under })), [lines]);
+  const trainLines = useMemo(() => lines.filter((l) => !l.abandoned).map((l) => ({ id: l.id, color: l.color, pts: l.pts, under: l.under })), [lines]);
   const GS = 50; // denser celestial dot grid
   const vx: number[] = [], hy: number[] = [];
   for (let x = Math.floor(b.x / GS) * GS; x <= b.x + b.w; x += GS) vx.push(x);
@@ -155,7 +175,7 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
     const pts = l.pts; if (!pts || pts.length < 2) return null;
     const end = pts[pts.length - 1], prev = pts[pts.length - 2];
     const vx = end[0] - prev[0], vy = end[1] - prev[1], len = Math.hypot(vx, vy) || 1;
-    return { id: l.id, i, color: l.color, text: l.text, x: end[0] + (vx / len) * BULLET_OFF, y: end[1] + (vy / len) * BULLET_OFF };
+    return { id: l.id, i, color: l.color, text: l.text, dead: !!l.abandoned, closed: (l.closed || '').trim(), x: end[0] + (vx / len) * BULLET_OFF, y: end[1] + (vy / len) * BULLET_OFF };
   }).filter((t): t is NonNullable<typeof t> => t !== null);
   const groups: Record<string, typeof termini> = {};
   for (const t of termini) { const key = `${Math.round(t.x / 18)}:${Math.round(t.y / 18)}`; (groups[key] ||= []).push(t); }
@@ -192,7 +212,29 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
 
       {/* lines (draw on one after another, after terrain) — id'd so trains can ride them.
           tunnelled lines are masked so their underground runs read as gaps (water shows through) */}
-      {lines.map((l, i) => (
+      {lines.map((l, i) => {
+        // abandoned: a drained, broken ribbon that just fades in (no draw-on — framer's
+        // pathLength drives strokeDasharray internally and would fight our own dash).
+        if (l.abandoned) {
+          return (
+            <motion.path
+              key={l.id}
+              id={`line-${l.id}`}
+              d={l.d}
+              fill="none"
+              stroke={ghost(l.color)}
+              strokeWidth={RIBBON - 4}
+              strokeLinecap="butt"
+              strokeLinejoin="round"
+              strokeDasharray="15 13"
+              mask={l.under?.length ? `url(#tun-${l.id})` : undefined}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: started ? dim(l.id) * 0.5 : 0 }}
+              transition={{ opacity: { duration: 0.6, delay: started ? lineStartAt(i) : 0 } }}
+            />
+          );
+        }
+        return (
         <motion.path
           key={l.id}
           id={`line-${l.id}`}
@@ -207,7 +249,8 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
           animate={{ pathLength: started ? 1 : 0, opacity: dim(l.id) }}
           transition={{ pathLength: { duration: LINE_DUR, delay: started ? lineStartAt(i) : 0, ease: [0.65, 0, 0.35, 1] }, opacity: { duration: 0.25 } }}
         />
-      ))}
+        );
+      })}
 
       {/* tunnels — the ribbon just ends with a clean rounded cap where it dips under, and a
           faint dotted trail marks the buried path until it re-emerges (no solid track) */}
@@ -222,9 +265,9 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
                 initial={{ opacity: 0 }} animate={{ opacity: started ? dim(l.id) : 0 }}
                 transition={{ delay: started ? lineEndAt(lineIndex[l.id] ?? 0) : 0, duration: 0.4 }}>
                 {/* clean rounded ends, set back onto the straight approach so no corner notch shows */}
-                {g.caps.map((c, ci) => <circle key={`c${ci}`} cx={c[0]} cy={c[1]} r={RIBBON / 2} fill={l.color} />)}
+                {g.caps.map((c, ci) => <circle key={`c${ci}`} cx={c[0]} cy={c[1]} r={RIBBON / 2} fill={l.abandoned ? ghost(l.color) : l.color} />)}
                 {/* the buried path, as a faint dot trail */}
-                {g.trail.map((p, di) => <circle key={di} cx={p[0]} cy={p[1]} r={2.3} fill={l.color} opacity={0.42} />)}
+                {g.trail.map((p, di) => <circle key={di} cx={p[0]} cy={p[1]} r={2.3} fill={l.abandoned ? ghost(l.color) : l.color} opacity={0.42} />)}
               </motion.g>
             );
           });
@@ -272,6 +315,7 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
       {/* stations */}
       {stations.map((s, i) => {
         const sel = s.id === selectedId;
+        const dead = stopIsDead(s); // every thread through here is abandoned → board it up
         const onLine = (l: string) => s.line === l || (s.lines?.includes(l) ?? false);
         // keep the name tablets OUT of the at-rest overview — solid pills sitting over the
         // ribbons hid the lines and looked messy. They reveal on hover/focus, when a single
@@ -304,7 +348,7 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
             >
               {/* touch-only: an invisible 44px hit target so small dots are thumb-tappable */}
               {coarse && <circle r={22} fill="transparent" />}
-              {(sel || (featured.includes(s.id) && !selectedId)) && (
+              {(sel || (featured.includes(s.id) && !selectedId && !dead)) && (
                 <motion.circle
                   r={RSEL + 8}
                   fill="none"
@@ -314,9 +358,11 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
                   transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
                 />
               )}
-              {s.lines && s.lines.length >= 2
-                ? <InterchangeMarker colors={s.colors} sel={sel} />
-                : <ShapeMarker shape={s.shape} sel={sel} />}
+              {dead
+                ? <GhostMarker sel={sel} />
+                : s.lines && s.lines.length >= 2
+                  ? <InterchangeMarker colors={s.colors} sel={sel} />
+                  : <ShapeMarker shape={s.shape} sel={sel} />}
               <AnimatePresence>
                 {show && (
                   <motion.foreignObject
@@ -330,7 +376,7 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
                     // stop's marker and hijack its clicks (you'd open the wrong station).
                     style={{ overflow: 'visible', pointerEvents: 'none' }}>
                     <div className="plate-wrap" style={{ justifyContent: labelRight ? 'flex-start' : 'flex-end' }}>
-                      <span className="plate">{codeOf[s.id] && <span className="plate-code">{codeOf[s.id]}</span>}<span className="dot" style={{ background: s.color }} /><span className="plate-title">{s.title}</span></span>
+                      <span className={`plate ${dead ? 'ghost' : ''}`}>{codeOf[s.id] && <span className="plate-code">{codeOf[s.id]}</span>}<span className="dot" style={{ background: dead ? '#8f8f96' : s.color }} /><span className="plate-title">{s.title}</span>{dead && <span className="plate-closed">closed</span>}</span>
                     </div>
                   </motion.foreignObject>
                 )}
@@ -346,11 +392,18 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
         <g key={`bullet-${t.id}`} transform={`translate(${t.x},${t.y})`}>
           <motion.g style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
             initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: started ? 1 : 0, opacity: started ? dim(t.id) : 0 }}
+            animate={{ scale: started ? 1 : 0, opacity: started ? dim(t.id) * (t.dead ? 0.6 : 1) : 0 }}
             transition={{ delay: started ? lineEndAt(t.i) : 0, type: 'spring', stiffness: 320, damping: 16 }}>
             <circle r={15} fill="var(--canvas)" stroke="var(--canvas)" strokeWidth={6} />
-            <circle r={14} fill={t.color} />
-            <text textAnchor="middle" dominantBaseline="central" fontSize={14} fontWeight={700} fill={t.text || '#fff'} style={{ fontFamily: 'var(--font-mono)' }}>{t.i + 1}</text>
+            {/* abandoned: a hollow, drained roundel instead of the solid numbered bullet */}
+            {t.dead
+              ? <circle r={14} fill="var(--canvas)" stroke={ghost(t.color)} strokeWidth={2.5} strokeDasharray="3 3" />
+              : <circle r={14} fill={t.color} />}
+            <text textAnchor="middle" dominantBaseline="central" fontSize={14} fontWeight={700} fill={t.dead ? '#8f8f96' : (t.text || '#fff')} style={{ fontFamily: 'var(--font-mono)' }}>{t.i + 1}</text>
+            {/* the "closed" story tag — service history at the dead end */}
+            {t.dead && t.closed && (
+              <text y={30} textAnchor="middle" fontSize={11} fontWeight={600} fill="#8f8f96" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>✕ {t.closed}</text>
+            )}
           </motion.g>
         </g>
       ))}

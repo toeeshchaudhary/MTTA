@@ -115,6 +115,7 @@ export type Pin = {
   text?: string;
   src?: string;
   caption?: string;
+  abandoned?: boolean; // a disused scrap — desaturated, peeling, dog-eared
 };
 
 export function getPins(): Pin[] {

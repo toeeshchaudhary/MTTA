@@ -149,6 +149,7 @@ export default function Inspector(p: InspectorProps) {
             </>
           )}
           <div className="row2"><label>width<input type="number" value={selPinObj.w} onChange={(e) => updPin(selPinObj.id, { w: Math.max(GRID, Number(e.target.value) || GRID) })} onBlur={() => commitPins(pins)} /></label><label>height<input type="number" value={selPinObj.h} onChange={(e) => updPin(selPinObj.id, { h: Math.max(GRID, Number(e.target.value) || GRID) })} onBlur={() => commitPins(pins)} /></label></div>
+          <button className={`tbtn sm ${selPinObj.abandoned ? 'on' : ''}`} title="a disused scrap — desaturated, dog-eared, struck through" onClick={() => commitPins(pins.map((q) => (q.id === selPinObj.id ? { ...q, abandoned: !q.abandoned } : q)))}>{selPinObj.abandoned ? '◉' : '○'} abandoned</button>
           <p className="mono dimk foot">drag the pin to move · grab a corner to resize · {pins.length} pins</p>
         </div>
       ) : selFeat ? (
@@ -186,6 +187,12 @@ export default function Inspector(p: InspectorProps) {
                         </div>
                       </div>
                     )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <button className={`tbtn sm ${l.abandoned ? 'on' : ''}`} title="disused thread — no train runs, the ribbon ghosts + breaks up, and stops on it board up" onClick={() => upLine({ abandoned: !l.abandoned })}>
+                        {l.abandoned ? '◉' : '○'} abandoned
+                      </button>
+                      {l.abandoned && <label>closed tag <span className="dimk" style={{ textTransform: 'none', letterSpacing: 0 }}>(shown at the dead end)</span><input value={l.closed || ''} placeholder="e.g. service ended '24" onChange={(e) => upLine({ closed: e.target.value })} /></label>}
+                    </div>
                     <div className="thr-act"><button className="tbtn sm solid" onClick={() => { setForm(null); setSelSt(null); setTool('station'); flash(`tap the ${l.label} line to add a stop on it`); }}>＋ stop here</button><button className="tbtn sm" onClick={() => { setForm(null); setSelSt(null); setTool('track'); setEditId(l.id); setTrack((l.pts as [number, number][]) ?? []); flash('drag nodes · ＋ to add · dbl-click to remove · finish'); }}>✎ re-route</button><button className="tbtn sm" onClick={() => { pushHistory(); commitLines(lines.filter((q) => q.id !== l.id)); setSelLn(null); }}>delete</button></div>
                   </div>
                 )}

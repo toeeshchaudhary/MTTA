@@ -267,6 +267,16 @@ button { font-family: inherit; }
 .origin-plate:hover { background: #333; }
 .origin-cue { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55; margin-left: 8px; }
 
+/* ---- abandoned / disused: drained, boarded-up threads + peeling scraps ---- */
+/* a boarded-up stop's name tablet: drained grey, dashed edge — reads as decommissioned */
+.plate.ghost { background: #35353b; color: #c9c9cf; box-shadow: 2px 2px 0 rgba(0,0,0,0.22); border: 1px dashed #6a6a72; }
+.plate.ghost .plate-title { text-decoration: line-through; text-decoration-thickness: 1px; opacity: 0.85; }
+.plate-closed { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: #b56565; margin-left: 8px; }
+/* a disused moodboard scrap: desaturated, dog-eared, hairline-dashed frame */
+.tile-abandoned { filter: grayscale(0.85) contrast(0.92); opacity: 0.62; border-style: dashed !important; box-shadow: 3px 3px 0 rgba(43,43,51,0.12); transform: rotate(-1.4deg); }
+.tile-abandoned .tile-tag { color: #b56565; }
+.tile-abandoned p, .tile-abandoned .tile-cap { text-decoration: line-through; text-decoration-color: rgba(0,0,0,0.35); }
+
 @keyframes ride { from { offset-distance: 0%; } to { offset-distance: 100%; } }
 .bead { offset-rotate: 0deg; animation-name: ride; animation-timing-function: linear; animation-iteration-count: infinite; will-change: offset-distance; }
 :root.no-motion .bead { animation: none !important; display: none; }

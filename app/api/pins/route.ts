@@ -31,6 +31,7 @@ export async function POST(req: Request) {
       h: Math.max(40, num(p.h, 104)),
     };
     if (str(p.tag).trim()) out.tag = str(p.tag).trim();
+    if (p.abandoned) out.abandoned = true;
     if (kind === 'note') {
       out.text = str(p.text);
     } else {

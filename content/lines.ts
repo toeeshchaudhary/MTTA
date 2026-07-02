@@ -15,7 +15,21 @@ export type Line = {
   pts: Pt[]; // waypoints (source of truth)
   under?: number[]; // indices of segments that run underground (tunnels); segment i = pts[i]→pts[i+1]
   d?: string; // derived; filled by lineD()/getLines()
+  abandoned?: boolean; // a disused thread — ghosted + dashed ribbon, no train, boarded-up stops
+  closed?: string; // optional "service ended '24"-style tag shown at the dead end
 };
+
+// Desaturate a hex colour toward its own grey (luma) — used to "ghost" abandoned
+// threads so they read as drained/disused without losing every trace of their hue.
+export function ghost(hex: string, amt = 0.72): string {
+  const h = (hex || '').replace('#', '');
+  const n = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  const r = parseInt(n.slice(0, 2), 16), g = parseInt(n.slice(2, 4), 16), b = parseInt(n.slice(4, 6), 16);
+  if ([r, g, b].some(Number.isNaN)) return '#8a8a90';
+  const l = 0.299 * r + 0.587 * g + 0.114 * b; // perceived brightness
+  const to = (c: number) => Math.max(0, Math.min(255, Math.round(c + (l - c) * amt))).toString(16).padStart(2, '0');
+  return `#${to(r)}${to(g)}${to(b)}`;
+}
 
 export const BASE_W = 1400;
 export const BASE_H = 940;
