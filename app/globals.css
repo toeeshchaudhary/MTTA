@@ -146,6 +146,29 @@ button { font-family: inherit; }
 .drawer .prose li { margin: 0 0 0.3rem; }
 .drawer .d-watermark { display: none; }
 
+/* ---- disused stop: a decommissioned, taped-off drawer ---- */
+/* the colour band becomes hazard tape; the accent is already ghosted via --line-c */
+.drawer.ghost .d-band { height: 12px; background: repeating-linear-gradient(45deg, #8f8f96 0 13px, #63636b 13px 26px); }
+.drawer.ghost.full { border-top-color: #8f8f96; }
+.drawer.ghost .d-title { color: #6a6a72; }
+.drawer.ghost .prose { color: #71717a; }
+.drawer.ghost .prose p { text-shadow: none; }
+.d-notice {
+  display: flex; align-items: center; gap: 8px; margin: 12px 0 2px; position: relative; z-index: 1;
+  font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.11em; font-weight: 600;
+  color: #b56565; border: 1px solid rgba(181,101,101,0.4); border-left-width: 3px;
+  background: rgba(181,101,101,0.08); padding: 8px 11px;
+}
+.d-notice-dot { width: 8px; height: 8px; border-radius: 50%; background: #b56565; flex: none; }
+.d-stamp {
+  position: absolute; top: 92px; right: 22px; z-index: 0; pointer-events: none; user-select: none;
+  font-family: var(--font-mono); font-weight: 800; font-size: 1.4rem; letter-spacing: 0.04em;
+  text-transform: uppercase; color: rgba(181,101,101,0.26);
+  border: 4px solid rgba(181,101,101,0.26); border-radius: 7px; padding: 5px 12px;
+  transform: rotate(-11deg);
+}
+.drawer.full .d-stamp { top: 150px; right: 6vw; font-size: 2.3rem; }
+
 /* full-screen takeover — themed in the station's line colour */
 .drawer.full { width: 100vw; left: 0; right: 0; border-left: 0; border-top: 14px solid var(--line-c); }
 .drawer.full .d-band { height: 0; }

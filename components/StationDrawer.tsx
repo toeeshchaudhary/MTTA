@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { swipe, navTick } from '@/lib/sfx';
-import type { Line } from '@/content/lines';
+import { ghost, type Line } from '@/content/lines';
 import type { Station } from '@/lib/content';
 import MediaBlock from './media/MediaBlock';
 
@@ -31,6 +31,11 @@ export default function StationDrawer({ station, code, line, expanded, hasPrev, 
   const [coarse, setCoarse] = useState(false);
   useEffect(() => { try { setCoarse(matchMedia('(pointer: coarse)').matches); } catch {} }, []);
   const full = expanded || coarse;
+  // a stop on a disused thread reads as decommissioned — ghosted accent, taped-off band,
+  // an out-of-service notice + stamp. (drives off the primary line's abandoned flag)
+  const dead = !!line?.abandoned;
+  const closed = (line?.closed || '').trim();
+  const accent = line ? (dead ? ghost(line.color) : line.color) : '#141414';
 
   // reset the share sheet whenever the station changes / drawer closes
   useEffect(() => { setShare(false); }, [station?.id]);
@@ -75,8 +80,8 @@ export default function StationDrawer({ station, code, line, expanded, hasPrev, 
           <motion.div className="scrim" initial={{ opacity: 0 }} animate={{ opacity: full ? 1 : 0.5 }} exit={{ opacity: 0 }} onClick={() => ((expanded && !coarse) ? onCollapse() : onClose())} />
           <motion.aside
             layout
-            className={`drawer ${full ? 'full' : ''}`}
-            style={{ ['--line-c' as string]: line.color }}
+            className={`drawer ${full ? 'full' : ''}${dead ? ' ghost' : ''}`}
+            style={{ ['--line-c' as string]: accent }}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -101,7 +106,17 @@ export default function StationDrawer({ station, code, line, expanded, hasPrev, 
                 </div>
               </div>
 
+              {/* service notice — an MTA-style "this line is closed" strip */}
+              {dead && (
+                <div className="d-notice mono" role="note">
+                  <span className="d-notice-dot" aria-hidden="true" />
+                  out of service{closed ? ` · ${closed}` : ''} — this thread no longer runs
+                </div>
+              )}
+
               <motion.h1 layout="position" className="d-title display">{station.title}</motion.h1>
+              {/* rubber-stamped over the title, ticket-style */}
+              {dead && <div className="d-stamp" aria-hidden="true">out of service</div>}
 
               {full && <div className="d-watermark" aria-hidden="true">{line.label}</div>}
 
@@ -124,8 +139,8 @@ export default function StationDrawer({ station, code, line, expanded, hasPrev, 
             {share && (
               <motion.div className="share-scrim" onClick={() => setShare(false)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                 <motion.div
-                  className="share-card"
-                  style={{ ['--line-c' as string]: line.color }}
+                  className={`share-card${dead ? ' ghost' : ''}`}
+                  style={{ ['--line-c' as string]: accent }}
                   onClick={(e) => e.stopPropagation()}
                   initial={{ opacity: 0, scale: 0.9, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -133,7 +148,7 @@ export default function StationDrawer({ station, code, line, expanded, hasPrev, 
                   transition={{ type: 'spring', stiffness: 360, damping: 30 }}
                 >
                   <div className="share-head">
-                    <span className="mono share-k">your boarding pass</span>
+                    <span className="mono share-k">{dead ? 'an expired pass · not valid for travel' : 'your boarding pass'}</span>
                     <button className="share-x" onClick={() => setShare(false)} aria-label="Close share">✕</button>
                   </div>
                   <div className={`share-pass ${imgReady ? 'ready' : ''}`}>
