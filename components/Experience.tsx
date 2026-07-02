@@ -329,7 +329,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         panning={{ velocityDisabled: false }}
         onTransform={(_r, state) => { const open = state.scale >= LABEL_ZOOM; setLabelsOpen((o) => (o === open ? o : open)); }}
       >
-        <TransformComponent wrapperClass="tc-wrap" wrapperStyle={{ width: '100vw', height: '100vh' }} contentStyle={{ width: bounds.w, height: bounds.h }}>
+        <TransformComponent wrapperClass="tc-wrap" wrapperStyle={{ width: '100dvw', height: '100dvh' }} contentStyle={{ width: bounds.w, height: bounds.h }}>
           <TransitMap
             lines={lines}
             stations={stations}
@@ -502,7 +502,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         .brandmark:hover .bm-net { color: var(--ink); }
         .mast-desc { display: flex; gap: 8px; align-items: center; margin-top: 8px; padding-top: 7px; border-top: 1.5px solid var(--ink); color: var(--ink-soft); font-size: 0.58rem; letter-spacing: 0.16em; }
         .mast-dot { opacity: 0.5; }
-        .hud-tl { position: absolute; top: 20px; left: 22px; z-index: 15; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+        .hud-tl { position: absolute; top: max(20px, env(safe-area-inset-top)); left: max(22px, env(safe-area-inset-left)); z-index: 15; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
         .tag { color: var(--ink-soft); letter-spacing: 0.16em; }
         :global(.mini) { position: absolute !important; right: 70px; bottom: 22px; z-index: 14; overflow: hidden; background: var(--canvas); border: 3px solid var(--edge) !important; box-shadow: 5px 5px 0 var(--shadow); }
         /* keep the viewport indicator's "spotlight" contained to the minimap — the library's
@@ -533,6 +533,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         }
         .ob-x { position: absolute; top: 8px; right: 8px; background: none; border: 2px solid var(--line); color: var(--ink); width: 26px; height: 26px; cursor: pointer; }
         .ob-x:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+        @media (pointer: coarse) { .ob-x { width: 44px; height: 44px; } }
         .ob-k { color: var(--ink); font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; }
         .ob-p { margin: 6px 0 12px; line-height: 1.5; font-size: 0.98rem; }
         .ob-act { display: flex; gap: 8px; }
@@ -544,10 +545,10 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         :global(.legend-links .tt) { text-decoration: none; }
         /* About card styles live in globals.css — motion components don't pick up styled-jsx scoping */
         .legend {
-          position: absolute; left: 22px; bottom: 20px; z-index: 15;
+          position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: max(20px, env(safe-area-inset-bottom)); z-index: 15;
           background: var(--panel); border: 2px solid var(--edge); padding: 0;
           display: flex; flex-direction: column; box-shadow: 6px 6px 0 var(--shadow);
-          width: 296px;
+          width: min(296px, 84vw);
         }
         .legend-head { width: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 11px 14px 10px; border: 0; border-bottom: 1.5px solid var(--ink); background: none; color: inherit; font: inherit; text-align: left; cursor: default; }
         .legend-chev { display: none; color: var(--ink-soft); font-size: 0.7rem; align-self: center; }

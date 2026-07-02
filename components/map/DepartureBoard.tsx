@@ -106,7 +106,7 @@ export default function DepartureBoard({ lines, stations, focusLine = null, quip
         ))}
       </div>
       <style jsx>{`
-        .depboard { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 14;
+        .depboard { position: fixed; top: max(14px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 14;
           width: min(430px, 62vw); background: #0e0e10; color: #f4f1e9;
           border: 1px solid var(--edge); box-shadow: 5px 5px 0 var(--shadow);
           font-family: var(--font-mono); overflow: hidden; }
@@ -156,7 +156,7 @@ export default function DepartureBoard({ lines, stations, focusLine = null, quip
         @keyframes dep-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
         /* phones: drop the board onto its own row below the top-left HUD + wordmark so it stops
            colliding with them (it was centred on the same top row). */
-        @media (max-width: 680px) { .depboard { width: 86vw; top: 56px; } .dep-row { grid-template-columns: 18px 10px 1fr auto; }
+        @media (max-width: 700px) { .depboard { width: 86vw; top: max(52px, env(safe-area-inset-top)); } .dep-row { grid-template-columns: 16px 8px 1fr auto; gap: 6px; padding: 5px 8px; }
           .dep-line { display: none; } }
         /* touch has no hover — mirror the row/header highlight onto :active */
         @media (hover: none), (pointer: coarse) {
