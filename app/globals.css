@@ -363,6 +363,9 @@ button { font-family: inherit; }
 .ip-t { font-weight: 700; flex: 1; }
 .ip-line { color: var(--ink-soft); }
 .ip-item:hover .ip-line { color: #111; }
+.ip-item.dead .ip-t { text-decoration: line-through; text-decoration-thickness: 1px; opacity: 0.68; }
+.ip-item.dead .ip-line { color: #b56565; }
+.ip-item.dead:hover .ip-line { color: #ffd7d7; }
 .ip-empty { color: var(--ink-soft); padding: 12px 0; }
 
 /* touch devices have no hover — mirror the hover feedback onto :active so taps feel alive */

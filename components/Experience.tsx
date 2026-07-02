@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TransformWrapper, TransformComponent, MiniMap, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { AnimatePresence, motion } from 'framer-motion';
-import { contentBounds, RIBBON, type Line } from '@/content/lines';
+import { contentBounds, RIBBON, ghost, type Line } from '@/content/lines';
 import type { Station, Pin } from '@/lib/content';
 import { KIND_BY_ID, type TerrainFeature } from '@/components/map/terrain-kinds';
 import TransitMap from './map/TransitMap';
@@ -390,24 +390,27 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         </button>
         <div className={`leg-status mono ${touring ? 'touring' : ''}`}><span className="leg-live" />{touring ? 'now touring · enjoy the ride' : 'all lines running · slowly living'}</div>
         <ol className="leg-list">
-          {lines.map((l, i) => (
+          {lines.map((l, i) => {
+            const legColor = l.abandoned ? ghost(l.color) : l.color;
+            return (
             <li key={l.id} className="leg-li">
               <button
-                className={`leg ${focusLine === l.id ? 'leg-on' : ''}`}
+                className={`leg ${focusLine === l.id ? 'leg-on' : ''} ${l.abandoned ? 'leg-dead' : ''}`}
                 style={{ opacity: activeLines.length > 0 && !activeLines.includes(l.id) ? 0.32 : 1 }}
                 onMouseEnter={() => setHoveredLines([l.id])}
                 onMouseLeave={() => setHoveredLines([])}
                 onClick={() => toggleFocus(l.id)}
               >
                 <span className="leg-no mono">{pad2(i + 1)}</span>
-                <span className={`shape ${l.shape}`} style={l.shape === 'triangle' ? { color: l.color } : { background: l.color }} />
+                <span className={`shape ${l.shape}`} style={l.shape === 'triangle' ? { color: legColor } : { background: legColor }} />
                 <b className="leg-label">{l.label}</b>
-                <span className="leg-blurb">{l.blurb}</span>
+                {l.abandoned ? <span className="leg-closed mono">closed</span> : <span className="leg-blurb">{l.blurb}</span>}
                 <span className="leg-n mono">{countByLine[l.id] || 0}</span>
               </button>
               <button className={`leg-ride ${touring === l.id ? 'on' : ''}`} title={touring === l.id ? 'stop the tour' : `ride the ${l.label} line`} aria-label={touring === l.id ? 'stop tour' : `ride the ${l.label} line`} onClick={() => (touring === l.id ? stopTour() : rideLineTour(l.id))}>{touring === l.id ? '■' : '▶'}</button>
             </li>
-          ))}
+            );
+          })}
         </ol>
         <div className="legend-ctl">
           <ThemeToggle />
@@ -578,6 +581,10 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         .leg-blurb { font-family: var(--font-mono); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .leg-n { font-size: 0.62rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
         .leg:hover .leg-blurb, .leg-on .leg-blurb, .leg:hover .leg-n, .leg-on .leg-n { color: var(--bg); }
+        /* a closed thread in the key: struck label + a muted 'closed' tag */
+        .leg-dead .leg-label { text-decoration: line-through; text-decoration-thickness: 1px; opacity: 0.7; }
+        .leg-closed { font-family: var(--font-mono); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.08em; color: #b56565; white-space: nowrap; }
+        .leg-dead:hover .leg-closed, .leg-dead.leg-on .leg-closed { color: var(--bg); }
         .leg .shape { width: 15px; height: 15px; }
         .legend-ctl { display: flex; gap: 6px; margin: 0 14px; border-top: 1.5px solid var(--ink); padding: 10px 0 0; }
         .legend-ctl + .legend-ctl { border-top: 0; padding-top: 6px; }

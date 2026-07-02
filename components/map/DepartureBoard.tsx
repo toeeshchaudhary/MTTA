@@ -12,14 +12,26 @@ const ROTATE_MS = 3200;
 export default function DepartureBoard({ lines, stations, focusLine = null, quips = [], onPick }: { lines: Line[]; stations: Station[]; focusLine?: string | null; quips?: string[]; onPick?: (id: string) => void }) {
   const byId = useMemo(() => Object.fromEntries(lines.map((l) => [l.id, l])), [lines]);
   const onLine = (s: Station, id: string) => (s.lines && s.lines.length ? s.lines : [s.line]).includes(id);
+  // abandoned threads run no trains → no departures. A stop shows under a LIVE line it
+  // sits on; a stop whose every line is abandoned drops off the board entirely.
+  const deadSet = useMemo(() => new Set(lines.filter((l) => l.abandoned).map((l) => l.id)), [lines]);
+  const liveLineOf = (s: Station): string | null => {
+    if (!deadSet.has(s.line)) return s.line;
+    const ls = s.lines && s.lines.length ? s.lines : [s.line];
+    return ls.find((id) => !deadSet.has(id)) ?? null;
+  };
   const entries = useMemo(() => stations
-    .filter((s) => !focusLine || onLine(s, focusLine))
-    .map((s) => {
-      const l = byId[s.line];
-      const trk = Math.max(1, lines.findIndex((x) => x.id === s.line) + 1);
+    .map((s) => ({ s, live: liveLineOf(s) }))
+    .filter(({ s, live }) => live !== null && (!focusLine || onLine(s, focusLine)))
+    .map(({ s, live }) => {
+      const l = byId[live as string];
+      const trk = Math.max(1, lines.findIndex((x) => x.id === live) + 1);
       return { id: s.id, title: s.title, label: l?.label ?? s.line, color: l?.color ?? '#888', trk };
-    }), [lines, stations, byId, focusLine]);
+    }), [lines, stations, byId, focusLine, deadSet]);
   const focusColor = focusLine ? byId[focusLine]?.color : null;
+  // focusing a closed line: the board flips to a service notice instead of departures
+  const focusDead = !!focusLine && deadSet.has(focusLine);
+  const focusClosed = (focusLine ? byId[focusLine]?.closed : '') || '';
 
   const [head, setHead] = useState(0);    // index of the top ("DUE") row in the rotation
   const [hhmm, setHhmm] = useState('');
@@ -69,26 +81,33 @@ export default function DepartureBoard({ lines, stations, focusLine = null, quip
     return () => clearInterval(t);
   }, []);
 
-  if (!entries.length) return null;
+  if (!entries.length && !focusDead) return null;
 
   const rows = Array.from({ length: Math.min(ROWS, entries.length) }, (_, k) => {
     const e = entries[(head + k) % entries.length];
     const mins = k === 0 ? 'DUE' : `${k * 4 + (head % 3) + 1} min`;
     return { ...e, mins, due: k === 0 };
   });
+  const headLabel = focusLine ? (byId[focusLine]?.label ?? 'departures') : 'departures';
   const [hh, mm] = hhmm.split(':');
 
   return (
     <div className={`depboard ${open ? '' : 'min'}`} role="group" aria-label="Departures board">
       <button className="dep-top" onClick={toggle} aria-expanded={open} aria-label={open ? 'Minimise departures board' : 'Expand departures board'}>
-        <span className="dep-title" style={focusColor ? { color: focusColor } : undefined}><i className="dep-led" style={focusColor ? { background: focusColor, boxShadow: `0 0 6px ${focusColor}aa` } : undefined} />{focusColor ? entries[0]?.label ?? 'departures' : 'departures'}<span className="dep-chev">{open ? '▾' : '▸'}</span></span>
-        {!open && <span className="dep-peek">{rows[0]?.title}</span>}
+        <span className="dep-title" style={focusDead ? { color: '#b56565' } : focusColor ? { color: focusColor } : undefined}><i className="dep-led" style={focusDead ? { background: '#b56565', boxShadow: 'none' } : focusColor ? { background: focusColor, boxShadow: `0 0 6px ${focusColor}aa` } : undefined} />{focusLine ? headLabel : 'departures'}<span className="dep-chev">{open ? '▾' : '▸'}</span></span>
+        {!open && <span className="dep-peek">{focusDead ? 'no service' : rows[0]?.title}</span>}
         <span className="dep-clock" aria-label={`Time ${hhmm}`}>
           <span>{hh}</span><span className={`dep-colon ${colon ? '' : 'off'}`}>:</span><span>{mm}</span>
           <span className="dep-live"><i />live</span>
         </span>
       </button>
       <div className="dep-rows">
+        {focusDead && (
+          <div className="dep-row quip closed" role="status">
+            <span className="dep-quip-led" style={{ background: '#b56565' }} />
+            <span className="dep-quip-text" style={{ color: '#b56565' }}>service ended{focusClosed ? ` · ${focusClosed}` : ''} — no trains run this line</span>
+          </div>
+        )}
         {quip && (
           <div className="dep-row quip" aria-live="polite">
             <span className="dep-quip-led" />

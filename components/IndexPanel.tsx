@@ -65,12 +65,13 @@ export default function IndexPanel({ open, lines, stations, onClose, onSelect }:
             <ul className="ip-list">
               {results.map((s) => {
                 const l = lineById[s.line];
+                const dead = !!l?.abandoned;
                 return (
                   <li key={s.id}>
-                    <button className="ip-item" onClick={() => onSelect(s.id)}>
-                      <span className="ip-dot" style={{ background: l?.color }} />
+                    <button className={`ip-item${dead ? ' dead' : ''}`} onClick={() => onSelect(s.id)}>
+                      <span className="ip-dot" style={{ background: dead ? '#8f8f96' : l?.color }} />
                       <span className="ip-t">{s.title}</span>
-                      <span className="ip-line mono">{s.line}{s.date ? ` · ${s.date}` : ''}</span>
+                      <span className="ip-line mono">{dead ? 'closed' : (l?.label ?? s.line)}{s.date ? ` · ${s.date}` : ''}</span>
                     </button>
                   </li>
                 );
