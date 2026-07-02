@@ -8,9 +8,10 @@ export default function ThemeToggle() {
     const cur = (document.documentElement.getAttribute('data-theme') as 'dark' | 'light') || 'light';
     setTheme(cur);
   }, []);
-  const toggle = () => {
+  const toggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
     const next = theme === 'dark' ? 'light' : 'dark';
-    applyTheme(next);
+    applyTheme(next, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
     setTheme(next);
   };
   return (

@@ -59,19 +59,19 @@
    soft chrome (no harsh white borders / hard shadows). Line colours come from the
    content, so they stay vivid on the charcoal. */
 :root[data-theme="dark"] {
-  --bg: #2b2a2f;         /* warm charcoal, not pure black */
-  --panel: #1b1a1e;      /* station-tile / card — darker than the field */
-  --ink: #f3f2f5;
-  --ink-soft: #9d9ba6;   /* neutral grey secondary (no purple tint) */
-  --line: #3a3942;       /* subtle divider */
-  --canvas: #262529;     /* map field — sits just under the chrome */
-  --canvas-grid: #37363e;
-  --edge: rgba(255,255,255,0.14);   /* soft hairline instead of white borders */
-  --shadow: rgba(0,0,0,0.45);       /* soft dark drop instead of white blocks */
-  --hi: #ffd21f;         /* signature yellow, a touch brighter for the charcoal field */
+  --bg: #000000;         /* pure AMOLED black */
+  --panel: #0c0c0e;      /* station-tile / card — a hair above black, read via hairline */
+  --ink: #f4f3f6;
+  --ink-soft: #94949f;   /* neutral grey secondary (no purple tint) */
+  --line: #222227;       /* subtle divider */
+  --canvas: #000000;     /* map field == bg → the canvas never reads as a rectangle */
+  --canvas-grid: #2a2a31;/* faint dot grid on black */
+  --edge: rgba(255,255,255,0.16);   /* soft hairline instead of white borders */
+  --shadow: rgba(0,0,0,0.6);        /* soft dark drop */
+  --hi: #ffd21f;         /* signature yellow, a touch brighter for the black field */
   --hi-ink: #141414;     /* dark text on yellow */
-  /* terrain — Mini-Metro water, muted steel-blue for night */
-  --water: #24414f;       --water-line: #3a6a80;       --water-coast: #4d8399;
+  /* terrain — Mini-Metro water, deep steel-blue on black */
+  --water: #17333f;       --water-line: #2c5a6e;       --water-coast: #3d6d80;
   --terrain-label: rgba(200,225,238,0.5);
   /* bridges — concrete deck + light ties read on the dark water */
   --bridge-deck: #384f5c;
@@ -86,8 +86,16 @@
 
 * , *::before, *::after { box-sizing: border-box; }
 
-/* subtle crossfade when switching light <-> dark (View Transitions API) */
-::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.38s; animation-timing-function: ease; }
+/* theme switch (View Transitions API): an iris reveal — the incoming palette wipes
+   in as a circle expanding from the toggle. --vt-x/y/r are set on <html> at click
+   time; they default to a centred reveal if unset. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-old(root) { z-index: 0; }
+::view-transition-new(root) { z-index: 1; animation: vt-iris 0.52s cubic-bezier(0.4, 0, 0.2, 1); }
+@keyframes vt-iris {
+  from { clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 50%)); }
+  to   { clip-path: circle(var(--vt-r, 150vmax) at var(--vt-x, 50%) var(--vt-y, 50%)); }
+}
 html, body { padding: 0; margin: 0; height: 100%; }
 body {
   background: var(--bg);
