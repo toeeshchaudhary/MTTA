@@ -189,6 +189,18 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
         <filter id="term-shadow" x="-60%" y="-60%" width="220%" height="220%">
           <feDropShadow dx="0" dy="2.5" stdDeviation="3.5" floodColor="var(--terrain-shadow, rgba(20,20,20,0.22))" floodOpacity="1" />
         </filter>
+        {/* neon bloom — blurs the source (so it glows in the element's OWN colour) and
+            layers the sharp graphic back on top. Applied only in night-owl mode via CSS. */}
+        <filter id="neon" x="-40%" y="-40%" width="180%" height="180%" filterUnits="objectBoundingBox">
+          <feGaussianBlur stdDeviation="3.2" result="b1" />
+          <feGaussianBlur stdDeviation="7" result="b2" />
+          <feMerge>
+            <feMergeNode in="b2" />
+            <feMergeNode in="b1" />
+            <feMergeNode in="b1" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
         {/* one mask per tunnelled line — blacks out the underground runs so the solid ribbon
             disappears there (revealing the water beneath); the dotted overlay then shows the track */}
         {lines.map((l) => l.under?.length && l.pts ? (

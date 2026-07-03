@@ -336,14 +336,25 @@ button { font-family: inherit; }
 @keyframes mta-ping { from { r: 6px; opacity: 0.8; } to { r: 32px; opacity: 0; } }
 /* hidden only via the MOTION toggle (the .no-motion global freeze), not prefers-reduced-motion */
 
-/* night-owl easter egg (Konami) — neon map + slow disco hue drift */
-:root.night-owl { --bg: #06060e; --canvas: #0a0a16; --canvas-grid: #1a1a2e; }
-:root.night-owl .stage { background: #06060e; }
-:root.night-owl .tc-wrap { background: radial-gradient(circle at 50% 38%, #0d0d20, #06060e 72%); }
-:root.night-owl svg path[id^="line-"] { filter: drop-shadow(0 0 4px rgba(255,255,255,0.55)) saturate(1.6) brightness(1.35); }
-:root.night-owl .train rect, :root.night-owl .train circle, :root.night-owl .train path { filter: drop-shadow(0 0 3px rgba(255,255,255,0.45)); }
-:root.night-owl:not(.no-motion) .react-transform-component { animation: disco 14s linear infinite; }
-@keyframes disco { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
+/* ---- night-owl easter egg (Konami code / the owl in the colophon) ----
+   a cohesive neon-synthwave palette: the whole network glows in its own colours
+   against a deep indigo-black, panels included. No hue-rotate (that looked cheap). */
+:root.night-owl {
+  --bg: #05040e; --canvas: #05040e; --panel: #0b0a1e; --ink: #ece9ff; --ink-soft: #8f8ab5;
+  --line: #221f45; --canvas-grid: #33305c; --edge: rgba(180,170,255,0.22); --shadow: rgba(0,0,0,0.6);
+  --water: #08222b; --water-line: #16d3c8; --water-coast: #1a4f5e; --terrain-label: rgba(150,220,235,0.55);
+}
+:root.night-owl .stage { background: var(--bg); }
+/* the field glows from an indigo core out to black — a city seen from above at night */
+:root.night-owl .tc-wrap { background: radial-gradient(120% 92% at 50% 42%, #1a1548 0%, #0b0925 40%, #05040e 78%); }
+/* every line blooms in its OWN colour (SVG #neon filter preserves hue), a touch juiced */
+:root.night-owl svg path[id^="line-"] { filter: url(#neon) saturate(1.35) brightness(1.12); }
+/* stations + trains burn white-hot */
+:root.night-owl svg g[id^="st-"] { filter: drop-shadow(0 0 4px rgba(190,215,255,0.6)); }
+:root.night-owl .train { filter: drop-shadow(0 0 3px rgba(255,255,255,0.65)) drop-shadow(0 0 8px rgba(150,195,255,0.4)); }
+/* the indigo bloom breathes slowly (paused by the MOTION toggle, not prefers-reduced-motion) */
+:root.night-owl:not(.no-motion) .tc-wrap { animation: owl-breathe 9s ease-in-out infinite; }
+@keyframes owl-breathe { 0%, 100% { background-size: 100% 100%; } 50% { background-size: 118% 118%; } }
 
 /* ---- intro splash (global) ---- */
 .intro { position: fixed; inset: 0; z-index: 100; background: var(--canvas); display: grid; place-items: center; cursor: pointer; overflow: hidden; }

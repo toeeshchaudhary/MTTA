@@ -44,6 +44,8 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
   const trains = started && trainsReady && !motionOff;
   const crittersRun = started && trainsReady && !motionOff && play.critters;
   const [nightOwl, setNightOwl] = useState(false);
+  const [owlMsg, setOwlMsg] = useState<string | null>(null);   // toast when night-owl flips
+  const owlMounted = useRef(false);
   const [tripOpen, setTripOpen] = useState(false);
   const [tripResult, setTripResult] = useState<TripResult>(null);
 
@@ -174,6 +176,13 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
 
   // night-owl easter egg — the Konami code flips a neon mode (if enabled in admin)
   useEffect(() => { document.documentElement.classList.toggle('night-owl', nightOwl); }, [nightOwl]);
+  // celebrate the reveal with a toast (skip the initial mount so it doesn't fire on load)
+  useEffect(() => {
+    if (!owlMounted.current) { owlMounted.current = true; return; }
+    setOwlMsg(nightOwl ? '🦉 night owl — the network after dark' : '☀︎ back to daylight');
+    const t = setTimeout(() => setOwlMsg(null), 2600);
+    return () => clearTimeout(t);
+  }, [nightOwl]);
   useEffect(() => {
     if (!play.nightOwl) return;
     const seq = ['arrowup', 'arrowup', 'arrowdown', 'arrowdown', 'arrowleft', 'arrowright', 'arrowleft', 'arrowright', 'b', 'a'];
@@ -425,8 +434,20 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
           <a className="tt" href="https://www.cosmos.so/toeeshchaudhary" target="_blank" rel="noreferrer">cosmos ↗</a>
           <a className="tt" href="mailto:thesonofdevilhunter1@gmail.com">email ↗</a>
         </div>
-        <div className="mono colophon">wayfinding system · delhi · v1</div>
+        <div className="mono colophon">wayfinding system · delhi · v1
+          <button className={`owl-egg ${nightOwl ? 'lit' : ''}`} onClick={() => setNightOwl((v) => !v)} aria-pressed={nightOwl}
+            title="night owl · the network after dark — ↑ ↑ ↓ ↓ ← → ← → b a">🦉</button>
+        </div>
       </aside>
+
+      {/* night-owl toast — rewards finding the egg (and confirms the owl-button tap) */}
+      <AnimatePresence>
+        {owlMsg && (
+          <motion.div className="owl-toast mono" role="status"
+            initial={{ opacity: 0, y: 14, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 28 }}>{owlMsg}</motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
       {aboutOpen && (
@@ -588,7 +609,15 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         .leg .shape { width: 15px; height: 15px; }
         .legend-ctl { display: flex; gap: 6px; margin: 0 14px; border-top: 1.5px solid var(--ink); padding: 10px 0 0; }
         .legend-ctl + .legend-ctl { border-top: 0; padding-top: 6px; }
-        .colophon { color: var(--ink-soft); font-size: 0.5rem; letter-spacing: 0.14em; opacity: 0.7; padding: 10px 14px 12px; }
+        .colophon { color: var(--ink-soft); font-size: 0.5rem; letter-spacing: 0.14em; opacity: 0.7; padding: 10px 14px 12px; display: flex; align-items: center; gap: 7px; }
+        /* the discoverable owl — dim by default, glows on hover / when lit; taps toggle night-owl */
+        .owl-egg { margin-left: auto; background: none; border: 0; padding: 2px; font-size: 0.9rem; line-height: 1; cursor: pointer; opacity: 0.75; transition: opacity 0.15s, filter 0.15s, transform 0.15s; }
+        .owl-egg:hover, .owl-egg:focus-visible { opacity: 1; filter: drop-shadow(0 0 4px rgba(150,190,255,0.8)); transform: scale(1.22) rotate(-8deg); }
+        .owl-egg.lit { opacity: 1; filter: drop-shadow(0 0 5px rgba(150,190,255,0.9)); }
+        .owl-toast { position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%); z-index: 40;
+          background: #0b0a1e; color: #ece9ff; border: 1px solid rgba(180,170,255,0.35);
+          box-shadow: 0 0 22px rgba(120,110,240,0.35); padding: 10px 16px; font-size: 0.62rem;
+          letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; pointer-events: none; }
         :global(.tt) { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 5px 8px; cursor: pointer; }
         :global(.tt:hover) { background: var(--ink); color: var(--bg); border-color: var(--ink); }
         :global(.tt.on) { background: var(--ink); color: var(--bg); border-color: var(--ink); }
