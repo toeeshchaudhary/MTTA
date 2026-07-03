@@ -1,18 +1,19 @@
 'use client';
 // Apply a theme with an iris reveal. Uses the View Transitions API (Chromium/most
 // modern browsers) so the whole page — map, panels, tiles — wipes from one palette to
-// the other as a circle expanding from the toggle. Falls back to an instant swap where
-// unsupported or when the user prefers reduced motion / has the site's MOTION toggle off.
+// the other as a circle expanding from the toggle. Gated by the in-app MOTION toggle
+// (the .no-motion freeze), NOT prefers-reduced-motion — same call the trains make, so a
+// motion-averse OS setting doesn't silently kill the reveal. Falls back to an instant
+// swap when MOTION is off or the browser lacks View Transitions.
 export function applyTheme(next: 'dark' | 'light', origin?: { x: number; y: number }): void {
   const root = document.documentElement;
   const swap = () => {
     root.setAttribute('data-theme', next);
     try { localStorage.setItem('theme', next); } catch {}
   };
-  const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const noMotion = root.classList.contains('no-motion');
   const start = (document as unknown as { startViewTransition?: (cb: () => void) => void }).startViewTransition;
-  if (start && !reduce && !noMotion) {
+  if (start && !noMotion) {
     // seed the iris centre + radius so the reveal expands from the toggle and always
     // reaches the farthest corner (see @keyframes vt-iris in globals.css)
     if (origin) {
