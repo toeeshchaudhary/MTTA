@@ -3,11 +3,12 @@ title: "SAT · Math"
 line: prep
 lines:
   - prep
+  - l-sat-math
 date: ''
 shape: circle
-x: 305
-'y': 1055
+x: 460
+'y': 1140
 media: []
 ---
 
-my SAT Math notes — sheets, worked problems, the things that finally made it click. still growing. **help yourself** if it's useful to you.
+the **SAT Math** interchange — change here for everything I'm studying in SAT Math. the notes run down this branch. **help yourself.**
