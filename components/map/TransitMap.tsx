@@ -175,7 +175,7 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
     const pts = l.pts; if (!pts || pts.length < 2) return null;
     const end = pts[pts.length - 1], prev = pts[pts.length - 2];
     const vx = end[0] - prev[0], vy = end[1] - prev[1], len = Math.hypot(vx, vy) || 1;
-    return { id: l.id, i, color: l.color, text: l.text, dead: !!l.abandoned, closed: (l.closed || '').trim(), x: end[0] + (vx / len) * BULLET_OFF, y: end[1] + (vy / len) * BULLET_OFF };
+    return { id: l.id, i, color: l.color, text: l.text, dead: !!l.abandoned, closed: (l.closed || '').trim(), ex: end[0], ey: end[1], x: end[0] + (vx / len) * BULLET_OFF, y: end[1] + (vy / len) * BULLET_OFF };
   }).filter((t): t is NonNullable<typeof t> => t !== null);
   const groups: Record<string, typeof termini> = {};
   for (const t of termini) { const key = `${Math.round(t.x / 18)}:${Math.round(t.y / 18)}`; (groups[key] ||= []).push(t); }
@@ -388,22 +388,25 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
 
       {/* numbered route bullets — drawn last so terminal stops never cover them;
           sit just beyond each line's last stop, fanned out where lines overlap */}
-      {termini.map((t) => (
+      {termini.map((t) => t.dead ? (
+        // abandoned dead-end: NO route roundel (the boarded × stop already marks the end).
+        // just a single caption sitting cleanly below the last stop, so nothing overlaps.
+        t.closed ? (
+          <motion.text key={`closed-${t.id}`} x={t.ex} y={t.ey + 44} textAnchor="middle"
+            initial={{ opacity: 0 }} animate={{ opacity: started ? dim(t.id) * 0.8 : 0 }}
+            transition={{ delay: started ? lineEndAt(t.i) : 0, duration: 0.4 }}
+            fontSize={11} fontWeight={600} fill="#9a9aa2"
+            style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{t.closed}</motion.text>
+        ) : null
+      ) : (
         <g key={`bullet-${t.id}`} transform={`translate(${t.x},${t.y})`}>
           <motion.g style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
             initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: started ? 1 : 0, opacity: started ? dim(t.id) * (t.dead ? 0.6 : 1) : 0 }}
+            animate={{ scale: started ? 1 : 0, opacity: started ? dim(t.id) : 0 }}
             transition={{ delay: started ? lineEndAt(t.i) : 0, type: 'spring', stiffness: 320, damping: 16 }}>
             <circle r={15} fill="var(--canvas)" stroke="var(--canvas)" strokeWidth={6} />
-            {/* abandoned: a hollow, drained roundel instead of the solid numbered bullet */}
-            {t.dead
-              ? <circle r={14} fill="var(--canvas)" stroke={ghost(t.color)} strokeWidth={2.5} strokeDasharray="3 3" />
-              : <circle r={14} fill={t.color} />}
-            <text textAnchor="middle" dominantBaseline="central" fontSize={14} fontWeight={700} fill={t.dead ? '#8f8f96' : (t.text || '#fff')} style={{ fontFamily: 'var(--font-mono)' }}>{t.i + 1}</text>
-            {/* the "closed" story tag — service history at the dead end */}
-            {t.dead && t.closed && (
-              <text y={30} textAnchor="middle" fontSize={11} fontWeight={600} fill="#8f8f96" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>✕ {t.closed}</text>
-            )}
+            <circle r={14} fill={t.color} />
+            <text textAnchor="middle" dominantBaseline="central" fontSize={14} fontWeight={700} fill={t.text || '#fff'} style={{ fontFamily: 'var(--font-mono)' }}>{t.i + 1}</text>
           </motion.g>
         </g>
       ))}
