@@ -1,13 +1,13 @@
 ---
-title: "Godot Engine"
+title: "Godot"
 line: prep
 lines:
   - prep
   - l-godot
 date: ''
 shape: circle
-x: 1900
-'y': 1140
+x: 2380
+'y': 1180
 media: []
 ---
 

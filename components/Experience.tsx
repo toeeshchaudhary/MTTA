@@ -126,7 +126,17 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
     try { tw.current?.zoomToElement(`st-${id}`, 1.35, 650, 'easeOut'); } catch {}
   }, []);
 
-  // "ride the line" — on a fresh visit, sweep the camera across the network then settle
+  // frame the "home" part — the origin + central spine + welcome — so opening the map
+  // lands you on the meaningful centre, not a tiny full-network overview. Fits the invisible
+  // #home-anchor rect (drawn over that region in TransitMap) to the viewport; the library
+  // handles the maths from the real DOM. Pan/zoom out to explore the rest.
+  const focusHome = useCallback((ms = 0) => {
+    const t = tw.current; if (!t) return;
+    // centre the home region (origin + central + welcome) at a gentle zoom
+    try { t.zoomToElement('home-anchor', 0.9, ms, 'easeOut'); } catch {}
+  }, []);
+
+  // "ride the line" — on a fresh visit, sweep the camera across the network then settle home
   const rideTheLine = useCallback(() => {
     const t = tw.current; if (!t || stations.length < 2) return;
     const byX = [...stations].sort((a, b) => a.x - b.x);
@@ -134,9 +144,9 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
     try {
       t.zoomToElement(`st-${first.id}`, 1.5, 0); // jump tight to the leftmost stop
       setTimeout(() => { try { t.zoomToElement(`st-${last.id}`, 1.0, 2600, 'easeOut'); } catch {} }, 450); // glide across
-      setTimeout(() => { try { t.resetTransform(1300, 'easeOut'); } catch {} }, 3300); // settle to the full view
+      setTimeout(() => focusHome(1300), 3300); // settle onto the home part
     } catch {}
-  }, [stations]);
+  }, [stations, focusHome]);
 
   // ride-the-line camera glide — once per session, skipped on shared-stop links or reduced motion
   useEffect(() => {
@@ -147,6 +157,15 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
     const t = setTimeout(rideTheLine, 900);
     return () => clearTimeout(t);
   }, [started, initialStop, reduced, motionOff, coarse, rideTheLine]);
+
+  // open focused on the home part (unless it's a shared-stop deep link). A short delay
+  // lets the SVG (incl. #home-anchor) mount so zoomToElement can measure it. The glide,
+  // when it runs, later re-settles home too.
+  useEffect(() => {
+    if (initialStop) return;
+    const t = setTimeout(() => focusHome(0), 140);
+    return () => clearTimeout(t);
+  }, [initialStop, focusHome]);
 
   // tracks whether we've pushed a stop entry onto history (so Back closes the drawer)
   const pushedRef = useRef(false);

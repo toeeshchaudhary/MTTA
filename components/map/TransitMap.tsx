@@ -194,7 +194,13 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
     const out: Record<string, { fx: number; fy: number; right: boolean }> = {};
     const cands = (right: boolean) => {
       const fx = right ? GAP : -(LW + GAP);
-      return [{ fx, fy: -LH / 2, right }, { fx, fy: -LH - 8, right }, { fx, fy: 8, right }];
+      return [
+        { fx, fy: -LH / 2, right },        // centred
+        { fx, fy: -LH - 10, right },       // above
+        { fx, fy: 10, right },             // below
+        { fx, fy: -LH * 1.7, right },      // higher
+        { fx, fy: LH * 0.7 + 10, right },  // lower
+      ];
     };
     for (const s of [...stations].sort((a, b) => a.y - b.y || a.x - b.x)) {
       const pref = s.x < 980;
@@ -210,6 +216,10 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
   return (
     <svg viewBox={b.viewBox} className="tmap" width={b.w} height={b.h} role="group" aria-label="The network — a map of toeesh">
       <rect x={b.x} y={b.y} width={b.w} height={b.h} fill="var(--canvas)" />
+      {/* invisible anchor at the home centre (origin + central + welcome) that the camera
+          centres on when the map opens — structured like a station <g> so zoomToElement
+          measures it. See focusHome() in Experience. */}
+      <g id="home-anchor" transform="translate(600,340)" pointerEvents="none"><circle r={1} fill="transparent" /></g>
       <defs>
         {/* soft shadow that lifts the terminus roundels off the canvas */}
         <filter id="term-shadow" x="-60%" y="-60%" width="220%" height="220%">
