@@ -181,6 +181,32 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
   for (const t of termini) { const key = `${Math.round(t.x / 18)}:${Math.round(t.y / 18)}`; (groups[key] ||= []).push(t); }
   for (const g of Object.values(groups)) if (g.length > 1) g.forEach((t, k) => { t.x += (k - (g.length - 1) / 2) * 32; });
 
+  // ---- label auto-placement -------------------------------------------------
+  // Name plates are ~320×84. When they all reveal (zoom-in), pack them without
+  // collisions: for each stop try side (right/left) × vertical slot (centre/above/
+  // below), greedily picking the first that clears every already-placed plate AND
+  // every station marker. Stops can now sit close and the labels dodge each other.
+  const labelPos = useMemo(() => {
+    const LW = 320, LH = 84, GAP = RSEL + 12;
+    type Box = { x: number; y: number; w: number; h: number };
+    const hit = (a: Box, list: Box[]) => list.some((b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y);
+    const placed: Box[] = stations.map((s) => ({ x: s.x - 24, y: s.y - 24, w: 48, h: 48 })); // markers are obstacles
+    const out: Record<string, { fx: number; fy: number; right: boolean }> = {};
+    const cands = (right: boolean) => {
+      const fx = right ? GAP : -(LW + GAP);
+      return [{ fx, fy: -LH / 2, right }, { fx, fy: -LH - 8, right }, { fx, fy: 8, right }];
+    };
+    for (const s of [...stations].sort((a, b) => a.y - b.y || a.x - b.x)) {
+      const pref = s.x < 980;
+      const opts = [...cands(pref), ...cands(!pref)];
+      let pick = opts[0];
+      for (const o of opts) { if (!hit({ x: s.x + o.fx, y: s.y + o.fy, w: LW, h: LH }, placed)) { pick = o; break; } }
+      placed.push({ x: s.x + pick.fx, y: s.y + pick.fy, w: LW, h: LH });
+      out[s.id] = pick;
+    }
+    return out;
+  }, [stations]);
+
   return (
     <svg viewBox={b.viewBox} className="tmap" width={b.w} height={b.h} role="group" aria-label="The network — a map of toeesh">
       <rect x={b.x} y={b.y} width={b.w} height={b.h} fill="var(--canvas)" />
@@ -338,7 +364,7 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
         // a curated few, never the full set (320px plates would overlap).
         const anchorOnTouch = coarse && atRest && (featured.includes(s.id) || (s.lines?.length ?? 0) >= 2);
         const show = sel || hoverId === s.id || (activeLines.length === 1 && onLine(activeLines[0])) || (zoomedIn && atRest) || anchorOnTouch;
-        const labelRight = s.x < 980;
+        const pl = labelPos[s.id] ?? { fx: s.x < 980 ? RSEL + 12 : -(320 + RSEL + 12), fy: -42, right: s.x < 980 };
         return (
           <g key={s.id} id={`st-${s.id}`} transform={`translate(${s.x},${s.y})`}>
             <motion.g
@@ -383,11 +409,11 @@ export default function TransitMap({ lines, stations, terrain, pins = [], select
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.16, ease: 'easeOut' }}
-                    x={labelRight ? RSEL + 12 : -(320 + RSEL + 12)} y={-42} width={320} height={84}
+                    x={pl.fx} y={pl.fy} width={320} height={84}
                     // visual-only: a 320-wide tablet would otherwise overlap a neighbouring
                     // stop's marker and hijack its clicks (you'd open the wrong station).
                     style={{ overflow: 'visible', pointerEvents: 'none' }}>
-                    <div className="plate-wrap" style={{ justifyContent: labelRight ? 'flex-start' : 'flex-end' }}>
+                    <div className="plate-wrap" style={{ justifyContent: pl.right ? 'flex-start' : 'flex-end' }}>
                       <span className={`plate ${dead ? 'ghost' : ''}`}>{codeOf[s.id] && <span className="plate-code">{codeOf[s.id]}</span>}<span className="dot" style={{ background: dead ? '#8f8f96' : s.color }} /><span className="plate-title">{s.title}</span>{dead && <span className="plate-closed">closed</span>}</span>
                     </div>
                   </motion.foreignObject>
