@@ -377,8 +377,12 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
       {started && <DepartureBoard lines={lines} stations={stations} focusLine={focusLine} quips={play.serviceQuips ? play.quips : []} onPick={(id) => { setExpanded(false); select(id); }} />}
 
       <header className="masthead">
-        <button className="brandmark" onClick={() => setAboutOpen(true)} aria-label="About toeesh">toeesh<span className="bm-net">.network</span></button>
-        <div className="mast-desc mono"><span>a wayfinding system</span><span className="mast-dot">·</span><span>slowly living</span></div>
+        <button className="brandmark" onClick={() => setAboutOpen(true)} aria-label="About toeesh">
+          <span className="bm-mark" aria-hidden="true"><i /></span>
+          <span className="bm-word">toeesh<span className="bm-net">.network</span></span>
+        </button>
+        <div className="mast-desc mono"><span>MTTA</span><span className="mast-dot">·</span><span>a wayfinding system</span><span className="mast-dot">·</span><span>slowly living</span></div>
+        <div className="mast-key" aria-hidden="true" title="the network">{lines.map((l) => <span key={l.id} className="mast-key-dot" style={{ background: l.color }} />)}</div>
       </header>
 
       <div className="hud-tl">
@@ -518,14 +522,25 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         /* masthead — title block of the system, pinned top-right */
         .masthead { position: absolute; top: 16px; right: 24px; z-index: 16; display: flex; flex-direction: column; align-items: flex-end; }
         .brandmark {
+          display: flex; align-items: center; gap: 0.34em;
           font-family: var(--font-sans); font-weight: 800; letter-spacing: -0.05em; line-height: 0.86;
           font-size: clamp(2rem, 4.4vw, 3.4rem); color: var(--ink);
           background: none; border: 0; cursor: pointer; padding: 0;
         }
+        /* origin-aperture roundel — the brand mark, matches the favicon; scales with the wordmark */
+        .bm-mark { width: 0.8em; height: 0.8em; border-radius: 50%; background: var(--ink); display: grid; place-items: center; flex: none; transition: box-shadow 0.25s, transform 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+        .bm-mark i { width: 0.3em; height: 0.3em; border-radius: 50%; background: var(--canvas); transition: transform 0.35s; }
+        .brandmark:hover .bm-mark { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink) 16%, transparent); }
+        .brandmark:hover .bm-mark i { transform: scale(1.5); }
         .bm-net { color: var(--ink-soft); }
         .brandmark:hover .bm-net { color: var(--ink); }
-        .mast-desc { display: flex; gap: 8px; align-items: center; margin-top: 8px; padding-top: 7px; border-top: 1.5px solid var(--ink); color: var(--ink-soft); font-size: 0.58rem; letter-spacing: 0.16em; }
+        .mast-desc { display: flex; gap: 8px; align-items: center; margin-top: 9px; padding-top: 7px; border-top: 1.5px solid var(--ink); color: var(--ink-soft); font-size: 0.58rem; letter-spacing: 0.16em; }
         .mast-dot { opacity: 0.5; }
+        /* the network key — one bullet per live line, a signature under the title block */
+        .mast-key { display: flex; gap: 5px; margin-top: 8px; }
+        .mast-key-dot { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--canvas); }
+        :global(:root.night-owl) .bm-mark { box-shadow: 0 0 12px rgba(180,205,255,0.5); }
+        :global(:root.night-owl) .mast-key-dot { box-shadow: 0 0 0 1.5px var(--canvas), 0 0 7px rgba(150,190,255,0.6); }
         .hud-tl { position: absolute; top: max(20px, env(safe-area-inset-top)); left: max(22px, env(safe-area-inset-left)); z-index: 15; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
         .tag { color: var(--ink-soft); letter-spacing: 0.16em; }
         :global(.mini) { position: absolute !important; right: 70px; bottom: 22px; z-index: 14; overflow: hidden; background: var(--canvas); border: 3px solid var(--edge) !important; box-shadow: 5px 5px 0 var(--shadow); }
