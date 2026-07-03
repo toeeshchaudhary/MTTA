@@ -359,6 +359,32 @@ button { font-family: inherit; }
 :root.night-owl .tile-note p, :root.night-owl .tile-photo .tile-cap { color: #d9d6ff; }
 :root.night-owl .tile-photo .tile-meta { border-top-color: rgba(150,190,255,0.22); }
 
+/* --- night-owl chrome: panels get a faint cool glow so they belong to the neon map --- */
+:root.night-owl .legend,
+:root.night-owl .depboard,
+:root.night-owl .ip,
+:root.night-owl .about-card,
+:root.night-owl .trip-panel { border-color: rgba(150,190,255,0.28); box-shadow: 0 0 22px rgba(90,110,230,0.22); }
+:root.night-owl .open-index,
+:root.night-owl .start-here { box-shadow: 0 0 14px rgba(90,110,230,0.28); }
+/* the departures board glows on its yellow LED palette (already --hi driven) */
+:root.night-owl .depboard { background: #0a0918; }
+:root.night-owl .dep-top { background: #120f28; border-bottom-color: rgba(150,190,255,0.16); }
+:root.night-owl .ctl { box-shadow: 3px 3px 0 #000, 0 0 12px rgba(120,150,255,0.45); }
+
+/* --- night-owl reading drawer: neon-integrated (the accent glows in the line's colour) --- */
+:root.night-owl .drawer { box-shadow: -2px 0 44px color-mix(in srgb, var(--line-c) 26%, transparent); }
+:root.night-owl .drawer .d-band { box-shadow: 0 0 14px var(--line-c), 0 0 4px var(--line-c); }
+:root.night-owl .drawer.full { border-top-color: var(--line-c); box-shadow: 0 -3px 44px color-mix(in srgb, var(--line-c) 26%, transparent); }
+:root.night-owl .drawer .d-title { text-shadow: 0 0 22px color-mix(in srgb, var(--line-c) 45%, transparent); }
+:root.night-owl .drawer .d-line { text-shadow: 0 0 12px currentColor; }
+:root.night-owl .drawer .d-watermark { color: var(--line-c); opacity: 0.14; }
+:root.night-owl .drawer .prose h2 { border-top-color: rgba(150,190,255,0.18); }
+:root.night-owl .drawer .prose { color: #e7e4ff; }
+:root.night-owl .drawer .d-nav { border-top-color: rgba(150,190,255,0.16); }
+/* softened hairlines throughout the reading view */
+:root.night-owl .drawer .d-btn { border-color: rgba(150,190,255,0.32); }
+
 /* ---- intro splash (global) ---- */
 .intro { position: fixed; inset: 0; z-index: 100; background: var(--canvas); display: grid; place-items: center; cursor: pointer; overflow: hidden; }
 .i-shape { position: absolute; width: 120px; height: 120px; z-index: 1; }
