@@ -5,8 +5,8 @@ lines:
   - prep
 date: ''
 shape: circle
-x: 1380
-'y': 1000
+x: 340
+'y': 1825
 media: []
 ---
 

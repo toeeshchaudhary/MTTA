@@ -5,8 +5,8 @@ lines:
   - projects
 date: '2025'
 shape: circle
-x: 1230
-'y': 640
+x: 1325
+'y': 845
 media: []
 ---
 
