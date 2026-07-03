@@ -344,17 +344,20 @@ button { font-family: inherit; }
   --line: #221f45; --canvas-grid: #33305c; --edge: rgba(180,170,255,0.22); --shadow: rgba(0,0,0,0.6);
   --water: #08222b; --water-line: #16d3c8; --water-coast: #1a4f5e; --terrain-label: rgba(150,220,235,0.55);
 }
-:root.night-owl .stage { background: var(--bg); }
-/* the field glows from an indigo core out to black — a city seen from above at night */
-:root.night-owl .tc-wrap { background: radial-gradient(120% 92% at 50% 42%, #1a1548 0%, #0b0925 40%, #05040e 78%); }
+/* field is a single flat deep-indigo — bg == canvas == stage == wrap, so there's NO
+   rectangle (same trick as the AMOLED theme). The neon glow carries the atmosphere. */
+:root.night-owl .stage, :root.night-owl .tc-wrap { background: var(--bg); }
 /* every line blooms in its OWN colour (SVG #neon filter preserves hue), a touch juiced */
 :root.night-owl svg path[id^="line-"] { filter: url(#neon) saturate(1.35) brightness(1.12); }
-/* stations + trains burn white-hot */
+/* stations burn white-hot */
 :root.night-owl svg g[id^="st-"] { filter: drop-shadow(0 0 4px rgba(190,215,255,0.6)); }
-:root.night-owl .train { filter: drop-shadow(0 0 3px rgba(255,255,255,0.65)) drop-shadow(0 0 8px rgba(150,195,255,0.4)); }
-/* the indigo bloom breathes slowly (paused by the MOTION toggle, not prefers-reduced-motion) */
-:root.night-owl:not(.no-motion) .tc-wrap { animation: owl-breathe 9s ease-in-out infinite; }
-@keyframes owl-breathe { 0%, 100% { background-size: 100% 100%; } 50% { background-size: 118% 118%; } }
+/* trains glow like neon rolling stock — bloomed via the same filter + a cool halo */
+:root.night-owl .train { filter: url(#neon) drop-shadow(0 0 5px rgba(160,200,255,0.7)) brightness(1.2); }
+/* the pinboard notes become glowing terminal cards, cyan-labelled */
+:root.night-owl .tile { background: rgba(13,11,32,0.72); border-color: rgba(150,190,255,0.32); box-shadow: 0 0 16px rgba(90,110,230,0.28); }
+:root.night-owl .tile-tag, :root.night-owl .tile-no { color: #7fd8ff; }
+:root.night-owl .tile-note p, :root.night-owl .tile-photo .tile-cap { color: #d9d6ff; }
+:root.night-owl .tile-photo .tile-meta { border-top-color: rgba(150,190,255,0.22); }
 
 /* ---- intro splash (global) ---- */
 .intro { position: fixed; inset: 0; z-index: 100; background: var(--canvas); display: grid; place-items: center; cursor: pointer; overflow: hidden; }
