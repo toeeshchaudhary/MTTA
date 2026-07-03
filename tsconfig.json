@@ -38,6 +38,7 @@
   ],
   "exclude": [
     "node_modules",
-    "legacy-astro"
+    "legacy-astro",
+    "desktop"
   ]
 }
