@@ -5,8 +5,8 @@ lines:
   - l-cs
 date: ''
 shape: circle
-x: 2060
-'y': 1355
+x: 1460
+'y': 1300
 media: []
 ---
 

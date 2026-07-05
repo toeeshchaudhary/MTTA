@@ -55,8 +55,8 @@ export default function VoiceMemo({ src, caption }: { src: string; caption?: str
         .pause { width: 16px; height: 20px; border-left: 6px solid #141414; border-right: 6px solid #141414; }
         .vm-body { flex: 1; min-width: 0; }
         .vm-top { display: flex; justify-content: space-between; align-items: center; color: var(--ink-soft); margin-bottom: 4px; }
-        .vm-time { font-family: var(--font-mono); font-size: 0.66rem; }
-        .vm-cap { font-family: var(--font-mono); font-size: 0.62rem; color: var(--ink-soft); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+        .vm-time { font-family: var(--font-sans); font-size: 0.66rem; }
+        .vm-cap { font-family: var(--font-sans); font-size: 0.62rem; color: var(--ink-soft); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
       `}</style>
     </div>
   );

@@ -5,8 +5,8 @@ lines:
   - l-chem
 date: ''
 shape: circle
-x: 1420
-'y': 1355
+x: 1060
+'y': 1300
 media: []
 ---
 

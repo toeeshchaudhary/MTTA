@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getTerrain } from '@/lib/content';
 import { bboxOf } from '@/components/map/terrain-shape';
+import { TERRAIN_KINDS } from '@/components/map/terrain-kinds';
 import type { Pt } from '@/content/lines';
 
 const FILE = path.join(process.cwd(), 'content', 'terrain.json');
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
   const list = Array.isArray(body.terrain) ? body.terrain : null;
   if (!list) return NextResponse.json({ error: 'terrain[] required' }, { status: 400 });
   const clean = list.map((f: Record<string, unknown>, i: number) => {
-    const kind = 'water'; // terrain is water-only now (Mini-Metro style)
+    const kind = TERRAIN_KINDS.some((k) => k.id === f.kind) ? (f.kind as string) : 'water'; // allowlist over the real kinds
     // sanitise the polygon (if any); the bbox is derived from it so it can never drift
     const pts: Pt[] = Array.isArray(f.points)
       ? (f.points as unknown[]).filter((p): p is [unknown, unknown] => Array.isArray(p) && p.length >= 2).map((p) => [num(p[0]), num(p[1])] as Pt)

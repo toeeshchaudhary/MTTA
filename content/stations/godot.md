@@ -6,7 +6,7 @@ lines:
   - l-godot
 date: ''
 shape: circle
-x: 2380
+x: 1660
 'y': 1180
 media: []
 ---

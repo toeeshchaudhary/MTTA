@@ -75,14 +75,20 @@ async function doPublish() {
     type: 'question',
     message: 'Publish to the live site?',
     detail: `${preview.stdout.trim()}\n\nThis commits + pushes → Vercel redeploys.`,
-    buttons: ['Publish', 'Cancel'],
+    buttons: ['Publish…', 'Cancel'],
     defaultId: 0,
     cancelId: 1,
   });
   if (confirm.response !== 0) return;
 
+  // Let the user customise the commit message (optional — leave blank for the default).
+  const msgBox = await dialog.showInputBox
+    ? (dialog as unknown as { showInputBox(opts: { title: string; label: string; value: string }): Promise<{ canceled: boolean; value: string }> }).showInputBox({ title: 'Commit message', label: 'Leave blank for default', value: '' })
+    : { canceled: false, value: '' };
+  const customMsg = msgBox && !msgBox.canceled ? msgBox.value.trim() : '';
+
   busy(true, 'Publishing');
-  const res = await publishRun(repoRoot);
+  const res = await publishRun(repoRoot, customMsg || undefined);
   busy(false);
   if (res.code === 0) {
     await dialog.showMessageBox(win, { type: 'info', message: 'Published ✓', detail: `${res.stdout.trim()}\n\nVercel will redeploy shortly.`, buttons: ['OK'] });
@@ -111,6 +117,11 @@ async function doDaily() {
   }
 }
 
+function doAbout() {
+  const pkg = (() => { try { return JSON.parse(require('fs').readFileSync(join(repoRoot, 'package.json'), 'utf8')); } catch { return {}; } })();
+  dialog.showMessageBox({ type: 'info', title: 'About MTTA Studio', message: 'MTTA Studio', detail: `Local authoring shell for toeesh.network\n\nRepo: ${repoRoot}\nNext.js: ${pkg.dependencies?.next ?? '?'}\nServer: ${server?.url ?? 'not running'}`, buttons: ['OK'] });
+}
+
 // ---- menu -------------------------------------------------------------------
 function buildMenu() {
   const menu = Menu.buildFromTemplate([
@@ -121,7 +132,9 @@ function buildMenu() {
         { label: 'Quick Daily Note…', accelerator: 'CmdOrCtrl+D', click: doDaily },
         { type: 'separator' },
         { label: 'Open the map', click: () => win?.loadURL(`${server?.url}/`) },
-        { label: 'Back to editor', click: () => win?.loadURL(`${server?.url}/admin`) },
+        { label: 'Reload admin', accelerator: 'CmdOrCtrl+Shift+R', click: () => win?.loadURL(`${server?.url}/admin`) },
+        { type: 'separator' },
+        { label: 'About MTTA Studio', click: doAbout },
         { type: 'separator' },
         { role: 'quit' },
       ],
@@ -144,6 +157,7 @@ function buildMenu() {
 ipcMain.handle('studio:publish', doPublish);
 ipcMain.handle('studio:daily', async (_e, { photos, note }: { photos: string[]; note?: string }) => dailyRun(repoRoot, photos, note));
 ipcMain.handle('studio:status', () => ({ repoRoot, url: server?.url }));
+ipcMain.handle('studio:reload', () => win?.loadURL(`${server?.url}/admin`));
 
 // ---- boot -------------------------------------------------------------------
 async function boot() {

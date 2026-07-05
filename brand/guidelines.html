@@ -1,0 +1,362 @@
+<!doctype html>
+<!-- MTTA brand guidelines — source for brand/MTTA-brand-guidelines.pdf.
+     Rebuild: chromium - -headless - -print-to-pdf (see brand/README.md). -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>MTTA — brand guidelines</title>
+<style>
+  @font-face {
+    font-family: "RM Neue";
+    src: url("../public/fonts/RMNeueVF-Regular.ttf") format("truetype");
+    font-weight: 100 900; font-style: normal;
+  }
+  @page { size: A4 landscape; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --field: #000000;      /* the black field */
+    --board: #101012;      /* signage board body */
+    --head: #1d1d20;       /* board header strip */
+    --hairline: #29292d;   /* row divider */
+    --ink: #ffffff;        /* signage white */
+    --grey: #98989e;       /* secondary grey */
+    --cream: #f6efd8;      /* service advisory */
+    --cream-ink: #141414;  /* black on cream */
+    --signal: #e0472f;     /* emergency / closed */
+    --yl: #ffd21f;         /* signature yellow */
+  }
+  body { font-family: "RM Neue", "Helvetica Neue", Helvetica, Arial, sans-serif; background: #222; }
+  .mono { font-family: "JetBrains Mono", monospace; text-transform: uppercase; letter-spacing: 0.16em; }
+
+  .page {
+    width: 297mm; height: 210mm; position: relative; overflow: hidden;
+    background: var(--field); color: var(--ink);
+    page-break-after: always; padding: 14mm 16mm 12mm;
+    display: flex; flex-direction: column;
+  }
+  /* running header + footer, like the title strip of a board */
+  .run { display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 1px solid var(--hairline); padding-bottom: 4mm; margin-bottom: 8mm; }
+  .run .mono { font-size: 7pt; color: var(--grey); }
+  .run .sec { color: var(--yl); }
+  .foot { position: absolute; left: 16mm; right: 16mm; bottom: 8mm; display: flex;
+    justify-content: space-between; border-top: 1px solid var(--hairline); padding-top: 3mm; }
+  .foot .mono { font-size: 6.5pt; color: var(--grey); }
+
+  h1 { font-weight: 800; letter-spacing: -0.04em; line-height: 0.92; }
+  h2 { font-weight: 800; letter-spacing: -0.03em; font-size: 26pt; margin-bottom: 6mm; }
+  h3 { font-weight: 800; font-size: 12pt; letter-spacing: -0.01em; margin-bottom: 2.5mm; }
+  p  { line-height: 1.5; }
+  .lead { font-size: 12.5pt; color: var(--ink); max-width: 150mm; }
+  .grey { color: var(--grey); }
+
+  .cols { display: flex; gap: 10mm; flex: 1; min-height: 0; }
+  .col { flex: 1; min-width: 0; }
+
+  /* boards */
+  .board { background: var(--board); border: 1px solid var(--hairline); }
+  .board-head { background: var(--head); border-bottom: 1px solid var(--hairline);
+    padding: 3mm 4mm; display: flex; justify-content: space-between; align-items: center; }
+  .board-head .mono { font-size: 7pt; color: var(--yl); font-weight: 700; }
+  .row { display: flex; align-items: center; gap: 3.5mm; padding: 3mm 4mm; border-top: 1px solid var(--hairline); }
+  .row:first-of-type { border-top: 0; }
+
+  /* bullets */
+  .blt { width: 7mm; height: 7mm; border-radius: 50%; flex: none; display: grid; place-items: center;
+    font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 7.5pt; color: #141414; }
+  .sq { border-radius: 1.2pt; }
+  .tri { width: 0; height: 0; border-radius: 0; border-left: 3.2mm solid transparent; border-right: 3.2mm solid transparent; border-bottom: 5.6mm solid currentColor; background: none !important; }
+
+  /* swatches */
+  .sw { display: flex; flex-direction: column; border: 1px solid var(--hairline); }
+  .sw i { height: 17mm; display: block; }
+  .sw .cap { padding: 2mm 2.6mm; background: var(--board); }
+  .sw .cap b { display: block; font-size: 8.6pt; }
+  .sw .cap span { font-family: "JetBrains Mono", monospace; font-size: 6.6pt; color: var(--grey); letter-spacing: 0.08em; }
+  .swgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+
+  /* cream advisory */
+  .advisory { background: var(--cream); color: var(--cream-ink); padding: 4mm 4.5mm; display: flex; gap: 3mm; align-items: flex-start; }
+  .bang { width: 5mm; height: 5mm; border-radius: 50%; background: var(--cream-ink); color: var(--cream);
+    display: grid; place-items: center; font-weight: 800; font-size: 8.5pt; flex: none; margin-top: 0.4mm; }
+  .advisory p { font-size: 10pt; font-weight: 700; line-height: 1.35; }
+  .advisory p small { font-weight: 400; display: block; margin-top: 1mm; font-size: 8.5pt; }
+
+  /* the roundel */
+  .roundel { border-radius: 50%; background: var(--ink); display: grid; place-items: center; }
+  .roundel i { border-radius: 50%; background: var(--field); display: block; }
+
+  ul.rules { list-style: none; }
+  ul.rules li { padding: 2.6mm 0; border-top: 1px solid var(--hairline); font-size: 10pt; line-height: 1.45; }
+  ul.rules li:first-child { border-top: 0; }
+  ul.rules b { color: var(--ink); }
+  ul.rules li { color: var(--grey); }
+
+  .dont { color: var(--signal); font-weight: 800; }
+  .do { color: #6fe08a; font-weight: 800; }
+
+  /* type specimen */
+  .spec { border-top: 1px solid var(--hairline); padding: 3.5mm 0; display: flex; align-items: baseline; gap: 6mm; }
+  .spec .mono { font-size: 6.5pt; color: var(--grey); width: 34mm; flex: none; }
+</style>
+</head>
+<body>
+
+<!-- ================= 01 · cover ================= -->
+<div class="page">
+  <div class="run"><span class="mono">Metropolitan Toeesh Transit Authority</span><span class="mono sec">Brand Guidelines · v1 · 2026</span></div>
+  <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+    <div style="display:flex; align-items:center; gap:8mm; margin-bottom:10mm;">
+      <div class="roundel" style="width:26mm;height:26mm;"><i style="width:9mm;height:9mm;"></i></div>
+      <div>
+        <div style="font-weight:800; font-size:34pt; letter-spacing:-0.05em; line-height:0.9;">toeesh<span style="color:var(--grey);">.network</span></div>
+        <div class="mono" style="font-size:8pt; color:var(--grey); margin-top:3mm;">MTTA · a wayfinding system · slowly living</div>
+      </div>
+    </div>
+    <h1 style="font-size:64pt; max-width:240mm;">Brand<br/>guidelines.</h1>
+  </div>
+  <div style="display:flex; gap:2.5mm; margin-bottom:6mm;">
+    <span style="width:6mm;height:6mm;border-radius:50%;background:#e3000b;"></span>
+    <span style="width:6mm;height:6mm;border-radius:50%;background:#1f8a4c;"></span>
+    <span style="width:6mm;height:6mm;border-radius:50%;background:#1565c0;"></span>
+    <span style="width:6mm;height:6mm;border-radius:50%;background:#e08a1e;"></span>
+    <span style="width:6mm;height:6mm;border-radius:50%;background:#ffd21f;"></span>
+    <span style="width:6mm;height:6mm;border-radius:50%;background:#00acc1;"></span>
+    <span style="width:6mm;height:6mm;border-radius:50%;background:#5e35b1;"></span>
+  </div>
+  <div class="foot"><span class="mono">toeesh.network</span><span class="mono">the network is a person</span><span class="mono">01</span></div>
+</div>
+
+<!-- ================= 02 · the idea ================= -->
+<div class="page">
+  <div class="run"><span class="mono">MTTA · Brand Guidelines</span><span class="mono sec">02 · The idea</span></div>
+  <h2>The network is a person.</h2>
+  <div class="cols">
+    <div class="col">
+      <p class="lead">MTTA — the Metropolitan Toeesh Transit Authority — is a portfolio drawn as a transit
+      map. Every line is a thread of toeesh's life; every station is something he made or can't stop
+      thinking about. The brand borrows the discipline of real transit information systems: it is
+      functional first, quiet, and every mark on the page earns its place.</p>
+      <p class="grey" style="margin-top:5mm; font-size:10.5pt; max-width:140mm;">The visual language runs in two
+      registers of the same grammar. <b style="color:var(--ink);">Paper</b> — the printed rail map: a white field,
+      solid ink station dots, white boards read via warm hairlines. And <b style="color:var(--ink);">Signage</b> —
+      the night register: the black field of a station information screen, flat boards, cream advisories.
+      Between them only the surface flips; every rule in this book holds on both.</p>
+    </div>
+    <div class="col">
+      <ul class="rules">
+        <li><b>Function first.</b> Every element mimics a real piece of transit furniture — a departures board, a line map, a service advisory. If it wouldn't exist in a station, it doesn't exist here.</li>
+        <li><b>The field is black, the content is colour.</b> Chrome is monochrome (black, white, grey). Colour belongs to the lines, and to the two sanctioned accents: signature yellow and signal red.</li>
+        <li><b>Flat, not decorated.</b> No drop shadows, no gradients, no glows. Boards separate from the field by a header strip and a hairline, nothing else.</li>
+        <li><b>Lowercase voice.</b> The system speaks quietly and in lowercase — except where signage convention demands otherwise (station names, advisories).</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span class="mono">toeesh.network</span><span class="mono">02</span></div>
+</div>
+
+<!-- ================= 03 · the roundel ================= -->
+<div class="page">
+  <div class="run"><span class="mono">MTTA · Brand Guidelines</span><span class="mono sec">03 · The roundel &amp; wordmark</span></div>
+  <h2>The origin aperture.</h2>
+  <div class="cols">
+    <div class="col" style="max-width:105mm;">
+      <p class="grey" style="font-size:10.5pt;">The mark is a roundel with an open centre — the <b style="color:var(--ink);">origin aperture</b>.
+      It is the first station of the network (“the damn origin”) and the favicon, map marker and brand mark are all the same drawing.
+      The hole is always a true cutout of the field behind it, never a printed second colour.</p>
+      <h3 style="margin-top:7mm;">Construction</h3>
+      <p class="grey" style="font-size:10pt;">Outer circle Ø = 1u. Aperture Ø = 0.3u, dead centre. Clearspace = 0.4u on all sides.
+      Minimum size 12px / 4mm.</p>
+      <h3 style="margin-top:6mm;">Wordmark</h3>
+      <p class="grey" style="font-size:10pt;">Set in RM Neue at weight 800, tracking −0.05em: <b style="color:var(--ink);">toeesh</b><span style="color:var(--grey);">.network</span> — the suffix always drops to secondary grey. Roundel sits left of the wordmark at 0.8× cap height.</p>
+    </div>
+    <div class="col">
+      <div style="display:flex; gap:6mm;">
+        <div class="board" style="flex:1; height:52mm; display:grid; place-items:center; background:#000;">
+          <div class="roundel" style="width:22mm;height:22mm;"><i style="width:7.4mm;height:7.4mm;"></i></div>
+        </div>
+        <div style="flex:1; height:52mm; display:grid; place-items:center; background:#fff; border:1px solid var(--hairline);">
+          <div style="width:22mm;height:22mm;border-radius:50%;background:#141414;display:grid;place-items:center;"><i style="width:7.4mm;height:7.4mm;border-radius:50%;background:#fff;display:block;"></i></div>
+        </div>
+      </div>
+      <div style="display:flex; gap:6mm; margin-top:2.5mm;">
+        <span class="mono" style="flex:1; font-size:6.5pt; color:var(--grey);">on the field — white roundel</span>
+        <span class="mono" style="flex:1; font-size:6.5pt; color:var(--grey);">on paper — ink roundel</span>
+      </div>
+      <ul class="rules" style="margin-top:6mm;">
+        <li><span class="dont">Don't</span> fill the aperture, rotate the mark, or add a ring/outline.</li>
+        <li><span class="dont">Don't</span> recolour the roundel — it is white on the field, ink on paper. Line colours never touch it.</li>
+        <li><span class="do">Do</span> let the aperture show whatever surface it sits on: it is a hole, not a dot.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span class="mono">toeesh.network</span><span class="mono">03</span></div>
+</div>
+
+<!-- ================= 04 · colour ================= -->
+<div class="page">
+  <div class="run"><span class="mono">MTTA · Brand Guidelines</span><span class="mono sec">04 · Colour — the signage system</span></div>
+  <h2>Nine colours. No more.</h2>
+  <div class="cols">
+    <div class="col">
+      <div class="swgrid">
+        <div class="sw"><i style="background:#000000;"></i><div class="cap"><b>The field</b><span>#000000</span></div></div>
+        <div class="sw"><i style="background:#101012;"></i><div class="cap"><b>Board</b><span>#101012</span></div></div>
+        <div class="sw"><i style="background:#1d1d20;"></i><div class="cap"><b>Header strip</b><span>#1D1D20</span></div></div>
+        <div class="sw"><i style="background:#29292d;"></i><div class="cap"><b>Hairline</b><span>#29292D</span></div></div>
+        <div class="sw"><i style="background:#ffffff;"></i><div class="cap"><b>Signage white</b><span>#FFFFFF</span></div></div>
+        <div class="sw"><i style="background:#98989e;"></i><div class="cap"><b>Secondary grey</b><span>#98989E</span></div></div>
+        <div class="sw"><i style="background:#f6efd8;"></i><div class="cap"><b>Advisory cream</b><span>#F6EFD8</span></div></div>
+        <div class="sw"><i style="background:#e0472f;"></i><div class="cap"><b>Signal red</b><span>#E0472F</span></div></div>
+        <div class="sw"><i style="background:#ffd21f;"></i><div class="cap"><b>Signature yellow</b><span>#FFD21F</span></div></div>
+      </div>
+    </div>
+    <div class="col" style="max-width:110mm;">
+      <ul class="rules">
+        <li><b>The field</b> is true black — the map canvas and page background are the same surface, so boards float on it without edges.</li>
+        <li><b>Board / header / hairline</b> are the only three greys of the furniture. A board is body colour, capped by a header strip, divided by hairlines.</li>
+        <li><b>White</b> is for primary content and the highlight state — a selected row inverts to a white pill with black text.</li>
+        <li><b>Cream</b> means <i>advisory</i>: service notices, onboarding, decommission stamps. Always black ink on cream, led by the !-roundel.</li>
+        <li><b>Signal red</b> means <i>closed / no service</i>. Used in tags and closed-station markers only — never decoratively.</li>
+        <li><b>Yellow</b> is the single signature accent: live readouts, the DUE row, the primary call-to-action.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span class="mono">toeesh.network</span><span class="mono">04</span></div>
+</div>
+
+<!-- ================= 05 · the lines ================= -->
+<div class="page">
+  <div class="run"><span class="mono">MTTA · Brand Guidelines</span><span class="mono sec">05 · The lines</span></div>
+  <h2>Colour belongs to the lines.</h2>
+  <div class="cols">
+    <div class="col">
+      <div class="board">
+        <div class="board-head"><span class="mono">The network · threads 01–07</span><span class="mono" style="color:var(--grey);">live</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">01</span><span class="blt" style="background:#e3000b;"></span><b style="font-size:11pt;">central</b><span class="mono grey" style="font-size:6.5pt; margin-left:auto;">#E3000B</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">02</span><span class="blt" style="background:#1f8a4c;"></span><b style="font-size:11pt;">musings</b><span class="mono grey" style="font-size:6.5pt; margin-left:auto;">#1F8A4C</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">03</span><span class="blt" style="background:#c2185b; opacity:0.45;"></span><b style="font-size:11pt; text-decoration:line-through; opacity:0.6;">the old flame</b><span class="mono" style="font-size:6.5pt; color:var(--signal); margin-left:auto;">closed</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">04</span><span class="blt sq" style="background:#1565c0;"></span><b style="font-size:11pt;">projects</b><span class="mono grey" style="font-size:6.5pt; margin-left:auto;">#1565C0</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">05</span><span class="blt tri" style="color:#e08a1e;"></span><b style="font-size:11pt;">prep</b><span class="mono grey" style="font-size:6.5pt; margin-left:auto;">#E08A1E</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">06</span><span class="blt" style="background:#00897b;"></span><b style="font-size:11pt;">SAT Math</b><span class="mono grey" style="font-size:6.5pt; margin-left:auto;">#00897B</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">07</span><span class="blt" style="background:#5e35b1;"></span><b style="font-size:11pt;">SAT English</b><span class="mono grey" style="font-size:6.5pt; margin-left:auto;">#5E35B1</span></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="board">
+        <div class="board-head"><span class="mono">The network · threads 08–13</span><span class="mono" style="color:var(--grey);">live</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">08</span><span class="blt" style="background:#3949ab;"></span><b style="font-size:11pt;">Physics</b><span class="mono grey" style="font-size:6.5pt; margin-left:auto;">#3949AB</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">09</span><span class="blt" style="background:#e64a19;"></span><b style="font-size:11pt;">Chemistry</b><span class="mono grey" style="font-size:6.5pt; margin-left:auto;">#E64A19</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">10</span><span class="blt" style="background:#6d4c41;"></span><b style="font-size:11pt;">Math</b><span class="mono grey" style="font-size:6.5pt; margin-left:auto;">#6D4C41</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">11</span><span class="blt" style="background:#00acc1;"></span><b style="font-size:11pt;">Computer Science</b><span class="mono grey" style="font-size:6.5pt; margin-left:auto;">#00ACC1</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">12</span><span class="blt" style="background:#827717;"></span><b style="font-size:11pt;">Godot</b><span class="mono grey" style="font-size:6.5pt; margin-left:auto;">#827717</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">13</span><span class="blt" style="background:#546e7a;"></span><b style="font-size:11pt;">English</b><span class="mono grey" style="font-size:6.5pt; margin-left:auto;">#546E7A</span></div>
+      </div>
+      <p class="grey" style="font-size:9.5pt; margin-top:5mm;">Every thread carries a two-digit code and one of four
+      Bauhaus bullet shapes (circle, square, triangle, semicircle). A closed thread keeps its colour at 45% and
+      takes the <span style="color:var(--signal); font-weight:700;">signal-red</span> closed tag. Line colours are
+      content, not brand — new threads may introduce new colours, but chrome never borrows them.</p>
+    </div>
+  </div>
+  <div class="foot"><span class="mono">toeesh.network</span><span class="mono">05</span></div>
+</div>
+
+<!-- ================= 06 · typography ================= -->
+<div class="page">
+  <div class="run"><span class="mono">MTTA · Brand Guidelines</span><span class="mono sec">06 · Typography</span></div>
+  <h2>Two voices: display &amp; readout.</h2>
+  <div class="cols">
+    <div class="col">
+      <div class="spec"><span class="mono">display · RM Neue 800</span><span style="font-weight:800; font-size:30pt; letter-spacing:-0.04em;">The MTTA Welcomes you!</span></div>
+      <div class="spec"><span class="mono">station name · 800</span><span style="font-weight:800; font-size:16pt; letter-spacing:-0.01em;">L'Enfant Plaza · FinStocks</span></div>
+      <div class="spec"><span class="mono">body · 400</span><span style="font-size:11.5pt; line-height:1.5;">Each thread is a part of me; each stop is something I made or can't stop thinking about.</span></div>
+      <div class="spec"><span class="mono">board · JB Mono</span><span class="mono" style="font-size:9pt; color:var(--yl); white-space:nowrap;">departures · 15:34 · live</span></div>
+      <div class="spec"><span class="mono">tag · RM Neue 600</span><span style="font-family:'RM Neue',Helvetica,sans-serif; font-weight:600; font-size:8pt; color:var(--grey); text-transform:uppercase; letter-spacing:0.1em; white-space:nowrap;">a wayfinding system · delhi · v1</span></div>
+    </div>
+    <div class="col" style="max-width:110mm;">
+      <ul class="rules">
+        <li><b>RM Neue</b> (variable, 100–900) is the only display and body face. Headlines run at weight 800, tracking −0.04em, tight leading (0.9–0.96). Helvetica Neue is the fallback stack.</li>
+        <li><b>JetBrains Mono</b> appears in exactly one place: the departures board — the one true machine surface. Every other small label, tag, code and status is RM Neue at weight 600, uppercase, tracked +0.1em.</li>
+        <li><b>Numbers are tabular</b> in readouts. Arrival times sit right-aligned, bold white, with the unit ("min") staying small.</li>
+        <li><b>No italics, no underlines</b> in signage. Emphasis is weight or the white-pill inversion.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span class="mono">toeesh.network</span><span class="mono">06</span></div>
+</div>
+
+<!-- ================= 07 · signage components ================= -->
+<div class="page">
+  <div class="run"><span class="mono">MTTA · Brand Guidelines</span><span class="mono sec">07 · Signage components</span></div>
+  <h2>The furniture.</h2>
+  <div class="cols">
+    <div class="col">
+      <div class="board">
+        <div class="board-head"><span class="mono">■ departures</span><span class="mono" style="color:var(--yl);">15:34 <span style="color:#6fe08a;">● live</span></span></div>
+        <div class="row" style="background:rgba(255,210,31,0.09); border-left:2pt solid var(--yl);"><span class="mono grey" style="font-size:7pt;">01</span><span class="blt" style="background:#e3000b; width:4mm; height:4mm;"></span><span class="mono" style="font-size:7pt; color:#e3000b; font-weight:700;">central</span><b style="font-size:10pt;">whats next?</b><span class="mono" style="margin-left:auto; font-size:8pt; color:var(--yl); font-weight:700;">DUE</span></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">01</span><span class="blt" style="background:#e3000b; width:4mm; height:4mm;"></span><span class="mono" style="font-size:7pt; color:#e3000b; font-weight:700;">central</span><b style="font-size:10pt;">the junction</b><b style="margin-left:auto; font-size:9pt;">6 <span class="grey" style="font-weight:400; font-size:7pt;">min</span></b></div>
+        <div class="row"><span class="mono grey" style="font-size:7pt;">04</span><span class="blt sq" style="background:#1565c0; width:4mm; height:4mm;"></span><span class="mono" style="font-size:7pt; color:#1565c0; font-weight:700;">projects</span><b style="font-size:10pt;">FinStocks</b><b style="margin-left:auto; font-size:9pt;">10 <span class="grey" style="font-weight:400; font-size:7pt;">min</span></b></div>
+      </div>
+      <p class="mono grey" style="font-size:6.5pt; margin-top:2mm;">the departures board — header strip, hairline rows, yellow DUE</p>
+      <div class="advisory" style="margin-top:6mm;">
+        <span class="bang">!</span>
+        <p>No old-flame service due to planned decommission.<small>The rest of the network is unaffected. Take it slow — ride another line.</small></p>
+      </div>
+      <p class="mono grey" style="font-size:6.5pt; margin-top:2mm;">the service advisory — cream, black ink, !-roundel</p>
+    </div>
+    <div class="col">
+      <div class="board" style="padding:7mm 6mm; position:relative;">
+        <div style="position:relative; height:34mm;">
+          <div style="position:absolute; left:4mm; top:6mm; width:80%; height:3.2mm; background:#e3000b; border-radius:2mm;"></div>
+          <div style="position:absolute; left:16.4mm; top:5.8mm; width:3.8mm; height:3.8mm; border-radius:50%; background:#fff;"></div>
+          <span style="position:absolute; left:23mm; top:4mm; font-weight:800; font-size:10.5pt;">The junction <span class="mono" style="font-size:6pt; color:var(--grey); font-weight:400;">01·02</span></span>
+          <div style="position:absolute; left:56mm; top:2.6mm; width:10mm; height:10mm; border-radius:50%; background:#fff; display:grid; place-items:center;"><i style="width:3.4mm; height:3.4mm; border-radius:50%; background:#101012; display:block;"></i></div>
+          <span style="position:absolute; left:68mm; top:4.6mm; font-weight:800; font-size:9pt;">the origin — toeesh</span>
+          <div style="position:absolute; left:30mm; top:20mm; width:5.4mm; height:5.4mm; border-radius:50%; border:1mm dashed var(--signal); display:grid; place-items:center;"><span style="color:var(--signal); font-weight:800; font-size:7pt; line-height:1;">×</span></div>
+          <span style="position:absolute; left:38mm; top:20.6mm; font-weight:800; font-size:9pt; color:var(--grey); text-decoration:line-through;">an old flame stop</span>
+          <span class="mono" style="position:absolute; left:38mm; top:26mm; font-size:5.5pt; color:var(--signal);">closed</span>
+        </div>
+      </div>
+      <p class="mono grey" style="font-size:6.5pt; margin-top:2mm;">stations — solid dot on the ribbon · transfer bullseye · origin roundel · red closed marker</p>
+      <ul class="rules" style="margin-top:5mm;">
+        <li><b>Boards</b>: body colour, one header strip, hairline rows. Never a drop shadow, never a thick border.</li>
+        <li><b>Stations</b> are solid dots sitting on the ribbon — ink on paper, white at night. Transfers are the white-disc bullseye (⊚). Names set as small bold text beside them — riding the segment's angle on diagonals — with letter-in-square feature icons (M media · ↗ links · ★ start here).</li>
+        <li><b>The land</b>: a gray beltway ring frames the network; parks are pale-green commons; water is flat pale blue. Termini carry two-letter route codes (CE, MU, PR…) in their line's disc.</li>
+        <li><b>Selection</b> inverts: white pill, black text. One highlight at a time.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span class="mono">toeesh.network</span><span class="mono">07</span></div>
+</div>
+
+<!-- ================= 08 · voice & motion ================= -->
+<div class="page">
+  <div class="run"><span class="mono">MTTA · Brand Guidelines</span><span class="mono sec">08 · Voice &amp; motion</span></div>
+  <h2>Quiet, lowercase, in service.</h2>
+  <div class="cols">
+    <div class="col">
+      <h3>Voice</h3>
+      <ul class="rules">
+        <li><b>Lowercase by default.</b> "the network", "slowly living", "start here ↘". Caps are reserved for station names and mono readouts.</li>
+        <li><b>Transit grammar.</b> Everything is said the way a system would say it: "GOOD SERVICE · slowly living", "DELAYED · that side project", "NOW ARRIVING · a new idea".</li>
+        <li><b>Warm underneath.</b> The deadpan signage voice carries a personal note — advisories apologise, quips joke, the map says "welcome".</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>Motion</h3>
+      <ul class="rules">
+        <li><b>Motion is ambience, not decoration.</b> Trains ride the lines, the clock blinks, boards flip like split-flaps. Nothing bounces for attention.</li>
+        <li><b>Every animation has an off switch.</b> The MOTION toggle freezes the whole system; the design must read perfectly when frozen.</li>
+        <li><b>The night-owl mode</b> (Konami code) is the one sanctioned break from all of this — neon, glowing, loud. It is an easter egg, not a theme.</li>
+      </ul>
+      <div class="advisory" style="margin-top:7mm;">
+        <span class="bang">!</span>
+        <p>This document is itself set in the signage system.<small>If a new surface can be designed by copying a page of this PDF, the system is working.</small></p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="mono">toeesh.network · MTTA brand guidelines · v1 · 2026</span><span class="mono">08</span></div>
+</div>
+
+</body>
+</html>

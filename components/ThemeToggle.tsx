@@ -18,7 +18,7 @@ export default function ThemeToggle() {
     <button className="tt" onClick={toggle} aria-label="Toggle theme">
       theme: {theme === 'dark' ? 'black' : 'paper'}
       <style jsx>{`
-        .tt { margin-top: 8px; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em;
+        .tt { margin-top: 8px; font-family: var(--font-sans); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em;
           background: none; border: 2px solid var(--ink); color: var(--ink); padding: 5px 8px; cursor: pointer; }
         .tt:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
       `}</style>

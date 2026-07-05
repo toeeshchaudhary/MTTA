@@ -161,6 +161,14 @@
   .thr-ed { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 2px solid var(--line); border-top: 0; }
   .thr-act { display: flex; gap: 6px; }
 
+  .keys-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 50; width: 340px; background: var(--panel); border: 3px solid var(--edge); box-shadow: 8px 8px 0 var(--shadow); padding: 18px 20px; display: flex; flex-direction: column; gap: 7px; }
+  .key-row { display: flex; align-items: center; gap: 12px; }
+  .key-kbd { font-family: var(--font-mono); font-size: 0.65rem; background: var(--bg); border: 2px solid var(--edge); padding: 3px 7px; min-width: 80px; text-align: center; white-space: nowrap; }
+  .med-row { display: grid; grid-template-columns: 44px 1fr auto; gap: 6px; align-items: start; }
+  .med-ord { display: flex; flex-direction: column; gap: 2px; }
+  .media-lib { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow: auto; }
+  .mlib-row { display: grid; grid-template-columns: 40px 1fr auto; gap: 6px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); }
+
   /* desktop-first; on narrow screens the inspector floats as a right drawer */
   @media (max-width: 820px) {
     .adm-main, .adm-main.writing { grid-template-columns: 52px 1fr; }

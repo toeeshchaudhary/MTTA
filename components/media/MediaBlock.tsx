@@ -27,7 +27,7 @@ export default function MediaBlock({ media }: { media: Media[] }) {
         .media { display: flex; flex-direction: column; gap: 14px; margin: 18px 0; }
         .m-img img, .m-vid video { width: 100%; display: block; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); }
         figure { margin: 0; }
-        figcaption { font-family: var(--font-mono); font-size: 0.62rem; color: var(--ink-soft); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+        figcaption { font-family: var(--font-sans); font-size: 0.62rem; color: var(--ink-soft); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
       `}</style>
     </div>
   );

@@ -4,9 +4,10 @@
 // each segment is clipped to each water rect (Liang–Barsky); the inside portion gets a
 // deck + side rails + planks, drawn under the line (the ribbon rides over the centre).
 'use client';
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { RIBBON, type Pt } from '@/content/lines';
-import { KIND_BY_ID, type TerrainFeature } from './terrain-kinds';
+import { kindOf, type TerrainFeature } from './terrain-kinds';
 
 type BLine = { id: string; color: string; pts?: Pt[]; under?: number[] };
 
@@ -61,8 +62,8 @@ function clipPoly(x0: number, y0: number, x1: number, y1: number, poly: Pt[]): S
 
 type Span = { id: string; color: string; ax: number; ay: number; bx: number; by: number };
 
-export default function Bridges({ lines, terrain, started = true, startAt = 0, dur = 0.4 }: { lines: BLine[]; terrain: TerrainFeature[]; started?: boolean; startAt?: number; dur?: number }) {
-  const water = terrain.filter((f) => (KIND_BY_ID[f.kind] ?? KIND_BY_ID.block).water);
+export default memo(function Bridges({ lines, terrain, started = true, startAt = 0, dur = 0.4 }: { lines: BLine[]; terrain: TerrainFeature[]; started?: boolean; startAt?: number; dur?: number }) {
+  const water = terrain.filter((f) => kindOf(f).water);
   if (!water.length || !lines.length) return null;
 
   const spans: Span[] = [];
@@ -120,4 +121,4 @@ export default function Bridges({ lines, terrain, started = true, startAt = 0, d
       })}
     </g>
   );
-}
+})

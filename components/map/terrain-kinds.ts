@@ -1,9 +1,9 @@
-// Terrain = water, Mini-Metro style. One kind only: flat light-blue bodies of any shape,
-// drawn freely with the pen. No harbours/rivers/parks/blocks — just water.
-// Plain module (no 'use client') so it's safe to import on the server too.
+// Terrain, Wyman-map style: flat light-blue water bodies and pale-green parks,
+// drawn freely with the pen. Plain module (no 'use client') so it's safe to
+// import on the server too.
 import type { Pt } from '@/content/lines';
 
-export type TerrainKind = 'water';
+export type TerrainKind = 'water' | 'park';
 
 export type TerrainFeature = {
   id: string;
@@ -28,20 +28,19 @@ export type TerrainKindDef = {
   label: string;
   fill: string;    // flat body colour
   line: string;    // crisp outer bank
-  coast: string;   // the lighter "current" line just inside the bank
+  coast?: string;  // the lighter "current" line just inside the bank (water only)
   icon: string;
   round: number;   // corner radius when drawn as a bare rectangle (no points)
-  smooth: boolean; // water is always organic
+  smooth: boolean; // organic coastline
   water: boolean;  // crossable → auto-bridges
 };
 
 export const TERRAIN_KINDS: TerrainKindDef[] = [
   { id: 'water', label: 'water', fill: 'var(--water, #bfe2f1)', line: 'var(--water-line, #97cbe3)', coast: 'var(--water-coast, #e4f4fc)', icon: '≈', round: 26, smooth: true, water: true },
+  { id: 'park', label: 'park', fill: 'var(--park, #cfe3c0)', line: 'var(--park-line, #b0cf9c)', icon: '❀', round: 26, smooth: true, water: false },
 ];
 
-// Any saved feature (whatever its old kind string) renders as water now.
-const WATER = TERRAIN_KINDS[0];
-export const KIND_BY_ID: Record<string, TerrainKindDef> = new Proxy(
-  { water: WATER },
-  { get: () => WATER },
-);
+export const KIND_BY_ID: Record<string, TerrainKindDef> = Object.fromEntries(TERRAIN_KINDS.map((k) => [k.id, k]));
+// Resolve a feature's kind; legacy kind strings from old saves ('river', 'block', …)
+// fall back to water — same behaviour the old catch-all Proxy provided.
+export const kindOf = (f: { kind: string }): TerrainKindDef => KIND_BY_ID[f.kind] ?? KIND_BY_ID.water;

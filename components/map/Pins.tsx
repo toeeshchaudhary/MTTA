@@ -1,10 +1,11 @@
 // The tile layer — curated modules placed on the board, design-system style:
 // aligned, hairline-framed, mono-labelled. They settle in after the routes draw.
 'use client';
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import type { Pin } from '@/lib/content';
 
-export default function Pins({ pins, started = true, startAt = 0, stagger = 0.12, dur = 0.45 }: { pins: Pin[]; started?: boolean; startAt?: number; stagger?: number; dur?: number }) {
+export default memo(function Pins({ pins, started = true, startAt = 0, stagger = 0.12, dur = 0.45 }: { pins: Pin[]; started?: boolean; startAt?: number; stagger?: number; dur?: number }) {
   if (!pins?.length) return null;
   return (
     <g className="tiles" aria-hidden>
@@ -41,4 +42,4 @@ export default function Pins({ pins, started = true, startAt = 0, stagger = 0.12
       })}
     </g>
   );
-}
+})

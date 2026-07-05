@@ -4,7 +4,7 @@ import { TransformWrapper, TransformComponent, MiniMap, type ReactZoomPanPinchRe
 import { AnimatePresence, motion } from 'framer-motion';
 import { contentBounds, RIBBON, ghost, type Line } from '@/content/lines';
 import type { Station, Pin } from '@/lib/content';
-import { KIND_BY_ID, type TerrainFeature } from '@/components/map/terrain-kinds';
+import { kindOf, type TerrainFeature } from '@/components/map/terrain-kinds';
 import TransitMap from './map/TransitMap';
 import DepartureBoard from './map/DepartureBoard';
 import Controls from './map/Controls';
@@ -117,7 +117,9 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
     return code;
   }, [lines, stations]);
   const selected = selectedId ? byId[selectedId] : null;
-  const activeLines = focusLine ? [focusLine] : hoveredLines; // hovering an interchange lights every thread it sits on
+  // hovering an interchange lights every thread it sits on; memoised so the identity is
+  // stable between renders (TransitMap is React.memo'd on it)
+  const activeLines = useMemo(() => (focusLine ? [focusLine] : hoveredLines), [focusLine, hoveredLines]);
 
   const siblings = useMemo(() => (selected ? stations.filter((s) => s.line === selected.line) : []), [selected, stations]);
   const idx = selected ? siblings.findIndex((s) => s.id === selected.id) : -1;
@@ -171,6 +173,8 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
   const pushedRef = useRef(false);
   const select = useCallback((id: string | null, fly = true) => {
     setSelectedId(id);
+    // closing: drop focus from the station marker so no focus ring lingers on the map
+    if (!id) { try { (document.activeElement as HTMLElement | null)?.blur?.(); } catch {} }
     if (id) chimeOpen(); else if (pushedRef.current) chimeClose();   // subway door chime (no-op unless sounds on)
     // canonical, shareable URL per stop — /s/<id> is a real SSG route with its own OG card.
     // First open pushes a history entry (Back closes it); switching stops replaces in place.
@@ -230,6 +234,12 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
   }, [byId, flyTo]);
 
   const pickFromIndex = useCallback((id: string) => { setIndexOpen(false); setExpanded(false); select(id); }, [select]);
+
+  // stable handlers for the memoised map + departures board — inline arrows here would
+  // defeat React.memo and re-render the whole SVG on every unrelated state flip
+  const openStop = useCallback((id: string) => { setExpanded(false); select(id); }, [select]);
+  const openAbout = useCallback(() => setAboutOpen(true), []);
+  const quips = useMemo(() => (play.serviceQuips ? play.quips : []), [play.serviceQuips, play.quips]);
 
   const toggleFocus = useCallback((lineId: string) => {
     setFocusLine((cur) => {
@@ -365,6 +375,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
             pins={pins}
             selectedId={selectedId}
             activeLines={activeLines}
+            focusedLine={focusLine}
             zoomedIn={labelsOpen}
             started={started}
             trains={trains}
@@ -372,8 +383,8 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
             expressTrain={play.expressTrain}
             crittersRun={crittersRun}
             onHoverLine={setHoveredLines}
-            onSelect={(id) => { setExpanded(false); select(id); }}
-            onOrigin={() => setAboutOpen(true)}
+            onSelect={openStop}
+            onOrigin={openAbout}
             origin={origin}
             originLabel={originLabel}
             originCue={originCue}
@@ -385,7 +396,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         <MiniMap width={190} borderColor="var(--ink)" className="mini" previewClassName="mini-vp">
           <svg viewBox={bounds.viewBox} width={bounds.w} height={bounds.h} style={{ display: 'block' }}>
             <rect x={bounds.x} y={bounds.y} width={bounds.w} height={bounds.h} fill="var(--canvas)" />
-            {terrain.map((f) => { const k = KIND_BY_ID[f.kind] ?? KIND_BY_ID.block; return <rect key={f.id} x={f.x} y={f.y} width={f.w} height={f.h} rx={k.round} fill={k.fill} />; })}
+            {terrain.map((f) => { const k = kindOf(f); return <rect key={f.id} x={f.x} y={f.y} width={f.w} height={f.h} rx={k.round} fill={k.fill} />; })}
             {lines.map((l) => <path key={l.id} d={l.d} fill="none" stroke={l.color} strokeWidth={RIBBON} strokeLinecap="round" strokeLinejoin="round" />)}
             {stations.map((s) => <circle key={s.id} cx={s.x} cy={s.y} r={16} fill="#fff" stroke="#141414" strokeWidth={6} />)}
           </svg>
@@ -393,7 +404,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
       </TransformWrapper>
 
       {/* HUD — masthead pinned top-right, like the title block of a published map */}
-      {started && <DepartureBoard lines={lines} stations={stations} focusLine={focusLine} quips={play.serviceQuips ? play.quips : []} onPick={(id) => { setExpanded(false); select(id); }} />}
+      {started && <DepartureBoard lines={lines} stations={stations} focusLine={focusLine} quips={quips} onPick={openStop} />}
 
       <header className="masthead">
         <button className="brandmark" onClick={() => setAboutOpen(true)} aria-label="About toeesh">
@@ -444,6 +455,17 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
             );
           })}
         </ol>
+        <div className="leg-feats" aria-label="Station features">
+          <div className="mono leg-feats-h">station features</div>
+          <ul className="leg-feats-list mono">
+            <li><span className="lf-g lf-dot" /> station</li>
+            <li><span className="lf-g lf-xfer" /> transfer</li>
+            <li><i className="feat-ic">M</i> media inside</li>
+            <li><i className="feat-ic">↗</i> links out</li>
+            <li><i className="feat-ic feat-star">★</i> start here</li>
+            <li><span className="lf-closed">⊘</span> closed</li>
+          </ul>
+        </div>
         <div className="legend-ctl">
           <ThemeToggle />
           <button className="tt" onClick={toggleMotion}>motion: {motionOff ? 'off' : 'on'}</button>
@@ -568,14 +590,14 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         :global(.mini-vp) { border: 2px solid var(--ink) !important; background: rgba(20,20,20,0.08) !important; box-shadow: rgba(20,20,20,0.18) 0 0 0 10000000px !important; }
         .hud-actions { display: flex; gap: 8px; }
         .open-index {
-          font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
+          font-family: var(--font-sans); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
           background: var(--ink); color: var(--bg); border: 3px solid var(--ink); padding: 8px 12px; cursor: pointer;
           box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
         }
         .open-index:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
         .open-index .mono { opacity: 0.6; margin-left: 4px; }
         .start-here {
-          font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+          font-family: var(--font-sans); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
           background: var(--ink); color: var(--bg); border: 3px solid #111; padding: 8px 12px; cursor: pointer;
           box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
         }
@@ -595,8 +617,8 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         .ob-k { color: var(--ink); font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; }
         .ob-p { margin: 6px 0 12px; line-height: 1.5; font-size: 0.98rem; }
         .ob-act { display: flex; gap: 8px; }
-        .ob-go { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; background: var(--ink); color: var(--bg); border: 2px solid #111; padding: 8px 12px; cursor: pointer; }
-        .ob-dismiss { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 8px 12px; cursor: pointer; }
+        .ob-go { font-family: var(--font-sans); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; background: var(--ink); color: var(--bg); border: 2px solid #111; padding: 8px 12px; cursor: pointer; }
+        .ob-dismiss { font-family: var(--font-sans); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 8px 12px; cursor: pointer; }
         .ob-go:hover, .ob-dismiss:hover { background: var(--ink); color: var(--bg); }
         @media (max-width: 700px) { .onboard { bottom: 12px; } }
         .legend-links { display: flex; gap: 6px; margin: 8px 14px 0; }
@@ -633,14 +655,24 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
         .leg-no { font-size: 0.58rem; letter-spacing: 0.05em; color: var(--ink-soft); }
         .leg:hover .leg-no, .leg-on .leg-no { color: var(--bg); opacity: 0.7; }
         .leg-label { font-size: 1.02rem; letter-spacing: -0.01em; }
-        .leg-blurb { font-family: var(--font-mono); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .leg-blurb { font-family: var(--font-sans); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .leg-n { font-size: 0.62rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
         .leg:hover .leg-blurb, .leg-on .leg-blurb, .leg:hover .leg-n, .leg-on .leg-n { color: var(--bg); }
         /* a closed thread in the key: struck label + a muted 'closed' tag */
         .leg-dead .leg-label { text-decoration: line-through; text-decoration-thickness: 1px; opacity: 0.7; }
-        .leg-closed { font-family: var(--font-mono); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.08em; color: #b56565; white-space: nowrap; }
+        .leg-closed { font-family: var(--font-sans); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.08em; color: #b56565; white-space: nowrap; }
         .leg-dead:hover .leg-closed, .leg-dead.leg-on .leg-closed { color: var(--bg); }
         .leg .shape { width: 15px; height: 15px; }
+        /* the station-features key — WMATA's little glyph legend, two-up and quiet */
+        .leg-feats { margin: 0 14px; border-top: 1.5px solid var(--ink); padding: 8px 0 6px; }
+        .leg-feats-h { font-size: 0.56rem; letter-spacing: 0.18em; color: var(--ink-soft); margin-bottom: 6px; }
+        .leg-feats-list { list-style: none; margin: 0; padding: 0; display: grid;
+          grid-template-columns: 1fr 1fr; gap: 5px 12px; font-size: 0.58rem; letter-spacing: 0.04em; color: var(--ink-soft); }
+        .leg-feats-list li { display: flex; align-items: center; gap: 6px; }
+        .lf-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--st-dot, var(--ink)); flex: none; }
+        .lf-xfer { width: 13px; height: 13px; border-radius: 50%; background: #fff;
+          border: 2.5px solid var(--st-dot, var(--ink)); flex: none; }
+        .lf-closed { color: var(--signal, #b56565); font-size: 0.78rem; line-height: 1; }
         .legend-ctl { display: flex; gap: 6px; margin: 0 14px; border-top: 1.5px solid var(--ink); padding: 10px 0 0; }
         .legend-ctl + .legend-ctl { border-top: 0; padding-top: 6px; }
         .colophon { color: var(--ink-soft); font-size: 0.5rem; letter-spacing: 0.14em; opacity: 0.7; padding: 10px 14px 12px; display: flex; align-items: center; gap: 7px; }
@@ -652,7 +684,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
           background: #0b0a1e; color: #ece9ff; border: 1px solid rgba(180,170,255,0.35);
           box-shadow: 0 0 22px rgba(120,110,240,0.35); padding: 10px 16px; font-size: 0.62rem;
           letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; pointer-events: none; }
-        :global(.tt) { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 5px 8px; cursor: pointer; }
+        :global(.tt) { font-family: var(--font-sans); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; background: none; border: 2px solid var(--ink); color: var(--ink); padding: 5px 8px; cursor: pointer; }
         :global(.tt:hover) { background: var(--ink); color: var(--bg); border-color: var(--ink); }
         :global(.tt.on) { background: var(--ink); color: var(--bg); border-color: var(--ink); }
         /* touch feedback — no hover on phones, so mirror the invert/press onto :active */
@@ -681,6 +713,7 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
           .legend.min .legend-head { border-bottom: 0; }
           .legend.min .leg-status,
           .legend.min .leg-list,
+          .legend.min .leg-feats,
           .legend.min .legend-ctl,
           .legend.min .legend-links,
           .legend.min .colophon { display: none; }

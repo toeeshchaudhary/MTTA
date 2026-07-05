@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('studio', {
   publish: () => ipcRenderer.invoke('studio:publish'),
   daily: (photos: string[], note?: string) => ipcRenderer.invoke('studio:daily', { photos, note }),
   status: () => ipcRenderer.invoke('studio:status'),
+  reload: () => ipcRenderer.invoke('studio:reload'),
 });

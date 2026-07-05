@@ -10,6 +10,8 @@ x: 1385
 media: []
 ---
 
-A web app that connects **businesses with NGOs** for social-impact initiatives — swipe-to-match for sponsorships. Built on Next.js 14.
+**Swipe-to-match for social impact** — a web app connecting businesses with NGOs for sponsorship: swipe, match, fund the initiative.
+
+**Under the hood:** Next.js 14.
 
 → [live](https://sponsorswipe.vercel.app)

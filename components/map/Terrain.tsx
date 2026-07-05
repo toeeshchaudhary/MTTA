@@ -2,19 +2,20 @@
 // running a fixed distance inside the bank. Freely drawn in /admin (the pen tool), stored
 // in content/terrain.json. On the public map they fade in after the notes, before the lines.
 'use client';
+import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { KIND_BY_ID, DEFAULT_ROUND, type TerrainFeature } from './terrain-kinds';
+import { kindOf, DEFAULT_ROUND, type TerrainFeature } from './terrain-kinds';
 import { terrainPath, roundedPolyPath, offsetInward } from './terrain-shape';
 
-export default function Terrain({ features, opacity = 1, started = true, startAt = 0, stagger = 0.08, dur = 0.4 }: { features: TerrainFeature[]; opacity?: number; started?: boolean; startAt?: number; stagger?: number; dur?: number }) {
+export default memo(function Terrain({ features, opacity = 1, started = true, startAt = 0, stagger = 0.08, dur = 0.4 }: { features: TerrainFeature[]; opacity?: number; started?: boolean; startAt?: number; stagger?: number; dur?: number }) {
   if (!features?.length) return null;
   return (
     <g className="terrain" opacity={opacity} aria-hidden>
       {features.map((f, i) => {
-        const k = KIND_BY_ID[f.kind];
+        const k = kindOf(f);
         const d = terrainPath(f, k);
-        // the inner current line — only on bodies large enough to carry it
-        const current = f.points && f.points.length >= 3 && Math.min(f.w, f.h) > 44
+        // the inner current line — water only, and only on bodies large enough to carry it
+        const current = k.coast && f.points && f.points.length >= 3 && Math.min(f.w, f.h) > 44
           ? roundedPolyPath(offsetInward(f.points, 8), Math.max(0, (f.round ?? DEFAULT_ROUND) - 8))
           : null;
         return (
@@ -35,4 +36,4 @@ export default function Terrain({ features, opacity = 1, started = true, startAt
       })}
     </g>
   );
-}
+})

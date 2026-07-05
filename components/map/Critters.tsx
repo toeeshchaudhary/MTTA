@@ -2,9 +2,9 @@
 // A bit of life on the tracks: every so often a subway rat scurries along a random line,
 // then darts off. ~12% of the time it's the legendary pizza rat. rAF-driven, gated by `run`
 // (play.critters && motion on) and silenced under prefers-reduced-motion.
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 
-export default function Critters({ lines, run }: { lines: { id: string; color: string }[]; run: boolean }) {
+export default memo(function Critters({ lines, run }: { lines: { id: string; color: string }[]; run: boolean }) {
   const gref = useRef<SVGGElement>(null);
   const raf = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,4 +90,4 @@ export default function Critters({ lines, run }: { lines: { id: string; color: s
       )}
     </g>
   );
-}
+})

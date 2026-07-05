@@ -10,6 +10,6 @@ x: 1325
 media: []
 ---
 
-An **AI-powered take on insurance** — a Next.js build exploring how far you can push AI into the quote-and-claims flow.
+An **AI-powered take on insurance** — how far can you push AI into the quote-and-claims flow before a human has to step in? A Next.js build exploring exactly that.
 
 → [live](https://ai-insurance-beryl.vercel.app)

@@ -10,6 +10,8 @@ x: 1100
 media: []
 ---
 
-**AI Developer · internship.** My first taste of building AI inside a real product team — shipping features, not toy notebooks. FinStocks is a fintech shop, and this stop is the experience, not a repo of mine.
+**AI Developer · internship.** My first taste of building AI inside a real product team — shipping features into a live fintech product, not toy notebooks. FinStocks is the shop; this stop is the experience rather than a repo of mine.
 
-*(more detail coming — ask me about it.)*
+**The takeaway:** real users, real product cycles, real constraints — the distance between a demo and a feature.
+
+*(fuller write-up coming — ask me about it.)*

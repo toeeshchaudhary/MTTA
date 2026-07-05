@@ -51,6 +51,8 @@ export default function Admin() {
   const [preview, setPreview] = useState(false);
   const [msg, setMsg] = useState('');
   const [saving, setSaving] = useState(false);
+  const [listSearch, setListSearch] = useState('');
+  const [showKeys, setShowKeys] = useState(false);
   // write-first add-stop flow
   const [pickStop, setPickStop] = useState(false);
   const [pendingLine, setPendingLine] = useState<{ id: string; prevPts: Pt[] } | null>(null);
@@ -87,7 +89,7 @@ export default function Admin() {
   const loadStations = useCallback(async () => { const r = await fetch('/api/stations'); setStations((await r.json()).stations || []); }, []);
   const loadTerrain = useCallback(async () => { const r = await fetch('/api/terrain'); setTerrain((await r.json()).terrain || []); }, []);
   const loadPins = useCallback(async () => { const r = await fetch('/api/pins'); setPins((await r.json()).pins || []); }, []);
-  const loadSite = useCallback(async () => { const r = await fetch('/api/site'); const j = await r.json(); const s = j.site; if (!s) return; if (Array.isArray(s.origin)) setOrigin(s.origin as Pt); setSite({ originLabel: s.originLabel ?? '', originCue: s.originCue ?? '', about: { name: s.about?.name ?? '', role: s.about?.role ?? '', blurb: s.about?.blurb ?? '', links: Array.isArray(s.about?.links) ? s.about.links : [] }, play: normPlay(s.play) }); }, []);
+  const loadSite = useCallback(async () => { const r = await fetch('/api/site'); const j = await r.json(); const s = j.site; if (!s) return; if (Array.isArray(s.origin)) setOrigin(s.origin as Pt); setSite({ originLabel: s.originLabel ?? '', originCue: s.originCue ?? '', about: { name: s.about?.name ?? '', role: s.about?.role ?? '', blurb: s.about?.blurb ?? '', links: Array.isArray(s.about?.links) ? s.about.links : [] }, play: normPlay(s.play) }); if (Array.isArray(s.featured)) setFeatured(s.featured); }, []);
   useEffect(() => { loadLines(); loadStations(); loadTerrain(); loadPins(); loadSite(); }, [loadLines, loadStations, loadTerrain, loadPins, loadSite]);
 
   linesRef.current = lines;
@@ -149,6 +151,8 @@ export default function Admin() {
   const updPin = (id: string, patch: Partial<Pin>) => setPins((arr) => arr.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   const commitOrigin = useCallback(async (o: Pt) => { setSaving(true); setOrigin(o); await fetch('/api/site', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ origin: o }) }); setSaving(false); }, []);
   const commitSite = useCallback(async (next: SiteMeta) => { setSaving(true); setSite(next); await fetch('/api/site', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ originLabel: next.originLabel, originCue: next.originCue, about: next.about, play: next.play }) }); setSaving(false); }, []);
+  const [featured, setFeatured] = useState<string[]>([]);
+  const commitFeatured = useCallback(async (next: string[]) => { setSaving(true); setFeatured(next); await fetch('/api/site', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ featured: next }) }); setSaving(false); }, []);
   const setSiteAbout = (patch: Partial<SiteMeta['about']>) => setSite((s) => ({ ...s, about: { ...s.about, ...patch } }));
   const setSitePlay = (patch: Partial<PlayMeta>) => setSite((s) => ({ ...s, play: { ...s.play, ...patch } }));
   const setSiteLink = (i: number, patch: Partial<AboutLink>) => setSite((s) => ({ ...s, about: { ...s.about, links: s.about.links.map((l, k) => (k === i ? { ...l, ...patch } : l)) } }));
@@ -158,6 +162,7 @@ export default function Admin() {
     lines.filter((l) => (l.pts?.length ?? 0) >= 2 && distToPolyline(x, y, l.pts as Pt[]) <= thr).map((l) => l.id), [lines]);
 
   const editStation = (s: St) => { setSelLn(null); setSelTerr(null); setSelPin(null); setSelSt(s.id); setForm({ ...s, media: s.media || [], lines: s.lines && s.lines.length ? s.lines : [s.line] }); };
+  const dupStation = (s: St) => { pushHistory(); const newId = `${s.id || 'stop'}-copy`; editStation({ ...s, id: newId, title: s.title + ' (copy)', x: s.x + 40, y: s.y + 40 }); flash(`duplicated → edit & save as ${newId}`); };
 
   // write-first: pick a thread → extend its line by one stop → open the editor focused.
   // The line extension is staged locally and only persisted when the stop is saved.
@@ -413,6 +418,15 @@ export default function Admin() {
   });
   const setPrimaryLine = (id: string) => setForm((f) => (f ? { ...f, line: id, lines: Array.from(new Set([id, ...(f.lines ?? [f.line])])) } : f));
   const setMedia = (i: number, patch: Partial<Media>) => upF({ media: form!.media.map((m, k) => (k === i ? { ...m, ...patch } : m)) });
+  const moveMedia = (i: number, dir: -1 | 1) => {
+    if (!form) return;
+    const j = i + dir;
+    if (j < 0 || j >= form.media.length) return;
+    const next = form.media.slice();
+    [next[i], next[j]] = [next[j], next[i]];
+    upF({ media: next });
+  };
+  const locateStation = (s: St) => { try { tw.current?.zoomToElement('st-' + s.id, 1, 480); } catch {} };
   const upload = async (file: File) => { const fd = new FormData(); fd.append('file', file); setSaving(true); const r = await fetch('/api/upload', { method: 'POST', body: fd }); const j = await r.json(); setSaving(false); if (r.ok) { const t = j.type?.startsWith('image') ? 'image' : j.type?.startsWith('video') ? 'video' : 'audio'; upF({ media: [...(form!.media), { type: t, src: j.src, caption: '' }] }); flash(`uploaded ${j.src}`); } else flash(j.error || 'upload failed'); };
   const uploadPin = async (id: string, file: File) => { const fd = new FormData(); fd.append('file', file); setSaving(true); const r = await fetch('/api/upload', { method: 'POST', body: fd }); const j = await r.json(); setSaving(false); if (r.ok) { commitPins(pins.map((p) => (p.id === id ? { ...p, src: j.src, kind: 'photo' } : p))); flash(`uploaded ${j.src}`); } else flash(j.error || 'upload failed'); };
   const wrapSel = (before: string, after = before) => { const ta = bodyRef.current; if (!ta || !form) return; const s = ta.selectionStart, e = ta.selectionEnd; const v = form.body; const sel = v.slice(s, e) || 'text'; upF({ body: v.slice(0, s) + before + sel + after + v.slice(e) }); setTimeout(() => { ta.focus(); ta.selectionStart = s + before.length; ta.selectionEnd = s + before.length + sel.length; }, 0); };
@@ -434,7 +448,8 @@ export default function Admin() {
       if (el && /INPUT|TEXTAREA|SELECT/.test(el.tagName)) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
-      if (e.key === 'Escape') { cancelTrack(); cancelLand(); setLandNode(null); closeForm(); setSelLn(null); setSelTerr(null); setSelPin(null); setDraw(null); setPinDraw(null); setPickStop(false); setLnDrag(null); setOrigDrag(false); drawStart.current = null; pinDrawStart.current = null; return; }
+      if (e.key === 'Escape') { if (showKeys) { setShowKeys(false); return; } cancelTrack(); cancelLand(); setLandNode(null); closeForm(); setSelLn(null); setSelTerr(null); setSelPin(null); setDraw(null); setPinDraw(null); setPickStop(false); setLnDrag(null); setOrigDrag(false); drawStart.current = null; pinDrawStart.current = null; return; }
+      if (e.key === '?') { setShowKeys((v) => !v); return; }
       // terrain pen: Backspace undoes the last anchor, Enter closes the loop into water
       if (tool === 'terrain' && landDraft.length > 0) {
         if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); setLandDraft((d) => d.slice(0, -1)); return; }
@@ -507,6 +522,7 @@ export default function Admin() {
           <button className={`tbtn ${view === 'dashboard' ? 'on' : ''}`} onClick={() => setView(view === 'build' ? 'dashboard' : 'build')}>{view === 'build' ? '≡ list' : '▦ map'}</button>
           <span className="adm-div" />
           <PublishButton />
+          <button className="tbtn" onClick={() => setShowKeys((v) => !v)} title="keyboard shortcuts (?)">?</button>
           <a className="tbtn" href="/">view →</a>
         </div>
       </div>
@@ -560,18 +576,23 @@ export default function Admin() {
           />
         ) : (
           <div className="adm-list scroll">
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+              <input style={{ flex: 1, padding: '6px 10px', fontSize: '0.85rem' }} placeholder="filter stops…" value={listSearch} onChange={(e) => setListSearch(e.target.value)} />
+              <span className="mono dimk" style={{ fontSize: '0.56rem', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{stations.filter((s) => !listSearch || s.title.toLowerCase().includes(listSearch.toLowerCase()) || s.id.toLowerCase().includes(listSearch.toLowerCase())).length} / {stations.length}</span>
+            </div>
             <table><thead><tr><th></th><th>title</th><th>thread</th><th>date</th><th></th></tr></thead>
-              <tbody>{stations.map((s) => (<tr key={s.id}><td><span className="dot" style={{ background: lnColor(s.line) }} /></td><td><b>{s.title}</b></td><td className="mono">{s.line}</td><td className="mono">{s.date}</td><td className="rt"><button className="tbtn sm" onClick={() => { setView('build'); editStation(s); }}>edit</button> <button className="tbtn sm" onClick={() => { pushHistory(); s.id && delStation(s.id); }}>del</button></td></tr>))}</tbody>
+              <tbody>{stations.filter((s) => !listSearch || s.title.toLowerCase().includes(listSearch.toLowerCase()) || s.id.toLowerCase().includes(listSearch.toLowerCase())).map((s) => (<tr key={s.id}><td><span className="dot" style={{ background: lnColor(s.line) }} /></td><td><b>{s.title}</b></td><td className="mono">{s.line}</td><td className="mono">{s.date}</td><td className="rt"><button className="tbtn sm" onClick={() => { setView('build'); editStation(s); }}>edit</button> <button className="tbtn sm" onClick={() => { pushHistory(); dupStation(s); setView('build'); }}>dupe</button> <button className="tbtn sm" onClick={() => { pushHistory(); s.id && delStation(s.id); }}>del</button></td></tr>))}</tbody>
             </table>
           </div>
         )}
 
         <Inspector
           form={form} setForm={setForm} lines={lines} stations={stations} pins={pins} terrain={terrain} site={site}
+          dupStation={dupStation} locateStation={locateStation} featured={featured} commitFeatured={commitFeatured}
           selLn={selLn} setSelLn={setSelLn} selPinObj={selPinObj} selFeat={selFeat}
           preview={preview} setPreview={setPreview} idClash={idClash} stLines={stLines} bodyRef={bodyRef}
           lnColor={lnColor} upF={upF} setPrimaryLine={setPrimaryLine} toggleStLine={toggleStLine}
-          setMedia={setMedia} upload={upload} uploadPin={uploadPin} wrapSel={wrapSel} prefixLine={prefixLine} linesNear={linesNear}
+          setMedia={setMedia} moveMedia={moveMedia} upload={upload} uploadPin={uploadPin} wrapSel={wrapSel} prefixLine={prefixLine} linesNear={linesNear}
           pushHistory={pushHistory} commitLines={commitLines} saveStation={saveStation} delStation={delStation} closeForm={closeForm}
           pendingLine={pendingLine} setPendingLine={setPendingLine} setSelSt={setSelSt}
           commitPins={commitPins} updPin={updPin} setSelPin={setSelPin}
@@ -581,6 +602,35 @@ export default function Admin() {
           setSite={setSite} commitSite={commitSite} setSiteAbout={setSiteAbout} setSiteLink={setSiteLink} setSitePlay={setSitePlay}
         />
       </div>
+
+      {showKeys && (
+        <>
+          <div className="picker-scrim" onClick={() => setShowKeys(false)} />
+          <div className="keys-modal">
+            <div className="ed-h" style={{ marginBottom: 10 }}><span className="mono">keyboard shortcuts</span><button className="tbtn sm" onClick={() => setShowKeys(false)}>✕</button></div>
+            {([
+              ['s', 'select tool'],
+              ['t', 'lay track'],
+              ['a', 'place stop'],
+              ['p', 'paint tool'],
+              ['w', 'terrain pen'],
+              ['n', 'pin note'],
+              ['x', 'bulldoze'],
+              ['?', 'this cheatsheet'],
+              ['Ctrl+Z', 'undo'],
+              ['Ctrl+Shift+Z', 'redo'],
+              ['Enter', 'finish track / close terrain'],
+              ['Backspace', 'remove last terrain vertex'],
+              ['Esc', 'cancel / deselect'],
+            ] as [string, string][]).map(([key, desc]) => (
+              <div key={key} className="key-row">
+                <kbd className="key-kbd">{key}</kbd>
+                <span className="dimk mono" style={{ fontSize: '0.78rem' }}>{desc}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
 {/* styles live in ./admin.css */}
     </div>

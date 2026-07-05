@@ -2,14 +2,14 @@
 // A station departures board — top-centre, amber-LED style. Shows the next few real stops
 // with track numbers + a "DUE / N min" countdown, a live clock, and a split-flap flip when
 // the board updates. Pure ambience that sells the metaphor; click any row to jump to it.
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import type { Line } from '@/content/lines';
 import type { Station } from '@/lib/content';
 
 const ROWS = 3;
 const ROTATE_MS = 3200;
 
-export default function DepartureBoard({ lines, stations, focusLine = null, quips = [], onPick }: { lines: Line[]; stations: Station[]; focusLine?: string | null; quips?: string[]; onPick?: (id: string) => void }) {
+export default memo(function DepartureBoard({ lines, stations, focusLine = null, quips = [], onPick }: { lines: Line[]; stations: Station[]; focusLine?: string | null; quips?: string[]; onPick?: (id: string) => void }) {
   const byId = useMemo(() => Object.fromEntries(lines.map((l) => [l.id, l])), [lines]);
   const onLine = (s: Station, id: string) => (s.lines && s.lines.length ? s.lines : [s.line]).includes(id);
   // abandoned threads run no trains → no departures. A stop shows under a LIVE line it
@@ -187,4 +187,4 @@ export default function DepartureBoard({ lines, stations, focusLine = null, quip
       `}</style>
     </div>
   );
-}
+})

@@ -5,8 +5,8 @@ lines:
   - l-english
 date: ''
 shape: circle
-x: 2700
-'y': 1530
+x: 1860
+'y': 1420
 media: []
 ---
 

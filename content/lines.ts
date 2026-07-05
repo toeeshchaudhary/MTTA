@@ -106,3 +106,29 @@ const SEED: Omit<Line, 'd'>[] = [
 export const LINES: Line[] = SEED.map((l) => ({ ...l, d: roundedPath(l.pts) }));
 
 export const LINE_BY_ID: Record<string, Line> = Object.fromEntries(LINES.map((l) => [l.id, l]));
+
+// WMATA-style two-letter route codes for the terminus bullets (RD/OR/BL grammar).
+// Deterministic over the array order: two-word labels take both initials, one-word
+// labels take their first two letters; collisions keep the first letter and walk
+// the second through the rest of the word until the code is unique.
+const CODE_STOPWORDS = new Set(['the', 'a', 'an', 'of']);
+export function lineCodes(lines: { id: string; label: string }[]): Record<string, string> {
+  const taken = new Set<string>();
+  const out: Record<string, string> = {};
+  for (const [i, l] of lines.entries()) {
+    const words = l.label.split(/[^a-zA-Z0-9]+/).filter((w) => w && !CODE_STOPWORDS.has(w.toLowerCase()));
+    const first = words[0] ?? l.id;
+    let code = (words.length >= 2 ? first[0] + words[1][0] : first.slice(0, 2)).toUpperCase();
+    if (taken.has(code)) {
+      const pool = first.slice(1) + (words[1] ?? '');
+      for (const c of pool) {
+        const cand = (first[0] + c).toUpperCase();
+        if (!taken.has(cand)) { code = cand; break; }
+      }
+      if (taken.has(code)) code = (first[0] + String(i)).toUpperCase(); // last-ditch: letter+index
+    }
+    taken.add(code);
+    out[l.id] = code;
+  }
+  return out;
+}

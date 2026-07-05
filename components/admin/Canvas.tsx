@@ -4,7 +4,7 @@
 // from the admin page; fed one props bundle so the page no longer holds ~160 lines of SVG.
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { MAP_VIEWBOX, RIBBON, roundedPath, tunnelRuns, runPts, type Pt } from '@/content/lines';
-import { TERRAIN_KINDS, KIND_BY_ID, DEFAULT_ROUND, type TerrainKind, type TerrainFeature } from '@/components/map/terrain-kinds';
+import { TERRAIN_KINDS, KIND_BY_ID, kindOf, DEFAULT_ROUND, type TerrainKind, type TerrainFeature } from '@/components/map/terrain-kinds';
 import { terrainPath, roundedPolyPath, offsetInward, bboxOf } from '@/components/map/terrain-shape';
 import Bridges from '@/components/map/Bridges';
 import { TOOLS, PALETTE, PIN_KINDS, FAR, INK } from '@/components/admin/lib/constants';
@@ -98,7 +98,7 @@ export default function Canvas(p: CanvasProps) {
 
               {/* terrain — flat cartographic shapes; pen-editable in the terrain tool */}
               <g>
-                {terrain.map((f) => { const k = KIND_BY_ID[f.kind] ?? KIND_BY_ID.block; const isSel = selTerr === f.id; const active = tool === 'terrain' || tool === 'bulldoze';
+                {terrain.map((f) => { const k = kindOf(f); const isSel = selTerr === f.id; const active = tool === 'terrain' || tool === 'bulldoze';
                   const d = terrainPath(f, k);
                   const hasPoly = !!(f.points && f.points.length >= 3);
                   const coast = hasPoly && Math.min(f.w, f.h) > 44 ? roundedPolyPath(offsetInward(f.points!, 8), Math.max(0, (f.round ?? DEFAULT_ROUND) - 8)) : null;

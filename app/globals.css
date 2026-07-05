@@ -39,37 +39,62 @@
   --tunnel-mouth: #16181f; /* the dark opening of a tunnel portal */
 }
 
-/* theme: whiteboard (default) — bright, airy paper.
-   --edge = chrome border, --shadow = hard-shadow colour, --hi = UI highlight accent.
-   In light they collapse to the ink so the Bauhaus look is unchanged. */
+/* theme: paper (default) — the printed WMATA rail map: a white map field, warm-grey
+   hairlines, white boards for chrome (the wmata.com register), solid ink station dots.
+   Colour lives in the ribbons; chrome is monochrome + the two sanctioned accents. */
 :root, :root[data-theme="light"] {
   --bg: #ffffff;
-  --panel: #ffffff;
-  --ink: #2b2b33;        /* softened from near-black so the UI reads lighter */
-  --ink-soft: #8a8a95;
-  --line: #ededf2;
-  --canvas: #ffffff;
-  --canvas-grid: #e8e9f0;
-  --edge: var(--ink);
-  --shadow: var(--ink);
-  --hi: #ffcf00;         /* signature yellow highlight (Bauhaus primary) */
+  --panel: #ffffff;      /* boards are white cards read via hairline, not border-weight */
+  --ink: #141414;
+  --ink-soft: #75716a;   /* warm secondary grey (WMATA web) */
+  --line: #e9e6dc;       /* warm hairline row divider */
+  --canvas: #ffffff;     /* the map paper */
+  --canvas-grid: #e4e1d6;
+  --edge: #d8d4c6;       /* warm hairline board edge */
+  --shadow: transparent; /* the printed map is flat — no offset shadows anywhere */
+  --hi: #ffcf00;         /* signature yellow highlight */
   --hi-ink: #141414;     /* dark text on the yellow fill — high contrast */
+  /* signage tokens (shared grammar with the night register) */
+  --roundel: #141414;    /* ink roundel on paper */
+  --st-dot: #141414;     /* solid ink station dots, Wyman-style */
+  --board-head: #f4f1e7; /* warm off-white header strip capping each board */
+  --alert-bg: #f6efd8;   /* cream service-advisory panel */
+  --alert-ink: #141414;
+  --signal: #d8402a;     /* closed / no service */
+  --label-halo: 0 1px 3px rgba(255,255,255,0.95), 0 0 8px rgba(255,255,255,0.85);
+  /* parks — the Wyman map's pale green commons */
+  --park: #cfe3c0;       --park-line: #b0cf9c;
+  /* the beltway — the gray highway loop framing the network */
+  --road: #cbc8bf;       --road-casing: #ffffff;   --road-label: rgba(90,87,78,0.55);
 }
-/* theme: night — Mini Metro dark: warm charcoal field, near-black station tiles,
-   soft chrome (no harsh white borders / hard shadows). Line colours come from the
-   content, so they stay vivid on the charcoal. */
+/* theme: night — transit signage (after Order's WMATA screens): flat near-black
+   boards on a pure-black field, a lighter header strip per board, hairline dividers,
+   white Helvetica-weight type, cream service-alert panels. No borders-as-decoration,
+   no offset shadows — panels are separated by their header strips and hairlines. */
 :root[data-theme="dark"] {
   --bg: #000000;         /* pure AMOLED black */
-  --panel: #0c0c0e;      /* station-tile / card — a hair above black, read via hairline */
-  --ink: #f4f3f6;
-  --ink-soft: #94949f;   /* neutral grey secondary (no purple tint) */
-  --line: #222227;       /* subtle divider */
+  --panel: #101012;      /* signage board body — a step above black */
+  --ink: #ffffff;        /* signage white */
+  --ink-soft: #98989e;   /* secondary grey ("to Vienna", "Transfers") */
+  --line: #29292d;       /* hairline row divider */
   --canvas: #000000;     /* map field == bg → the canvas never reads as a rectangle */
-  --canvas-grid: #2a2a31;/* faint dot grid on black */
-  --edge: rgba(255,255,255,0.16);   /* soft hairline instead of white borders */
-  --shadow: rgba(0,0,0,0.6);        /* soft dark drop */
-  --hi: #ffd21f;         /* signature yellow, a touch brighter for the black field */
+  --canvas-grid: #26262b;/* faint dot grid on black */
+  --edge: #2c2c30;       /* hairline board edge — solid, not translucent white */
+  --shadow: transparent; /* boards are flat: every offset hard-shadow disappears */
+  --hi: #ffd21f;         /* signature yellow (the YL bullet) */
   --hi-ink: #141414;     /* dark text on yellow */
+  /* signage tokens */
+  --roundel: #ffffff;    /* the origin roundel flips to white on the black field */
+  --st-dot: #ffffff;     /* station dots flip white on the night field */
+  --board-head: #1d1d20; /* the lighter title strip that caps every board */
+  --alert-bg: #f6efd8;   /* cream service-advisory panel */
+  --alert-ink: #141414;  /* black text on cream */
+  --signal: #e0472f;     /* emergency red-orange — closed lines, outages */
+  --label-halo: 0 1px 3px rgba(0,0,0,0.95), 0 0 9px rgba(0,0,0,0.8);
+  /* parks — deep moss on the night field */
+  --park: #14261a;       --park-line: #2c4a33;
+  /* the beltway — a quiet dark band on black */
+  --road: #2c2c30;       --road-casing: #000000;   --road-label: rgba(180,180,188,0.4);
   /* terrain — Mini-Metro water, deep steel-blue on black */
   --water: #17333f;       --water-line: #2c5a6e;       --water-coast: #3d6d80;
   --terrain-label: rgba(200,225,238,0.5);
@@ -116,8 +141,13 @@ button { font-family: inherit; }
   outline: 3px solid var(--hi); outline-offset: 3px; border-radius: 6px;
 }
 
-/* ---- type ---- */
-.mono { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.66rem; }
+/* ---- type ----
+   The "mono" voice is now RM Neue like everything else — small, uppercase, tracked.
+   JetBrains Mono lives ONLY on the departures board (the one machine surface). */
+.mono { font-family: var(--font-sans); font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.66rem; }
+/* small uppercase labels carry their weight in the sans now that mono's gone */
+.d-btn, .d-nav button, .chip, .share-btn, .about-links a, .about-links button,
+.tt, .open-index, .trip-panel, .ob-dismiss, .tile-tag, .origin-cue, .plate-closed { font-weight: 600; }
 .display { font-weight: 800; letter-spacing: -0.04em; line-height: 0.84; }
 
 /* ---- bauhaus bullet shapes ---- */
@@ -142,12 +172,12 @@ button { font-family: inherit; }
 .drawer .d-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .drawer .d-line { font-weight: 700; color: var(--line-c); }
 .drawer .d-actions { display: flex; gap: 8px; }
-.drawer .d-btn { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--edge); color: var(--ink); padding: 6px 9px; cursor: pointer; }
+.drawer .d-btn { font-family: var(--font-sans); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--edge); color: var(--ink); padding: 6px 9px; cursor: pointer; }
 .drawer .d-btn:hover { background: var(--line-c); color: #fff; border-color: var(--line-c); }
 .drawer .d-btn.x { width: 34px; }
 .drawer .d-title { font-size: clamp(2rem, 6vw, 3.1rem); font-weight: 800; letter-spacing: -0.035em; line-height: 0.96; margin: 14px 0 10px; position: relative; z-index: 1; }
 .drawer .d-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 28px; border-top: 2px solid var(--line); padding-top: 16px; }
-.drawer .d-nav button { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--edge); color: var(--ink); padding: 8px 12px; cursor: pointer; }
+.drawer .d-nav button { font-family: var(--font-sans); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--edge); color: var(--ink); padding: 8px 12px; cursor: pointer; }
 .drawer .d-nav button:disabled { opacity: 0.3; cursor: default; }
 .drawer .d-nav button:not(:disabled):hover { background: var(--line-c); color: #fff; border-color: var(--line-c); }
 .drawer .d-readmore { background: var(--line-c) !important; color: #fff !important; border-color: var(--line-c) !important; }
@@ -175,7 +205,7 @@ button { font-family: inherit; }
 .d-notice-dot { width: 8px; height: 8px; border-radius: 50%; background: #b56565; flex: none; }
 .d-stamp {
   position: absolute; top: 92px; right: 22px; z-index: 0; pointer-events: none; user-select: none;
-  font-family: var(--font-mono); font-weight: 800; font-size: 1.4rem; letter-spacing: 0.04em;
+  font-family: var(--font-sans); font-weight: 800; font-size: 1.4rem; letter-spacing: 0.04em;
   text-transform: uppercase; color: rgba(181,101,101,0.26);
   border: 4px solid rgba(181,101,101,0.26); border-radius: 7px; padding: 5px 12px;
   transform: rotate(-11deg);
@@ -200,14 +230,14 @@ button { font-family: inherit; }
 /* trip planner panel */
 .trip-panel { position: fixed; left: 22px; bottom: 20px; z-index: 24; width: 250px;
   background: var(--panel); color: var(--ink); border: 3px solid var(--edge); box-shadow: 8px 8px 0 var(--shadow);
-  padding: 12px 13px 13px; display: flex; flex-direction: column; gap: 9px; font-family: var(--font-mono); }
+  padding: 12px 13px 13px; display: flex; flex-direction: column; gap: 9px; font-family: var(--font-sans); }
 .trip-head { display: flex; align-items: center; justify-content: space-between; }
 .trip-head .mono { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
 .trip-x { background: none; border: 2px solid var(--edge); color: var(--ink); width: 26px; height: 26px; cursor: pointer; font-size: 0.7rem; }
 .trip-x:hover { background: var(--ink); color: var(--bg); }
 .trip-f { display: flex; flex-direction: column; gap: 4px; font-size: 0.54rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-soft); }
-.trip-f select { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink); background: var(--bg); border: 2px solid var(--edge); padding: 6px 7px; cursor: pointer; }
-.trip-go { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: var(--ink); color: var(--bg); border: 2px solid var(--edge); padding: 8px; cursor: pointer; }
+.trip-f select { font-family: var(--font-sans); font-size: 0.72rem; color: var(--ink); background: var(--bg); border: 2px solid var(--edge); padding: 6px 7px; cursor: pointer; }
+.trip-go { font-family: var(--font-sans); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: var(--ink); color: var(--bg); border: 2px solid var(--edge); padding: 8px; cursor: pointer; }
 .trip-go:disabled { opacity: 0.4; cursor: default; }
 .trip-res { font-size: 0.72rem; border-left: 3px solid var(--edge); padding: 6px 0 6px 9px; }
 .trip-res.err { color: #b5402e; border-left-color: #b5402e; }
@@ -225,7 +255,7 @@ button { font-family: inherit; }
 .about-tags { color: var(--ink-soft); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 8px; }
 .about-blurb { color: var(--ink-soft); line-height: 1.6; margin: 12px 0 18px; }
 .about-links { display: flex; flex-wrap: wrap; gap: 8px; }
-.about-links a, .about-links button { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--edge); color: var(--ink); padding: 8px 12px; cursor: pointer; text-decoration: none; }
+.about-links a, .about-links button { font-family: var(--font-sans); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--edge); color: var(--ink); padding: 8px 12px; cursor: pointer; text-decoration: none; }
 .about-links a:hover, .about-links button:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .about-links button { background: var(--ink); color: var(--bg); }
 
@@ -246,7 +276,7 @@ button { font-family: inherit; }
 .share-loading { position: absolute; color: #8a8a8a; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; }
 .share-url { margin: 12px 0 14px; font-size: 0.72rem; color: var(--muted, #777); word-break: break-all; border-left: 3px solid var(--line-c); padding-left: 10px; }
 .share-acts { display: flex; flex-wrap: wrap; gap: 8px; }
-.share-btn { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em; background: none; border: 2px solid var(--edge); color: var(--ink); padding: 9px 12px; cursor: pointer; text-decoration: none; display: inline-block; }
+.share-btn { font-family: var(--font-sans); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em; background: none; border: 2px solid var(--edge); color: var(--ink); padding: 9px 12px; cursor: pointer; text-decoration: none; display: inline-block; }
 .share-btn:hover { background: var(--line-c); color: #fff; border-color: var(--line-c); }
 .share-btn.primary { background: var(--line-c); color: #fff; border-color: var(--line-c); }
 @media (prefers-reduced-motion: reduce) { .share-pass img { transition: none; } }
@@ -267,7 +297,7 @@ button { font-family: inherit; }
   font-family: var(--font-sans);
 }
 .tile-tag {
-  font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.16em;
+  font-family: var(--font-sans); font-size: 0.56rem; letter-spacing: 0.16em;
   text-transform: uppercase; color: var(--ink-soft);
 }
 .tile-note { padding: 14px 14px 12px; gap: 8px; justify-content: flex-start; }
@@ -276,9 +306,9 @@ button { font-family: inherit; }
 .tile-photo .tile-frame { flex: 1; min-height: 0; overflow: hidden; }
 .tile-photo img, .tile-photo .tile-ph { width: 100%; height: 100%; object-fit: cover; display: block; background: var(--line); }
 .tile-photo .tile-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--edge); }
-.tile-photo .tile-cap { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.04em; color: var(--ink); }
+.tile-photo .tile-cap { font-family: var(--font-sans); font-size: 0.62rem; letter-spacing: 0.04em; color: var(--ink); }
 .terrain-label {
-  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 600;
   letter-spacing: 0.22em; text-transform: uppercase;
 }
 
@@ -297,17 +327,16 @@ button { font-family: inherit; }
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .plate .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
-.plate-code { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.06em; opacity: 0.55; }
-.tile-no { font-family: var(--font-mono); margin-right: 8px; opacity: 0.55; }
+.tile-no { font-family: var(--font-sans); margin-right: 8px; opacity: 0.55; }
 .origin-plate { border: 0; cursor: pointer; font-family: var(--font-sans); }
 .origin-plate:hover { background: #333; }
-.origin-cue { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55; margin-left: 8px; }
+.origin-cue { font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55; margin-left: 8px; }
 
 /* ---- abandoned / disused: drained, boarded-up threads + peeling scraps ---- */
 /* a boarded-up stop's name tablet: drained grey, dashed edge — reads as decommissioned */
 .plate.ghost { background: #35353b; color: #dcdce2; box-shadow: 2px 2px 0 rgba(0,0,0,0.22); border: 1px dashed #7a7a84; }
 .plate.ghost .plate-title { text-decoration: line-through; text-decoration-thickness: 1px; opacity: 0.85; }
-.plate-closed { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: #b56565; margin-left: 8px; }
+.plate-closed { font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: #b56565; margin-left: 8px; }
 /* a disused moodboard scrap: desaturated, dog-eared, hairline-dashed frame */
 .tile-abandoned { filter: grayscale(0.85) contrast(0.92); opacity: 0.62; border-style: dashed !important; box-shadow: 3px 3px 0 rgba(43,43,51,0.12); transform: rotate(-1.4deg); }
 .tile-abandoned .tile-tag { color: #b56565; }
@@ -343,6 +372,7 @@ button { font-family: inherit; }
   --bg: #05040e; --canvas: #05040e; --panel: #0b0a1e; --ink: #ece9ff; --ink-soft: #8f8ab5;
   --line: #221f45; --canvas-grid: #33305c; --edge: rgba(180,170,255,0.22); --shadow: rgba(0,0,0,0.6);
   --water: #08222b; --water-line: #16d3c8; --water-coast: #1a4f5e; --terrain-label: rgba(150,220,235,0.55);
+  --park: #0a2418; --park-line: #16d38a; --road: #1c1a38; --road-casing: #05040e; --road-label: rgba(150,220,235,0.4);
 }
 /* field is a single flat deep-indigo — bg == canvas == stage == wrap, so there's NO
    rectangle (same trick as the AMOLED theme). The neon glow carries the atmosphere. */
@@ -402,7 +432,7 @@ button { font-family: inherit; }
 .ip-x { background: none; border: 2px solid var(--edge); color: var(--ink); width: 30px; height: 30px; cursor: pointer; }
 .ip-search { font: inherit; padding: 10px 12px; border: 3px solid var(--edge); background: var(--bg); color: var(--ink); }
 .ip-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--line); color: var(--ink); padding: 4px 8px; cursor: pointer; }
+.chip { font-family: var(--font-sans); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; background: none; border: 2px solid var(--line); color: var(--ink); padding: 4px 8px; cursor: pointer; }
 .chip.on { background: var(--ink); color: var(--bg); }
 .ip-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .ip-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; color: var(--ink); padding: 9px 6px; cursor: pointer; border-bottom: 1px solid var(--line); }
@@ -436,3 +466,140 @@ button { font-family: inherit; }
   /* keep icon-only buttons visually centred at the larger size */
   .trip-x, .about-x, .share-x, .ip-x { display: inline-flex; align-items: center; justify-content: center; }
 }
+
+/* =========================================================================
+   signage chrome — BOTH themes (after Order's WMATA screen system + the Wyman
+   rail map). Every panel is a flat board capped by a lighter header strip and
+   divided by hairlines; hover inverts to a signage pill; advisories are cream
+   with black ink; the departures board is dark LED glass in both registers.
+   Scoped :not(.night-owl) so the neon easter egg keeps its own look.
+   ========================================================================= */
+
+/* ---- boards: flat, hairline-edged ---- */
+:root:not(.night-owl) .legend,
+:root:not(.night-owl) .trip-panel,
+:root:not(.night-owl) .about-card,
+:root:not(.night-owl) .onboard,
+:root:not(.night-owl) .share-card,
+:root:not(.night-owl) .tile {
+  border: 1px solid var(--edge); box-shadow: none;
+}
+:root:not(.night-owl) .ip { border-right: 1px solid var(--edge); }
+:root:not(.night-owl) .mini { border: 1px solid var(--edge) !important; box-shadow: none !important; }
+
+/* the network key becomes the station-list board: title strip, hairline rows */
+:root:not(.night-owl) .legend-head {
+  background: var(--board-head); border-bottom: 1px solid var(--edge);
+}
+:root:not(.night-owl) .legend-title { color: var(--ink); font-weight: 700; }
+:root:not(.night-owl) .leg-status { background: #0e0e10; border: 1px solid #2c2c30; }
+:root:not(.night-owl) .legend-ctl { border-top: 1px solid var(--line); }
+
+/* HUD buttons: small boards. Hover inverts to the signage pill. */
+:root:not(.night-owl) .open-index {
+  background: var(--panel); color: var(--ink); border: 1px solid var(--edge); box-shadow: none;
+}
+:root:not(.night-owl) .open-index:hover { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+:root:not(.night-owl) .start-here {
+  background: var(--hi); color: var(--hi-ink); border: 1px solid var(--hi); box-shadow: none;
+}
+:root:not(.night-owl) .start-here:hover { transform: none; box-shadow: none; background: var(--ink); color: var(--panel); border-color: var(--ink); }
+:root:not(.night-owl) .tt { background: var(--panel); border: 1px solid var(--edge); }
+:root:not(.night-owl) .tt:hover,
+:root:not(.night-owl) .tt.on { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+
+/* zoom controls: boards, not cream tiles */
+:root:not(.night-owl) .ctl {
+  background: var(--panel); color: var(--ink); border: 1px solid var(--edge); box-shadow: none;
+}
+:root:not(.night-owl) .ctl:hover { background: var(--ink); color: var(--panel); }
+:root:not(.night-owl) .ctl:active { transform: none; }
+
+/* departures board — dark LED glass in BOTH registers (a screen, not paper):
+   header strip + true hairline rows, arrival times bold white, DUE in yellow */
+:root:not(.night-owl) .depboard { box-shadow: none; background: #101012; border: 1px solid #2c2c30; }
+:root:not(.night-owl) .dep-top { background: #1d1d20; border-bottom: 1px solid #2c2c30; }
+:root:not(.night-owl) .dep-top:hover { background: #232327; }
+:root:not(.night-owl) .dep-rows { padding: 0; background-image: none; }
+:root:not(.night-owl) .dep-row { border-top: 1px solid #29292d; padding: 8px 11px; }
+:root:not(.night-owl) .dep-rows > .dep-row:first-child,
+:root:not(.night-owl) .dep-rows > .dep-row.quip + .dep-row { border-top-width: 0; }
+:root:not(.night-owl) .dep-min { color: #ffffff; font-weight: 700; font-size: 0.72rem; }
+:root:not(.night-owl) .dep-min.now { color: #ffd21f; }
+/* the quip row is a service advisory — cream panel, black ink */
+:root:not(.night-owl) .dep-row.quip { background: var(--alert-bg); border-left: 0; }
+:root:not(.night-owl) .dep-row.quip .dep-quip-text { color: var(--alert-ink); font-weight: 700; }
+:root:not(.night-owl) .dep-row.quip .dep-quip-led { background: var(--alert-ink); box-shadow: none; animation: none; }
+:root:not(.night-owl) .dep-row.quip.closed { background: var(--signal); }
+:root:not(.night-owl) .dep-row.quip.closed .dep-quip-text { color: #fff !important; }
+:root:not(.night-owl) .dep-row.quip.closed .dep-quip-led { background: #fff !important; }
+
+/* the onboarding card is a planned-construction advisory: cream board, black ink,
+   a black !-roundel ahead of the kicker */
+:root:not(.night-owl) .onboard { background: var(--alert-bg); color: var(--alert-ink); border: 1px solid color-mix(in srgb, var(--alert-ink) 22%, transparent); }
+:root:not(.night-owl) .onboard .ob-k { color: var(--alert-ink); display: inline-flex; align-items: center; gap: 7px; }
+:root:not(.night-owl) .onboard .ob-k::before {
+  content: '!'; width: 16px; height: 16px; border-radius: 50%; background: var(--alert-ink);
+  color: var(--alert-bg); font-size: 11px; font-weight: 800; display: inline-grid; place-items: center; letter-spacing: 0;
+}
+:root:not(.night-owl) .onboard .ob-p { color: var(--alert-ink); }
+:root:not(.night-owl) .onboard .ob-x { color: var(--alert-ink); border-color: var(--alert-ink); }
+:root:not(.night-owl) .onboard .ob-x:hover { background: var(--alert-ink); color: var(--alert-bg); }
+:root:not(.night-owl) .onboard .ob-go { background: var(--alert-ink); color: var(--alert-bg); border-color: var(--alert-ink); }
+:root:not(.night-owl) .onboard .ob-dismiss { color: var(--alert-ink); border-color: var(--alert-ink); background: none; }
+:root:not(.night-owl) .onboard .ob-dismiss:hover { background: var(--alert-ink); color: var(--alert-bg); }
+
+/* the decommissioned-stop notice inside the drawer: cream advisory, signal dot */
+:root:not(.night-owl) .d-notice {
+  background: var(--alert-bg); color: var(--alert-ink); font-weight: 700;
+  border: 1px solid color-mix(in srgb, var(--alert-ink) 22%, transparent);
+}
+:root:not(.night-owl) .d-notice-dot { background: var(--signal); }
+
+/* index / search / drawer chrome: hairline weights */
+:root:not(.night-owl) .ip-search { border: 1px solid var(--edge); background: var(--bg); }
+:root:not(.night-owl) .ip-x,
+:root:not(.night-owl) .trip-x,
+:root:not(.night-owl) .about-x,
+:root:not(.night-owl) .share-x { border-width: 1px; }
+:root:not(.night-owl) .drawer .d-btn,
+:root:not(.night-owl) .drawer .d-nav button { border-width: 1px; }
+:root:not(.night-owl) .trip-f select,
+:root:not(.night-owl) .trip-go { border-width: 1px; }
+
+/* station names label as plain wayfinding text (the Wyman rail-map style): no
+   tablet, no bullet — small bold names set beside the dots, with a canvas-coloured
+   halo so they stay legible where they cross a ribbon */
+:root:not(.night-owl) .plate {
+  background: transparent; box-shadow: none; color: var(--ink); padding: 2px 0;
+  font-size: 13.5px; letter-spacing: 0; text-shadow: var(--label-halo);
+}
+:root:not(.night-owl) .plate.big { font-size: 14px; }
+:root:not(.night-owl) .plate .dot { display: none; }
+:root:not(.night-owl) .origin-plate:hover { background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+:root:not(.night-owl) .plate.ghost { background: transparent; border: 0; color: var(--ink-soft); }
+/* a boarded-up stop's marker reads as the red "station closed" roundel */
+:root:not(.night-owl) .ghost-marker circle[stroke-dasharray],
+:root:not(.night-owl) .ghost-marker path { stroke: var(--signal); }
+
+/* closed/decommissioned tags use the signal red */
+:root:not(.night-owl) .leg-closed,
+:root:not(.night-owl) .plate-closed,
+:root:not(.night-owl) .ip-item.dead .ip-line { color: var(--signal); }
+
+/* the dot grid belongs to the night registers; the paper map is clean print */
+.tmap .dotgrid { display: none; }
+:root[data-theme="dark"] .dotgrid,
+:root.night-owl .dotgrid { display: initial; }
+
+/* station feature icons — the Ⓟ grammar: tiny letter-in-square glyphs after a name.
+   M = media inside · ↗ = links out · ★ = start-here spotlight (yellow) */
+.feat-ic { display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; flex: none; margin-left: 5px;
+  border: 1px solid currentColor; border-radius: 2px;
+  font: 700 9px/1 var(--font-sans); font-style: normal; }
+.feat-ic + .feat-ic { margin-left: 3px; }
+.feat-ic.feat-star { border: 0; font-size: 10px; color: var(--hi-ink); background: var(--hi); }
+/* on the map field the square sits solid over ribbons (the text halo can't halo a box) */
+:root:not(.night-owl) .plate .feat-ic { background: var(--canvas); }
+:root:not(.night-owl) .plate .feat-ic.feat-star { background: var(--hi); }

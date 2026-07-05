@@ -5,8 +5,8 @@ lines:
   - l-godot
 date: ''
 shape: circle
-x: 2380
-'y': 1705
+x: 1660
+'y': 1540
 media: []
 ---
 

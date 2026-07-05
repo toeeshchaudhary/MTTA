@@ -10,6 +10,6 @@ x: 1230
 media: []
 ---
 
-A **cross-platform mobile app** built with Expo / React Native.
+A **cross-platform mobile app** built with Expo / React Native — the end of the projects line, for now.
 
-*(write-up in progress.)*
+*(write-up in progress — this stop is still under construction.)*

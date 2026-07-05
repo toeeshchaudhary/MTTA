@@ -6,7 +6,7 @@ lines:
   - l-math
 date: ''
 shape: circle
-x: 1740
+x: 1260
 'y': 1180
 media: []
 ---
