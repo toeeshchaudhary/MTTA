@@ -86,6 +86,10 @@ export default function Canvas(p: CanvasProps) {
           <button className="tbtn" onClick={cancelLand}>✗ cancel</button>
         </div>
       )}
+      <div className="canvas-mode-card">
+        <b>{TOOLS.find((t) => t.id === tool)?.label}</b>
+        <span>{msg || TOOLS.find((t) => t.id === tool)!.hint}</span>
+      </div>
       <div className="adm-stage">
         <TransformWrapper ref={tw} initialScale={0.7} minScale={0.3} maxScale={4} centerOnInit limitToBounds={false} doubleClick={{ disabled: true }} panning={{ allowLeftClickPan: tool !== 'terrain' && tool !== 'note', excluded: ['rt-drag'] }} wheel={{ step: 0.08 }}>
           <TransformComponent wrapperStyle={{ width: '100%', height: '100%', background: 'var(--canvas)' }} contentStyle={{ width: 1400, height: 940 }}>
@@ -166,8 +170,10 @@ export default function Canvas(p: CanvasProps) {
                   onPointerDown={(e) => { if (tool === 'station' || tool === 'track') return; e.stopPropagation(); onLine(l); }} onPointerEnter={() => setHover('L' + l.id)} onPointerLeave={() => setHover(null)}>
                   {/* fat invisible hit area so thin threads are easy to click (paint/select/bulldoze) */}
                   <path d={l.d} fill="none" stroke="transparent" strokeWidth={28} strokeLinecap="round" strokeLinejoin="round" />
+                  {selLn === l.id && <path d={l.d} fill="none" stroke="var(--canvas)" strokeWidth={RIBBON + 10} strokeLinecap="round" strokeLinejoin="round" opacity={0.85} style={{ pointerEvents: 'none' }} />}
                   <path d={l.d} fill="none" stroke={l.color} strokeWidth={RIBBON} strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}
                     opacity={(selLn && selLn !== l.id) || (hover && hover !== 'L' + l.id && tool === 'paint') ? 0.4 : 0.92} />
+                  {selLn === l.id && l.pts && <text x={l.pts[0][0]} y={l.pts[0][1] - 34} className="map-tip" textAnchor="middle">{l.label}</text>}
                   {/* tunnel preview — white ticks mark the underground segments */}
                   {l.under?.length && l.pts ? tunnelRuns(l.under).map((run, ri) => (
                     <path key={'tun' + ri} d={roundedPath(runPts(l.pts as Pt[], run))} fill="none" stroke="var(--canvas)" strokeWidth={RIBBON * 0.7} strokeDasharray="3 8" strokeLinecap="round" style={{ pointerEvents: 'none' }} />

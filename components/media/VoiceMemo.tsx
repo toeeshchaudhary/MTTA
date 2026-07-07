@@ -1,7 +1,10 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import WaveSurfer from 'wavesurfer.js';
+import type WaveSurfer from 'wavesurfer.js';
 
+// wavesurfer.js is ~200 KB gz — a lot to ship for a station with no audio. The
+// library only loads on first mount of a VoiceMemo (i.e. when the visitor actually
+// opens a stop that has an audio memo).
 export default function VoiceMemo({ src, caption }: { src: string; caption?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const ws = useRef<WaveSurfer | null>(null);
@@ -11,22 +14,28 @@ export default function VoiceMemo({ src, caption }: { src: string; caption?: str
 
   useEffect(() => {
     if (!ref.current) return;
-    const w = WaveSurfer.create({
-      container: ref.current,
-      url: src,
-      height: 56,
-      waveColor: '#9a988f',
-      progressColor: '#e3000b',
-      cursorColor: '#141414',
-      barWidth: 3,
-      barGap: 2,
-      barRadius: 1,
-    });
-    ws.current = w;
-    w.on('ready', () => setDur(w.getDuration()));
-    w.on('timeupdate', (t) => setTime(t));
-    w.on('finish', () => setPlaying(false));
-    return () => { w.destroy(); ws.current = null; };
+    let alive = true;
+    let w: WaveSurfer | null = null;
+    (async () => {
+      const mod = await import('wavesurfer.js');
+      if (!alive || !ref.current) return;
+      w = mod.default.create({
+        container: ref.current,
+        url: src,
+        height: 56,
+        waveColor: '#9a988f',
+        progressColor: '#e3000b',
+        cursorColor: '#141414',
+        barWidth: 3,
+        barGap: 2,
+        barRadius: 1,
+      });
+      ws.current = w;
+      w.on('ready', () => setDur(w!.getDuration()));
+      w.on('timeupdate', (t) => setTime(t));
+      w.on('finish', () => setPlaying(false));
+    })();
+    return () => { alive = false; w?.destroy(); ws.current = null; };
   }, [src]);
 
   const toggle = () => {

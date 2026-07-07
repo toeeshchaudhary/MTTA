@@ -360,9 +360,13 @@ button { font-family: inherit; }
 /* the express car glows a little as it tears past */
 .train.express { filter: drop-shadow(0 0 3px color-mix(in srgb, var(--hi) 60%, transparent)); }
 
-/* station arrival ping — a ring that blooms when a train dwells at a stop */
-.mta-ping { fill: none; stroke-width: 3; pointer-events: none; animation: mta-ping 0.72s ease-out forwards; }
-@keyframes mta-ping { from { r: 6px; opacity: 0.8; } to { r: 32px; opacity: 0; } }
+/* station arrival ping — a ring that blooms when a train dwells at a stop.
+   Animate transform (composited on the GPU) rather than the `r` attribute
+   (which triggers SVG layout every frame — a real cost with several trains). */
+.mta-ping { fill: none; stroke-width: 3; pointer-events: none;
+  transform-box: fill-box; transform-origin: center; will-change: transform, opacity;
+  animation: mta-ping 0.72s ease-out forwards; }
+@keyframes mta-ping { from { transform: scale(1); opacity: 0.8; } to { transform: scale(5.3); opacity: 0; } }
 /* hidden only via the MOTION toggle (the .no-motion global freeze), not prefers-reduced-motion */
 
 /* ---- night-owl easter egg (Konami code / the owl in the colophon) ----

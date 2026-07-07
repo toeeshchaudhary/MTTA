@@ -3,30 +3,50 @@
    (label/input/table/.dot/.mono) don't leak onto the public site. */
 .adm {
   position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr; background: var(--bg); color: var(--ink);
+  --studio-gap: 10px;
 
   /* ---- top strip ---- */
-  .adm-top { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 3px solid var(--edge); background: var(--panel); }
-  .adm-brand { font-weight: 800; letter-spacing: -0.02em; font-size: 0.95rem; }
-  .adm-top-r { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .adm-top { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 3px solid var(--edge); background: linear-gradient(135deg, var(--panel), var(--bg)); box-shadow: 0 4px 0 var(--shadow); z-index: 20; }
+  .adm-brand-block { display: flex; flex-direction: column; gap: 1px; min-width: 170px; }
+  .adm-brand { font-weight: 900; letter-spacing: -0.04em; font-size: 1rem; text-transform: uppercase; }
+  .adm-subtitle { font-family: var(--font-mono); font-size: 0.55rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.07em; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .adm-mode-pill { display: inline-flex; align-items: center; gap: 7px; border: 2px solid var(--edge); background: var(--ink); color: var(--bg); padding: 7px 10px; box-shadow: 3px 3px 0 var(--shadow); font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .adm-mode-pill kbd { color: var(--hi); font-size: 0.55rem; }
+  .adm-top-r { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
   .adm-div { width: 2px; align-self: stretch; background: var(--line); margin: 2px 0; }
+  .desktop-badge { font-family: var(--font-mono); font-size: 0.54rem; text-transform: uppercase; letter-spacing: 0.08em; border: 2px solid var(--edge); background: var(--hi); color: var(--hi-ink); padding: 5px 7px; }
 
   /* ---- main: rail | work | inspector ---- */
-  .adm-main { min-height: 0; display: grid; grid-template-columns: 74px 1fr 360px; }
-  .adm-main.writing { grid-template-columns: 74px 1fr clamp(420px, 38vw, 620px); }
+  .adm-main { min-height: 0; display: grid; grid-template-columns: 84px 270px minmax(0, 1fr) 390px; gap: var(--studio-gap); padding: var(--studio-gap); background: var(--canvas); }
+  .adm-main.writing { grid-template-columns: 84px 270px minmax(0, 1fr) clamp(460px, 38vw, 650px); }
 
   /* ---- left rail ---- */
-  .adm-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; border-right: 3px solid var(--edge); background: var(--panel); overflow-y: auto; z-index: 5; }
+  .adm-rail { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 8px; border: 3px solid var(--edge); background: var(--panel); overflow-y: auto; z-index: 5; box-shadow: 5px 5px 0 var(--shadow); }
+  .rail-title { color: var(--ink-soft); font-size: 0.55rem; letter-spacing: 0.11em; text-transform: uppercase; text-align: center; }
   .addstop-wrap { position: relative; }
-  .rail-compose { width: 62px; height: 44px; font-size: 1.3rem; font-weight: 700; background: var(--hi); color: var(--hi-ink); border: 2px solid var(--edge); cursor: pointer; box-shadow: 3px 3px 0 var(--shadow); }
+  .rail-compose { width: 100%; height: 48px; font-size: 1.3rem; font-weight: 800; background: var(--hi); color: var(--hi-ink); border: 2px solid var(--edge); cursor: pointer; box-shadow: 3px 3px 0 var(--shadow); }
   .rail-compose:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--shadow); }
   .rail-compose:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--shadow); }
   .rail-div { width: 44px; height: 2px; background: var(--line); margin: 3px 0; flex: none; }
-  .rail-tool { position: relative; width: 62px; min-height: 46px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 5px 2px; background: none; border: 2px solid var(--line); color: var(--ink); cursor: pointer; flex: none; }
+  .rail-tool { position: relative; width: 100%; min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 7px 2px; background: var(--bg); border: 2px solid var(--line); color: var(--ink); cursor: pointer; flex: none; }
   .rail-tool .t-ic { font-size: 1.1rem; line-height: 1; }
   .rail-tool .t-lab { font-family: var(--font-mono); font-size: 0.44rem; text-transform: uppercase; letter-spacing: 0.03em; line-height: 1; text-align: center; }
   .rail-tool kbd { position: absolute; top: 2px; right: 3px; font-size: 0.42rem; opacity: 0.4; }
   .rail-tool:hover { border-color: var(--ink); }
-  .rail-tool.on { background: var(--ink); color: var(--bg); border-color: var(--ink); box-shadow: 2px 2px 0 var(--line); }
+  .rail-tool.on { background: var(--ink); color: var(--bg); border-color: var(--ink); box-shadow: 3px 3px 0 var(--shadow); transform: translate(-1px, -1px); }
+  .adm-layers { min-height: 0; display: flex; flex-direction: column; gap: 10px; border: 3px solid var(--edge); background: var(--panel); box-shadow: 5px 5px 0 var(--shadow); padding: 12px; overflow: hidden; }
+  .layers-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .layers-head .mono, .layer-label { color: var(--ink-soft); font-size: 0.56rem; letter-spacing: 0.1em; text-transform: uppercase; }
+  .layers-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .layers-stats span { border: 2px solid var(--line); background: var(--bg); padding: 7px; font-family: var(--font-mono); font-size: 0.58rem; text-transform: uppercase; color: var(--ink-soft); }
+  .layers-stats b { color: var(--ink); font-size: 0.9rem; margin-right: 4px; }
+  .layers-search { width: 100%; font-size: 0.78rem; }
+  .layer-section { min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+  .layer-section.stops { flex: 1; overflow: auto; padding-right: 2px; }
+  .layer-row { display: flex; align-items: center; gap: 7px; width: 100%; text-align: left; border: 2px solid transparent; background: var(--bg); color: var(--ink); padding: 7px; cursor: pointer; font-size: 0.72rem; }
+  .layer-row:hover, .layer-row.on { border-color: var(--ink); background: var(--hi); color: var(--hi-ink); }
+  .layer-row b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .layer-row span:last-child { font-family: var(--font-mono); font-size: 0.52rem; opacity: 0.65; text-transform: uppercase; }
   /* terrain reads as its own mode — water-tinted when active */
   .rail-tool.rail-terrain.on { background: #3a6ea5; border-color: #3a6ea5; color: #fff; }
   /* corner-roundness sliders (terrain flybar + inspector) */
@@ -40,6 +60,9 @@
   /* prominent on-canvas finish/cancel while laying or re-routing a thread */
   .adm-trackbar { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 7; display: flex; align-items: center; gap: 8px; background: var(--panel); border: 2px solid var(--edge); box-shadow: 4px 4px 0 var(--shadow); padding: 6px 10px; }
   .adm-trackbar .mono { color: var(--ink-soft); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; }
+  .canvas-mode-card { position: absolute; right: 14px; top: 14px; z-index: 6; width: min(320px, 42vw); border: 2px solid var(--edge); background: color-mix(in srgb, var(--panel) 92%, transparent); box-shadow: 4px 4px 0 var(--shadow); padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
+  .canvas-mode-card b { font-family: var(--font-mono); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.08em; }
+  .canvas-mode-card span { color: var(--ink-soft); font-size: 0.72rem; line-height: 1.35; }
   .rail-fly { display: flex; align-items: center; gap: 6px; }
   .picker-scrim { position: fixed; inset: 0; z-index: 40; }
   .picker { position: fixed; top: 58px; left: 80px; z-index: 41; width: 260px; background: var(--panel); border: 2px solid var(--edge); box-shadow: 6px 6px 0 var(--shadow); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
@@ -72,13 +95,15 @@
   .save.on { color: var(--hi); }
 
   /* ---- canvas + status ---- */
-  .adm-canvas { position: relative; min-width: 0; display: grid; grid-template-rows: 1fr auto; overflow: hidden; }
-  .adm-stage { position: relative; min-height: 0; overflow: hidden; }
-  .adm-hint { padding: 6px 14px; color: var(--ink-soft); border-top: 1px solid var(--line); background: var(--panel); font-size: 0.78rem; }
+  .adm-canvas { position: relative; min-width: 0; display: grid; grid-template-rows: 1fr auto; overflow: hidden; border: 3px solid var(--edge); background: var(--panel); box-shadow: 5px 5px 0 var(--shadow); }
+  .adm-stage { position: relative; min-height: 0; overflow: hidden; background: var(--canvas); }
+  .adm-hint { padding: 9px 14px; color: var(--ink-soft); border-top: 2px solid var(--edge); background: var(--panel); font-size: 0.72rem; letter-spacing: 0.02em; }
   .svg { display: block; touch-action: none; overflow: visible; }
   .svg.tool-station, .svg.tool-track { cursor: crosshair; }
+  .rt-drag { filter: drop-shadow(2px 2px 0 var(--shadow)); }
+  .rt-drag:hover { outline: none; }
   .map-tip { font-family: var(--font-sans); font-weight: 800; font-size: 16px; fill: var(--ink); paint-order: stroke; stroke: var(--canvas); stroke-width: 4px; }
-  .adm-list { padding: 12px; overflow: auto; }
+  .adm-list { padding: 14px; overflow: auto; border: 3px solid var(--edge); background: var(--panel); box-shadow: 5px 5px 0 var(--shadow); }
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; font-family: var(--font-mono); font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); padding: 6px; border-bottom: 2px solid var(--line); }
   td { padding: 8px 6px; border-bottom: 1px solid var(--line); }
@@ -86,11 +111,17 @@
   .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex: none; }
 
   /* ---- inspector + editors ---- */
-  .adm-inspector { border-left: 3px solid var(--edge); background: var(--panel); padding: 14px; overflow: auto; }
+  .adm-inspector { border: 3px solid var(--edge); background: var(--panel); padding: 14px; overflow: auto; box-shadow: 5px 5px 0 var(--shadow); }
   .ed { display: flex; flex-direction: column; gap: 10px; }
   .ed-h { display: flex; justify-content: space-between; align-items: center; }
   .ed-h .mono { color: var(--ink-soft); letter-spacing: 0.1em; }
   .ed-act { display: flex; gap: 6px; }
+  .ins-tabs { display: flex; gap: 5px; padding: 8px; border-top: 2px solid var(--line); border-bottom: 2px solid var(--line); background: var(--panel); }
+  .ins-tabs button { flex: 1; border: 2px solid var(--line); background: var(--bg); color: var(--ink); padding: 7px 6px; cursor: pointer; font-family: var(--font-mono); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .ins-tabs button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .studio-empty-panel, .danger-panel { margin: 16px 20px; padding: 16px; border: 2px dashed var(--line); background: var(--panel); display: flex; flex-direction: column; gap: 10px; }
+  .danger-panel { border-style: solid; border-color: var(--red); }
+  .danger-panel b, .danger-panel .tbtn { color: var(--red); }
   label { display: flex; flex-direction: column; gap: 4px; font-family: var(--font-mono); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
   .warn { color: var(--red); text-transform: none; letter-spacing: 0; }
   input, select, textarea { font: inherit; font-size: 0.9rem; padding: 7px 9px; border: 2px solid var(--edge); background: var(--bg); color: var(--ink); text-transform: none; letter-spacing: 0; }
@@ -171,7 +202,8 @@
 
   /* desktop-first; on narrow screens the inspector floats as a right drawer */
   @media (max-width: 820px) {
-    .adm-main, .adm-main.writing { grid-template-columns: 52px 1fr; }
+    .adm-main, .adm-main.writing { grid-template-columns: 64px 1fr; }
+    .adm-layers { display: none; }
     .adm-inspector, .adm-inspector.wide { position: fixed; top: 51px; right: 0; bottom: 0; width: min(92vw, 440px); z-index: 30; box-shadow: -6px 0 0 var(--shadow); }
   }
 }

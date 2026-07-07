@@ -35,7 +35,6 @@ export default memo(function DepartureBoard({ lines, stations, focusLine = null,
 
   const [head, setHead] = useState(0);    // index of the top ("DUE") row in the rotation
   const [hhmm, setHhmm] = useState('');
-  const [colon, setColon] = useState(true);   // clock colon blink
   const [open, setOpen] = useState(true);  // minimised / maximised (click the header)
   const [quip, setQuip] = useState<string | null>(null);  // occasional witty service message
 
@@ -69,16 +68,16 @@ export default memo(function DepartureBoard({ lines, stations, focusLine = null,
     return () => clearInterval(t);
   }, [quips]);
 
-  // live clock with a blinking colon (steady under reduced-motion)
+  // live clock — the colon's blink is a pure CSS animation now (see .dep-colon) so
+  // the second-tick doesn't drag a whole board re-render along with it. hh:mm only
+  // changes once a minute, so align the tick to the wall-clock minute boundary.
   useEffect(() => {
-    const tick = () => {
-      const d = new Date();
-      setHhmm(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
-      setColon((c) => !c);   // always blink (MOTION toggle pauses the whole board's animations)
-    };
-    tick();
-    const t = setInterval(tick, 1000);
-    return () => clearInterval(t);
+    const set = () => { const d = new Date(); setHhmm(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); };
+    set();
+    const ms = 60000 - (Date.now() % 60000);
+    let iv: ReturnType<typeof setInterval> | null = null;
+    const to = setTimeout(() => { set(); iv = setInterval(set, 60000); }, ms);
+    return () => { clearTimeout(to); if (iv) clearInterval(iv); };
   }, []);
 
   if (!entries.length && !focusDead) return null;
@@ -97,7 +96,7 @@ export default memo(function DepartureBoard({ lines, stations, focusLine = null,
         <span className="dep-title" style={focusDead ? { color: '#b56565' } : focusColor ? { color: focusColor } : undefined}><i className="dep-led" style={focusDead ? { background: '#b56565', boxShadow: 'none' } : focusColor ? { background: focusColor, boxShadow: `0 0 6px ${focusColor}aa` } : undefined} />{focusLine ? headLabel : 'departures'}<span className="dep-chev">{open ? '▾' : '▸'}</span></span>
         {!open && <span className="dep-peek">{focusDead ? 'no service' : rows[0]?.title}</span>}
         <span className="dep-clock" aria-label={`Time ${hhmm}`}>
-          <span>{hh}</span><span className={`dep-colon ${colon ? '' : 'off'}`}>:</span><span>{mm}</span>
+          <span>{hh}</span><span className="dep-colon">:</span><span>{mm}</span>
           <span className="dep-live"><i />live</span>
         </span>
       </button>
@@ -145,8 +144,8 @@ export default memo(function DepartureBoard({ lines, stations, focusLine = null,
         .dep-led { width: 7px; height: 7px; background: var(--hi); box-shadow: 0 0 6px color-mix(in srgb, var(--hi) 67%, transparent); flex: none; }
         .dep-clock { display: flex; align-items: center; gap: 1px; color: var(--hi);
           font-size: 0.72rem; letter-spacing: 0.05em; font-variant-numeric: tabular-nums; }
-        .dep-colon { transition: opacity 0.12s; }
-        .dep-colon.off { opacity: 0.15; }
+        .dep-colon { animation: dep-colon-blink 1s steps(2, end) infinite; }
+        @keyframes dep-colon-blink { 50% { opacity: 0.15; } }
         .dep-live { display: inline-flex; align-items: center; gap: 4px; margin-left: 9px;
           color: #6fe08a; font-size: 0.52rem; letter-spacing: 0.14em; text-transform: uppercase; }
         .dep-live i { width: 6px; height: 6px; border-radius: 50%; background: #6fe08a; animation: dep-pulse 1.8s ease-in-out infinite; }

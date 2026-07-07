@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 
 declare global {
   interface Window {
-    studio?: { publish: () => Promise<unknown>; daily?: (photos: string[], note?: string) => Promise<unknown>; status?: () => Promise<unknown> };
+    studio?: { publish?: () => Promise<unknown>; daily?: (photos: string[], note?: string) => Promise<unknown>; status?: () => Promise<unknown>; reload?: () => Promise<unknown> };
   }
 }
 

@@ -2,22 +2,30 @@
 // running a fixed distance inside the bank. Freely drawn in /admin (the pen tool), stored
 // in content/terrain.json. On the public map they fade in after the notes, before the lines.
 'use client';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { kindOf, DEFAULT_ROUND, type TerrainFeature } from './terrain-kinds';
 import { terrainPath, roundedPolyPath, offsetInward } from './terrain-shape';
 
 export default memo(function Terrain({ features, opacity = 1, started = true, startAt = 0, stagger = 0.08, dur = 0.4 }: { features: TerrainFeature[]; opacity?: number; started?: boolean; startAt?: number; stagger?: number; dur?: number }) {
+  // Precompute one { d, current } pair per feature so re-renders (theme, opacity,
+  // started flip) never rebuild the offsetInward → catmull-rom path — that's a
+  // real few-ms hop when several water bodies are on the map.
+  const paths = useMemo(() => features.map((f) => {
+    const k = kindOf(f);
+    return {
+      d: terrainPath(f, k),
+      current: k.coast && f.points && f.points.length >= 3 && Math.min(f.w, f.h) > 44
+        ? roundedPolyPath(offsetInward(f.points, 8), Math.max(0, (f.round ?? DEFAULT_ROUND) - 8))
+        : null,
+      k,
+    };
+  }), [features]);
   if (!features?.length) return null;
   return (
     <g className="terrain" opacity={opacity} aria-hidden>
       {features.map((f, i) => {
-        const k = kindOf(f);
-        const d = terrainPath(f, k);
-        // the inner current line — water only, and only on bodies large enough to carry it
-        const current = k.coast && f.points && f.points.length >= 3 && Math.min(f.w, f.h) > 44
-          ? roundedPolyPath(offsetInward(f.points, 8), Math.max(0, (f.round ?? DEFAULT_ROUND) - 8))
-          : null;
+        const { d, current, k } = paths[i];
         return (
           <motion.g key={f.id}
             style={{ transformBox: 'fill-box', transformOrigin: 'center' }}

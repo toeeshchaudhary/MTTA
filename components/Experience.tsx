@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { TransformWrapper, TransformComponent, MiniMap, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { AnimatePresence, motion } from 'framer-motion';
 import { contentBounds, RIBBON, ghost, type Line } from '@/content/lines';
@@ -8,14 +9,18 @@ import { kindOf, type TerrainFeature } from '@/components/map/terrain-kinds';
 import TransitMap from './map/TransitMap';
 import DepartureBoard from './map/DepartureBoard';
 import Controls from './map/Controls';
-import StationDrawer from './StationDrawer';
-import IndexPanel from './IndexPanel';
-import TripPlanner, { type TripResult } from './TripPlanner';
 import Intro from './Intro';
 import ThemeToggle from './ThemeToggle';
 import { planTrip } from '@/lib/route';
 import { PLAY_DEFAULTS, type Play } from '@/lib/play';
 import { setSfxEnabled, chimeOpen, chimeClose } from '@/lib/sfx';
+// Panels that only mount on user intent (open a stop, cmd-K the index, plan a trip)
+// — deferred so their JS (and their transitive react-markdown / wavesurfer weight)
+// doesn't ship with the initial bundle and delay TTI.
+import type { TripResult } from './TripPlanner';
+const StationDrawer = dynamic(() => import('./StationDrawer'), { ssr: false });
+const IndexPanel = dynamic(() => import('./IndexPanel'), { ssr: false });
+const TripPlanner = dynamic(() => import('./TripPlanner'), { ssr: false });
 
 type AboutData = { name: string; role: string; blurb: string; links: { label: string; url: string }[] };
 const DEFAULT_ABOUT: AboutData = { name: 'Toeesh Chaudhary', role: '', blurb: '', links: [] };
@@ -475,9 +480,9 @@ export default function Experience({ lines, stations, terrain = [], pins = [], o
           <button className={`tt ${tripOpen ? 'on' : ''}`} onClick={() => setTripOpen((v) => !v)}>🚉 plan a trip</button>
         </div>
         <div className="legend-links">
-          <a className="tt" href="https://github.com/NerdsForGaming" target="_blank" rel="noreferrer">github ↗</a>
+          <a className="tt" href="https://github.com/toeeshchaudhary" target="_blank" rel="noreferrer">github ↗</a>
           <a className="tt" href="https://www.cosmos.so/toeeshchaudhary" target="_blank" rel="noreferrer">cosmos ↗</a>
-          <a className="tt" href="mailto:thesonofdevilhunter1@gmail.com">email ↗</a>
+          <a className="tt" href="mailto:toeesh239@gmail.com">email ↗</a>
         </div>
         <div className="mono colophon">wayfinding system · delhi · v1
           <button className={`owl-egg ${nightOwl ? 'lit' : ''}`} onClick={() => setNightOwl((v) => !v)} aria-pressed={nightOwl}

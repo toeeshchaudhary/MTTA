@@ -70,6 +70,7 @@ export default function Inspector(p: InspectorProps) {
   // media library (loaded lazily when the default panel is shown)
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [mediaSection, setMediaSection] = useState(false);
+  const [tab, setTab] = useState<'content' | 'geometry' | 'media' | 'danger' | 'site'>('content');
   const loadMedia = async () => { const r = await fetch('/api/media'); const j = await r.json(); setMediaFiles(j.files || []); };
   const deleteMedia = async (name: string) => {
     await fetch('/api/media', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) });
@@ -77,6 +78,7 @@ export default function Inspector(p: InspectorProps) {
     flash(`deleted ${name}`);
   };
   useEffect(() => { if (mediaSection) loadMedia(); }, [mediaSection]);
+  useEffect(() => { setTab(form ? 'content' : 'site'); }, [form?.id, selLn, selPinObj?.id, selFeat?.id]);
 
   const PLAY_TOGGLES: { k: keyof PlayMeta; label: string; hint: string }[] = [
     { k: 'critters', label: 'track critters', hint: 'a subway rat scurries the lines (rare pizza-rat)' },
@@ -106,17 +108,22 @@ export default function Inspector(p: InspectorProps) {
               <button className="tbtn sm" onClick={closeForm}>✕</button>
             </div>
           </div>
+          <div className="ins-tabs">
+            {(['content', 'geometry', 'media', 'danger'] as const).map((k) => (
+              <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{k}</button>
+            ))}
+          </div>
 
-          <div className="studio-meta">
+          {tab === 'geometry' && <div className="studio-meta">
             <label>primary thread<select value={form.line} onChange={(e) => setPrimaryLine(e.target.value)}>{lines.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}</select></label>
             <label>shape<select value={form.shape} onChange={(e) => upF({ shape: e.target.value })}>{SHAPES.map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
             <label>date<input value={form.date} placeholder="2026-06" onChange={(e) => upF({ date: e.target.value })} /></label>
             <label>id {idClash && <span className="warn">⚠ in use</span>}<input value={form.id} placeholder="auto from title" onChange={(e) => upF({ id: e.target.value })} /></label>
             <label>x pos<input type="number" value={form.x} onChange={(e) => upF({ x: Number(e.target.value) })} /></label>
             <label>y pos<input type="number" value={form.y} onChange={(e) => upF({ y: Number(e.target.value) })} /></label>
-          </div>
+          </div>}
 
-          {lines.length > 1 && (() => {
+          {tab === 'geometry' && lines.length > 1 && (() => {
             const near = linesNear(form.x, form.y);
             return (
               <div className="studio-lines">
@@ -135,7 +142,7 @@ export default function Inspector(p: InspectorProps) {
             );
           })()}
 
-          <div className="studio-toolbar">
+          {tab === 'content' && <><div className="studio-toolbar">
             <span className="md-tools">
               <button onClick={() => wrapSel('**')} title="bold"><b>B</b></button>
               <button onClick={() => wrapSel('*')} title="italic"><i>I</i></button>
@@ -153,8 +160,9 @@ export default function Inspector(p: InspectorProps) {
             <textarea ref={bodyRef} className="bodyta" value={form.body} placeholder="start writing… markdown — **bold**, ## heading, - lists, [links](url)" onChange={(e) => upF({ body: e.target.value })} />
             {preview && <div className="md-prev prose"><ReactMarkdown remarkPlugins={[remarkGfm]}>{form.body || '*nothing yet*'}</ReactMarkdown></div>}
           </div>
+          </>}
 
-          {form.media.length > 0 && (
+          {tab === 'media' && form.media.length > 0 && (
             <div className="studio-media">
               {form.media.map((m, i) => (
                 <div className="med-row" key={i}>
@@ -171,6 +179,21 @@ export default function Inspector(p: InspectorProps) {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {tab === 'media' && form.media.length === 0 && (
+            <div className="studio-empty-panel">
+              <b>No media yet</b>
+              <span className="mono dimk">Drop a file anywhere on this inspector or use + media in content.</span>
+            </div>
+          )}
+
+          {tab === 'danger' && (
+            <div className="danger-panel">
+              <b>Danger zone</b>
+              <p className="dimk">Delete only if this stop should disappear from the network. If it is a terminus, the connected thread will shrink back to the next remaining stop.</p>
+              {form.id && <button className="tbtn solid" onClick={() => { pushHistory(); delStation(form.id); closeForm(); }}>delete this stop</button>}
             </div>
           )}
 
@@ -220,6 +243,11 @@ export default function Inspector(p: InspectorProps) {
       ) : (
         // ── Default panel: threads + site settings + featured + media library ──
         <div className="ed">
+          <div className="ins-tabs">
+            <button className={tab === 'site' ? 'on' : ''} onClick={() => setTab('site')}>network</button>
+            <button className={tab === 'media' ? 'on' : ''} onClick={() => { setTab('media'); setMediaSection(true); loadMedia(); }}>media</button>
+          </div>
+          {tab !== 'media' && <>
           {/* ── Threads ── */}
           <div className="ed-h"><span className="mono">threads</span><button className="tbtn sm solid" onClick={addThread}>＋ add</button></div>
           <ul className="thr">
@@ -321,9 +349,10 @@ export default function Inspector(p: InspectorProps) {
                 onBlur={() => commitSite({ ...site, play: { ...site.play, quips: site.play.quips.filter((q) => q.trim()) } })} />
             </label>
           </div>
+          </>}
 
           {/* ── Media library ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '2px solid var(--line)', marginTop: 12, paddingTop: 12 }}>
+          {tab === 'media' && <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div className="ed-h">
               <span className="mono">media library</span>
               <button className="tbtn sm" onClick={() => { setMediaSection((v) => !v); if (!mediaSection) loadMedia(); }}>
@@ -362,7 +391,7 @@ export default function Inspector(p: InspectorProps) {
                 </label>
               </>
             )}
-          </div>
+          </div>}
 
           <p className="mono dimk foot">{stations.length} stops · {lines.length} threads · dev-only writes</p>
         </div>

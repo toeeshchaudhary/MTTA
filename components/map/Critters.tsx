@@ -29,11 +29,16 @@ export default memo(function Critters({ lines, run }: { lines: { id: string; col
       const path = document.getElementById(`line-${line.id}`) as unknown as SVGPathElement | null;
       let len = 0; try { len = path?.getTotalLength?.() ?? 0; } catch {}
       if (!path || !len) { scheduleNext(); return; }
+      // pre-sample the line once (see Trains.tsx for the why — getPointAtLength is expensive)
+      const N = Math.max(60, Math.min(600, Math.round(len / 4)));
+      const ds = new Float32Array(N + 1), xs = new Float32Array(N + 1), ys = new Float32Array(N + 1), tans = new Float32Array(N + 1);
+      for (let i = 0; i <= N; i++) { const dd = (len * i) / N; const p = path.getPointAtLength(dd); ds[i] = dd; xs[i] = p.x; ys[i] = p.y; }
+      for (let i = 0; i <= N; i++) { const i0 = Math.max(0, i - 1), i1 = Math.min(N, i + 1); tans[i] = Math.atan2(ys[i1] - ys[i0], xs[i1] - xs[i0]) * 180 / Math.PI; }
       const pizza = Math.random() < 0.25;
       const runLen = Math.min(len, 320 + Math.random() * 300);
       const dir = Math.random() < 0.5 ? 1 : -1;
       const from = Math.random() * len;
-      const dur = runLen / 230;              // ~230 units/sec — rats are quick
+      const dur = runLen / 230;
       const key = ++keyRef.current;
       setCrit({ key, pizza });
       const start = performance.now();
@@ -43,18 +48,15 @@ export default memo(function Critters({ lines, run }: { lines: { id: string; col
         const t = (now - start) / 1000;
         const f = Math.min(1, t / dur);
         const d = Math.max(0, Math.min(len, from + dir * runLen * f));
-        try {
-          const p = path.getPointAtLength(d);
-          const pa = path.getPointAtLength(Math.min(d + 5, len));
-          const pb = path.getPointAtLength(Math.max(d - 5, 0));
-          let ang = Math.atan2(pa.y - pb.y, pa.x - pb.x) * 180 / Math.PI;
-          if (dir < 0) ang += 180;
-          const wig = Math.sin(t * 22) * 1.5;   // scurry bob
-          if (el) {
-            el.setAttribute('transform', `translate(${p.x},${p.y + wig}) rotate(${ang})`);
-            el.style.opacity = f < 0.08 ? String(f / 0.08) : f > 0.9 ? String((1 - f) / 0.1) : '1';
-          }
-        } catch {}
+        let lo = 0, hi = N; while (lo < hi - 1) { const m = (lo + hi) >> 1; if (ds[m] <= d) lo = m; else hi = m; }
+        const span = ds[hi] - ds[lo], u = span > 0 ? (d - ds[lo]) / span : 0;
+        const px = xs[lo] + (xs[hi] - xs[lo]) * u, py = ys[lo] + (ys[hi] - ys[lo]) * u;
+        let ang = tans[lo]; if (dir < 0) ang += 180;
+        const wig = Math.sin(t * 22) * 1.5;
+        if (el) {
+          el.setAttribute('transform', `translate(${px},${py + wig}) rotate(${ang})`);
+          el.style.opacity = f < 0.08 ? String(f / 0.08) : f > 0.9 ? String((1 - f) / 0.1) : '1';
+        }
         if (f < 1) raf.current = requestAnimationFrame(tick);
         else { setCrit(null); scheduleNext(); }
       };

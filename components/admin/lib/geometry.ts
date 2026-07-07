@@ -1,6 +1,6 @@
 // Pure geometry helpers for the map editor — no React, no DOM state.
 import type { Pt } from '@/content/lines';
-import type { Rect } from '@/components/admin/types';
+import type { Ln, Rect, St } from '@/components/admin/types';
 import { GRID } from './constants';
 
 export const snap = (v: number) => Math.round(v / GRID) * GRID;
@@ -100,4 +100,95 @@ export function resizeRect(rect: Rect, corner: number, pt: Pt, min = GRID): Rect
   let nx = rect.x, ny = rect.y, nx2 = x2, ny2 = y2;
   if (corner === 0) { nx = x; ny = y; } else if (corner === 1) { nx2 = x; ny = y; } else if (corner === 2) { nx2 = x; ny2 = y; } else { nx = x; ny2 = y; }
   return { x: Math.min(nx, nx2), y: Math.min(ny, ny2), w: Math.max(min, Math.abs(nx2 - nx)), h: Math.max(min, Math.abs(ny2 - ny)) };
+}
+
+export type LineAnchor = { lineId: string; pointIndex: number };
+
+// Find every route waypoint that is exactly anchored to a station's current
+// position. This keeps station drags predictable: only explicit graph nodes move.
+export function lineAnchorsForStation(lines: Ln[], station: St, epsilon = 4): LineAnchor[] {
+  const out: LineAnchor[] = [];
+  for (const line of lines) {
+    const pts = line.pts ?? [];
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      if (Math.hypot(p[0] - station.x, p[1] - station.y) <= epsilon) {
+        out.push({ lineId: line.id, pointIndex: i });
+      }
+    }
+  }
+  return out;
+}
+
+function stationRouteIds(station: St): Set<string> {
+  const ids = station.lines && station.lines.length ? station.lines : [station.line];
+  return new Set(ids.filter(Boolean));
+}
+
+function nearestSegment(pts: Pt[], x: number, y: number): { segmentIndex: number; dist: number } | null {
+  let best: { segmentIndex: number; dist: number } | null = null;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+    const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy || 1;
+    let t = ((x - ax) * dx + (y - ay) * dy) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const px = ax + t * dx, py = ay + t * dy;
+    const dist = Math.hypot(x - px, y - py);
+    if (!best || dist < best.dist) best = { segmentIndex: i, dist };
+  }
+  return best;
+}
+
+function splitUnderSegment(under: number[] | undefined, segmentIndex: number): number[] | undefined {
+  if (!under?.length) return under;
+  const next = new Set<number>();
+  for (const i of under) {
+    if (i < segmentIndex) next.add(i);
+    else if (i > segmentIndex) next.add(i + 1);
+    else { next.add(i); next.add(i + 1); }
+  }
+  return Array.from(next).sort((a, b) => a - b);
+}
+
+// Mini-Metro-style station anchoring: if a station belongs to a line but is only
+// sitting on a segment, promote it into an actual route waypoint before dragging.
+export function attachStationToLineAnchors(
+  lines: Ln[],
+  station: St,
+  epsilon = 4,
+  segmentEpsilon = 30,
+): { lines: Ln[]; anchors: LineAnchor[] } {
+  const routeIds = stationRouteIds(station);
+  const anchors: LineAnchor[] = [];
+  let nextLines = lines;
+
+  for (const line of lines) {
+    if (!routeIds.has(line.id) || !line.pts || line.pts.length < 2) continue;
+
+    const exact: LineAnchor[] = [];
+    line.pts.forEach((p, i) => {
+      if (Math.hypot(p[0] - station.x, p[1] - station.y) <= epsilon) {
+        exact.push({ lineId: line.id, pointIndex: i });
+      }
+    });
+    if (exact.length) {
+      anchors.push(...exact);
+      continue;
+    }
+
+    const hit = nearestSegment(line.pts, station.x, station.y);
+    if (!hit || hit.dist > segmentEpsilon) continue;
+
+    const pointIndex = hit.segmentIndex + 1;
+    const pts = [
+      ...line.pts.slice(0, pointIndex),
+      [station.x, station.y] as Pt,
+      ...line.pts.slice(pointIndex),
+    ];
+    const under = splitUnderSegment(line.under, hit.segmentIndex);
+    nextLines = nextLines.map((l) => (l.id === line.id ? { ...l, pts, under } : l));
+    anchors.push({ lineId: line.id, pointIndex });
+  }
+
+  return { lines: nextLines, anchors };
 }

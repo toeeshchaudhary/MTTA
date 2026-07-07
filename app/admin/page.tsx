@@ -7,7 +7,7 @@ import { TERRAIN_KINDS, KIND_BY_ID, type TerrainKind, type TerrainFeature } from
 import { bboxOf } from '@/components/map/terrain-shape';
 import type { Media, St, Ln, Pin, AboutLink, SiteMeta, PlayMeta, Rect, Tool } from '@/components/admin/types';
 import { TOOLS, PIN_KINDS, SHAPES, PALETTE, GRID, FAR, INK } from '@/components/admin/lib/constants';
-import { snap, isLight, clone, clientToSvg, distToPolyline, projectOnLine, snapTrack, arcAt, sliceByArc } from '@/components/admin/lib/geometry';
+import { snap, isLight, clone, clientToSvg, distToPolyline, projectOnLine, snapTrack, arcAt, sliceByArc, attachStationToLineAnchors, type LineAnchor } from '@/components/admin/lib/geometry';
 import InfiniteGrid from '@/components/admin/canvas/InfiniteGrid';
 import Marker from '@/components/admin/canvas/Marker';
 import Inspector from '@/components/admin/Inspector';
@@ -17,6 +17,8 @@ import { useAdminTheme } from '@/components/admin/hooks/useAdminTheme';
 import PublishButton from '@/components/admin/PublishButton';
 
 type Snap = { lines: Ln[]; stations: St[]; terrain: TerrainFeature[]; pins: Pin[]; site: SiteMeta; origin: Pt };
+type StudioStatus = { repoRoot?: string; url?: string };
+type StudioBridge = { status?: () => Promise<StudioStatus>; publish?: () => Promise<unknown>; reload?: () => Promise<unknown> };
 
 const PLAY_DEFAULT: PlayMeta = { critters: true, stationPulse: true, expressTrain: true, serviceQuips: true, sounds: false, nightOwl: true, quips: [] };
 const normPlay = (p: Partial<PlayMeta> | undefined): PlayMeta => ({ ...PLAY_DEFAULT, ...(p || {}), quips: Array.isArray(p?.quips) ? p!.quips : [] });
@@ -53,6 +55,7 @@ export default function Admin() {
   const [saving, setSaving] = useState(false);
   const [listSearch, setListSearch] = useState('');
   const [showKeys, setShowKeys] = useState(false);
+  const [studioStatus, setStudioStatus] = useState<StudioStatus | null>(null);
   // write-first add-stop flow
   const [pickStop, setPickStop] = useState(false);
   const [pendingLine, setPendingLine] = useState<{ id: string; prevPts: Pt[] } | null>(null);
@@ -78,6 +81,7 @@ export default function Admin() {
   const [site, setSite] = useState<SiteMeta>({ originLabel: 'the origin — toeesh', originCue: 'about ↗', about: { name: '', role: '', blurb: '', links: [] }, play: PLAY_DEFAULT });
   const svgRef = useRef<SVGSVGElement>(null);
   const linesRef = useRef<Ln[]>([]);
+  const linkedStationDrag = useRef<{ stationId: string; anchors: LineAnchor[]; lines: Ln[]; point?: Pt } | null>(null);
   const tw = useRef<ReactZoomPanPinchRef>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const downPt = useRef<{ x: number; y: number } | null>(null);
@@ -91,6 +95,7 @@ export default function Admin() {
   const loadPins = useCallback(async () => { const r = await fetch('/api/pins'); setPins((await r.json()).pins || []); }, []);
   const loadSite = useCallback(async () => { const r = await fetch('/api/site'); const j = await r.json(); const s = j.site; if (!s) return; if (Array.isArray(s.origin)) setOrigin(s.origin as Pt); setSite({ originLabel: s.originLabel ?? '', originCue: s.originCue ?? '', about: { name: s.about?.name ?? '', role: s.about?.role ?? '', blurb: s.about?.blurb ?? '', links: Array.isArray(s.about?.links) ? s.about.links : [] }, play: normPlay(s.play) }); if (Array.isArray(s.featured)) setFeatured(s.featured); }, []);
   useEffect(() => { loadLines(); loadStations(); loadTerrain(); loadPins(); loadSite(); }, [loadLines, loadStations, loadTerrain, loadPins, loadSite]);
+  useEffect(() => { (window.studio as StudioBridge | undefined)?.status?.().then(setStudioStatus).catch(() => setStudioStatus(null)); }, []);
 
   linesRef.current = lines;
   const lnColor = (id: string) => lines.find((l) => l.id === id)?.color ?? '#888';
@@ -196,10 +201,33 @@ export default function Admin() {
   // station move (select tool)
   useEffect(() => {
     if (!drag) return;
-    const move = (e: PointerEvent) => { const [x, y] = toSvg(e.clientX, e.clientY); setStations((arr) => arr.map((s) => (s.id === drag ? { ...s, x, y } : s))); setForm((f) => (f && f.id === drag ? { ...f, x, y } : f)); };
-    const up = () => { const s = stations.find((q) => q.id === drag); if (s && s.id) saveStation(s); setDrag(null); };
+    const move = (e: PointerEvent) => {
+      const [x, y] = toSvg(e.clientX, e.clientY);
+      setStations((arr) => arr.map((s) => (s.id === drag ? { ...s, x, y } : s)));
+      setForm((f) => (f && f.id === drag ? { ...f, x, y } : f));
+      const link = linkedStationDrag.current;
+      if (link?.stationId === drag && link.anchors.length) {
+        const nextLines = link.lines.map((line) => {
+          const mine = link.anchors.filter((a) => a.lineId === line.id);
+          if (!mine.length || !line.pts) return line;
+          const pts = line.pts.slice();
+          for (const a of mine) pts[a.pointIndex] = [x, y];
+          return { ...line, pts, d: roundedPath(pts) };
+        });
+        linkedStationDrag.current = { ...link, lines: nextLines, point: [x, y] };
+        setLines(nextLines);
+      }
+    };
+    const up = () => {
+      const link = linkedStationDrag.current;
+      const s = stations.find((q) => q.id === drag);
+      if (s && s.id) saveStation(link?.point ? { ...s, x: link.point[0], y: link.point[1] } : s);
+      if (link?.stationId === drag && link.anchors.length) commitLines(link.lines);
+      linkedStationDrag.current = null;
+      setDrag(null);
+    };
     return onDrag(move, up);
-  }, [drag, stations, saveStation]);
+  }, [drag, stations, saveStation, commitLines]);
 
   // node drag (track edit) — grid + neighbour-axis magnet
   useEffect(() => {
@@ -402,7 +430,14 @@ export default function Admin() {
   const onStation = (s: St) => {
     if (tool === 'paint') { paintLine(s.line); }
     else if (tool === 'bulldoze') { if (s.id && confirm(`Delete "${s.title}"?`)) { pushHistory(); delStation(s.id); if (form?.id === s.id) setForm(null); } }
-    else if (tool === 'select') { editStation(s); setDrag(s.id); }
+    else if (tool === 'select') {
+      pushHistory();
+      const linked = attachStationToLineAnchors(lines, s);
+      if (linked.lines !== lines) setLines(linked.lines.map((l) => (l.pts ? { ...l, d: roundedPath(l.pts) } : l)));
+      linkedStationDrag.current = s.id ? { stationId: s.id, anchors: linked.anchors, lines: linked.lines.map((l) => (l.pts ? { ...l, d: roundedPath(l.pts) } : l)) } : null;
+      editStation(s);
+      setDrag(s.id);
+    }
   };
 
   // ---- form helpers ----
@@ -501,18 +536,35 @@ export default function Admin() {
   // written inside the return, so extracting it to a const left .rail-fly/.sw unstyled.
   const flyLabel = tool === 'terrain' ? 'terrain · map locked while you sculpt water' : tool === 'note' ? 'pin kind' : (tool === 'paint' ? 'paint colour — pick one, then click a thread' : tool === 'track' ? 'thread colour' : '');
   const hasFly = tool === 'paint' || tool === 'track' || tool === 'terrain' || tool === 'note';
+  const activeTool = TOOLS.find((t) => t.id === tool)!;
+  const activeObject =
+    form ? `stop · ${form.title || form.id || 'new stop'}` :
+    selLine ? `thread · ${selLine.label || selLine.id}` :
+    selPinObj ? `pin · ${selPinObj.kind}` :
+    selFeat ? `terrain · ${selFeat.label || selFeat.kind}` :
+    'network overview';
+  const filteredStations = stations.filter((s) => !listSearch || s.title.toLowerCase().includes(listSearch.toLowerCase()) || s.id.toLowerCase().includes(listSearch.toLowerCase()));
 
   return (
     <div className="adm">
-      {/* top strip — brand · contextual track actions · history/zoom/theme/view */}
       <div className="adm-top">
-        <b className="adm-brand">toeesh<span className="dimk"> · build</span></b>
+        <div className="adm-brand-block">
+          <b className="adm-brand">MTTA Studio</b>
+          <span className="adm-subtitle">{activeObject}</span>
+        </div>
+        <div className="adm-mode-pill">
+          <span className="t-ic">{activeTool.icon}</span>
+          <b>{activeTool.label}</b>
+          <kbd>{activeTool.key}</kbd>
+        </div>
         {(track.length > 0 || editId) && <button className="tbtn solid" onClick={finishTrack}>✓ {editId && editId !== '__new' ? 're-route' : 'finish'} ({track.length})</button>}
         {(track.length > 0 || editId) && <button className="tbtn" onClick={cancelTrack}>✗ cancel</button>}
         <div className="adm-top-r">
           <button className="tbtn" onClick={undo} title="undo (⌘Z)">↶</button>
           <button className="tbtn" onClick={redo} title="redo (⌘⇧Z)">↷</button>
           <span className={`save ${saving ? 'on' : ''}`}>{saving ? 'saving…' : 'saved'}</span>
+          {studioStatus && <span className="desktop-badge" title={studioStatus.url}>desktop</span>}
+          {studioStatus && <button className="tbtn" onClick={() => (window.studio as StudioBridge | undefined)?.reload?.()} title="reload admin in MTTA Studio">reload</button>}
           <span className="adm-div" />
           <button className="tbtn" onClick={() => tw.current?.zoomOut()} title="zoom out">−</button>
           <button className="tbtn" onClick={() => tw.current?.resetTransform()} title="reset view">⊙</button>
@@ -528,8 +580,8 @@ export default function Admin() {
       </div>
 
       <div className={`adm-main ${form ? 'writing' : ''}`}>
-        {/* left tool rail */}
         <div className="adm-rail">
+          <span className="rail-title mono">tools</span>
           <div className="addstop-wrap">
             <button className="rail-compose" title="add stop to a thread" onClick={() => setPickStop((v) => !v)}>＋</button>
             {pickStop && (
@@ -559,6 +611,40 @@ export default function Admin() {
           ))}
         </div>
 
+        <aside className="adm-layers">
+          <div className="layers-head">
+            <span className="mono">network objects</span>
+            <button className={`tbtn sm ${view === 'dashboard' ? 'on' : ''}`} onClick={() => setView(view === 'build' ? 'dashboard' : 'build')}>{view === 'build' ? 'list' : 'map'}</button>
+          </div>
+          <div className="layers-stats">
+            <span><b>{stations.length}</b> stops</span>
+            <span><b>{lines.length}</b> threads</span>
+            <span><b>{pins.length}</b> pins</span>
+            <span><b>{terrain.length}</b> terrain</span>
+          </div>
+          <input className="layers-search" placeholder="find stop or thread…" value={listSearch} onChange={(e) => setListSearch(e.target.value)} />
+          <div className="layer-section">
+            <div className="layer-label mono">threads</div>
+            {lines.map((l) => (
+              <button key={l.id} className={`layer-row ${selLn === l.id ? 'on' : ''}`} onClick={() => { setView('build'); setForm(null); setSelLn(selLn === l.id ? null : l.id); }}>
+                <span className="dot" style={{ background: l.color }} /><b>{l.label}</b><span>{l.pts?.length ?? 0} pts</span>
+              </button>
+            ))}
+          </div>
+          <div className="layer-section stops">
+            <div className="layer-label mono">stops</div>
+            {filteredStations.slice(0, 80).map((s) => (
+              <button key={s.id} className={`layer-row ${selSt === s.id ? 'on' : ''}`} onClick={() => { setView('build'); editStation(s); locateStation(s); }}>
+                <span className="dot" style={{ background: lnColor(s.line) }} /><b>{s.title || s.id}</b><span>{s.line}</span>
+              </button>
+            ))}
+          </div>
+          <div className="layer-section compact">
+            <div className="layer-label mono">site</div>
+            <button className="layer-row" onClick={() => { setForm(null); setSelLn(null); setSelPin(null); setSelTerr(null); }}>origin / about / media</button>
+          </div>
+        </aside>
+
         {view === 'build' ? (
 <Canvas
             tool={tool} lines={lines} stations={stations} terrain={terrain} pins={pins} origin={origin} form={form}
@@ -578,10 +664,10 @@ export default function Admin() {
           <div className="adm-list scroll">
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
               <input style={{ flex: 1, padding: '6px 10px', fontSize: '0.85rem' }} placeholder="filter stops…" value={listSearch} onChange={(e) => setListSearch(e.target.value)} />
-              <span className="mono dimk" style={{ fontSize: '0.56rem', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{stations.filter((s) => !listSearch || s.title.toLowerCase().includes(listSearch.toLowerCase()) || s.id.toLowerCase().includes(listSearch.toLowerCase())).length} / {stations.length}</span>
+              <span className="mono dimk" style={{ fontSize: '0.56rem', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{filteredStations.length} / {stations.length}</span>
             </div>
             <table><thead><tr><th></th><th>title</th><th>thread</th><th>date</th><th></th></tr></thead>
-              <tbody>{stations.filter((s) => !listSearch || s.title.toLowerCase().includes(listSearch.toLowerCase()) || s.id.toLowerCase().includes(listSearch.toLowerCase())).map((s) => (<tr key={s.id}><td><span className="dot" style={{ background: lnColor(s.line) }} /></td><td><b>{s.title}</b></td><td className="mono">{s.line}</td><td className="mono">{s.date}</td><td className="rt"><button className="tbtn sm" onClick={() => { setView('build'); editStation(s); }}>edit</button> <button className="tbtn sm" onClick={() => { pushHistory(); dupStation(s); setView('build'); }}>dupe</button> <button className="tbtn sm" onClick={() => { pushHistory(); s.id && delStation(s.id); }}>del</button></td></tr>))}</tbody>
+              <tbody>{filteredStations.map((s) => (<tr key={s.id}><td><span className="dot" style={{ background: lnColor(s.line) }} /></td><td><b>{s.title}</b></td><td className="mono">{s.line}</td><td className="mono">{s.date}</td><td className="rt"><button className="tbtn sm" onClick={() => { setView('build'); editStation(s); }}>edit</button> <button className="tbtn sm" onClick={() => { pushHistory(); dupStation(s); setView('build'); }}>dupe</button> <button className="tbtn sm" onClick={() => { pushHistory(); s.id && delStation(s.id); }}>del</button></td></tr>))}</tbody>
             </table>
           </div>
         )}

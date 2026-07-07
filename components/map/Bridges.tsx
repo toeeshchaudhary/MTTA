@@ -4,7 +4,7 @@
 // each segment is clipped to each water rect (Liang–Barsky); the inside portion gets a
 // deck + side rails + planks, drawn under the line (the ribbon rides over the centre).
 'use client';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { RIBBON, type Pt } from '@/content/lines';
 import { kindOf, type TerrainFeature } from './terrain-kinds';
@@ -63,27 +63,31 @@ function clipPoly(x0: number, y0: number, x1: number, y1: number, poly: Pt[]): S
 type Span = { id: string; color: string; ax: number; ay: number; bx: number; by: number };
 
 export default memo(function Bridges({ lines, terrain, started = true, startAt = 0, dur = 0.4 }: { lines: BLine[]; terrain: TerrainFeature[]; started?: boolean; startAt?: number; dur?: number }) {
-  const water = terrain.filter((f) => kindOf(f).water);
-  if (!water.length || !lines.length) return null;
-
-  const spans: Span[] = [];
-  for (const l of lines) {
-    const pts: Pt[] = l.pts || [];
-    for (let s = 0; s < pts.length - 1; s++) {
-      if (l.under?.includes(s)) continue; // underground here → a tunnel, not a bridge
-      const [x0, y0] = pts[s], [x1, y1] = pts[s + 1];
-      for (const w of water) {
-        // clip against the actual coastline polygon when present, else the bounding rect
-        const segs = w.points && w.points.length >= 3
-          ? clipPoly(x0, y0, x1, y1, w.points)
-          : (() => { const c = clipRect(x0, y0, x1, y1, w.x, w.y, w.x + w.w, w.y + w.h); return c ? [c] : []; })();
-        segs.forEach((c, si) => {
-          if (Math.hypot(c[2] - c[0], c[3] - c[1]) < 10) return; // ignore a glancing touch
-          spans.push({ id: `${l.id}-${w.id}-${s}-${si}`, color: l.color, ax: c[0], ay: c[1], bx: c[2], by: c[3] });
-        });
+  // Bridge geometry is pure content — same inputs, same output — so keep the
+  // Liang–Barsky / polygon-clip work out of the render path with useMemo. On a
+  // map with several water bodies this saves a couple of ms per render.
+  const spans = useMemo<Span[]>(() => {
+    const water = terrain.filter((f) => kindOf(f).water);
+    if (!water.length || !lines.length) return [];
+    const out: Span[] = [];
+    for (const l of lines) {
+      const pts: Pt[] = l.pts || [];
+      for (let s = 0; s < pts.length - 1; s++) {
+        if (l.under?.includes(s)) continue;
+        const [x0, y0] = pts[s], [x1, y1] = pts[s + 1];
+        for (const w of water) {
+          const segs = w.points && w.points.length >= 3
+            ? clipPoly(x0, y0, x1, y1, w.points)
+            : (() => { const c = clipRect(x0, y0, x1, y1, w.x, w.y, w.x + w.w, w.y + w.h); return c ? [c] : []; })();
+          segs.forEach((c, si) => {
+            if (Math.hypot(c[2] - c[0], c[3] - c[1]) < 10) return;
+            out.push({ id: `${l.id}-${w.id}-${s}-${si}`, color: l.color, ax: c[0], ay: c[1], bx: c[2], by: c[3] });
+          });
+        }
       }
     }
-  }
+    return out;
+  }, [lines, terrain]);
   if (!spans.length) return null;
 
   const HALF = RIBBON / 2 + 6; // deck half-width — the sleeper ends poke past the ribbon

@@ -34,9 +34,11 @@ async function pickRepo(): Promise<string | null> {
 function createWindow(url: string) {
   const iconPath = join(__dirname, '..', 'build', 'icon.png');
   win = new BrowserWindow({
-    width: 1440,
-    height: 900,
-    backgroundColor: '#fcfcfb',
+    width: 1600,
+    height: 980,
+    minWidth: 1180,
+    minHeight: 760,
+    backgroundColor: '#111111',
     title: 'MTTA Studio',
     icon: existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : undefined,
     webPreferences: {
@@ -46,6 +48,7 @@ function createWindow(url: string) {
       sandbox: true,
     },
   });
+  win.setMenuBarVisibility(true);
   win.loadURL(`${url}/admin`);
   win.on('page-title-updated', (e) => e.preventDefault()); // keep "MTTA Studio" in the taskbar
   // Open target=_blank / external links in the system browser, not a new Electron window.
@@ -133,6 +136,7 @@ function buildMenu() {
         { type: 'separator' },
         { label: 'Open the map', click: () => win?.loadURL(`${server?.url}/`) },
         { label: 'Reload admin', accelerator: 'CmdOrCtrl+Shift+R', click: () => win?.loadURL(`${server?.url}/admin`) },
+        { label: 'Open dev server in browser', click: () => server?.url && shell.openExternal(`${server.url}/admin`) },
         { type: 'separator' },
         { label: 'About MTTA Studio', click: doAbout },
         { type: 'separator' },

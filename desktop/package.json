@@ -2,7 +2,7 @@
   "name": "mtta-studio",
   "version": "0.1.0",
   "private": true,
-  "description": "Local desktop authoring app for toeesh.network — edit the map + one-click Publish.",
+  "description": "Deprecated desktop wrapper for toeesh.network admin. Use the web /admin editor as the primary studio.",
   "main": "dist/main.js",
   "scripts": {
     "build": "node esbuild.mjs",

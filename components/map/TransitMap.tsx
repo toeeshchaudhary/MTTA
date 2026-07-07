@@ -1,5 +1,5 @@
 'use client';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RIBBON, roundedPath, contentBounds, tunnelRuns, runPts, ghost, lineCodes, type Line, type Pt } from '@/content/lines';
 import type { Station, Pin } from '@/lib/content';
@@ -86,6 +86,87 @@ function InterchangeMarker({ sel }: { sel: boolean }) {
   );
 }
 
+// One stop, memoised so hover/select only re-renders the two affected stations
+// (previous + new), not the whole 47-strong pack. Every varying prop is passed
+// in explicitly and identity-stable, so React.memo's shallow compare is enough.
+type StationNodeProps = {
+  s: Station;
+  sel: boolean;
+  dim: number;
+  show: boolean;
+  showPulse: boolean;  // sel || (featured && !selectedId && !dead)
+  isDead: boolean;
+  isInterchange: boolean;
+  labelPos: { fx: number; fy: number; right: boolean; a?: number };
+  feat?: string[];
+  introDelay: number; // seconds; 0 once the intro cascade is done
+  started: boolean;
+  onHoverEnter: (id: string, lines: string[]) => void;
+  onHoverLeave: () => void;
+  onSelect: (id: string) => void;
+};
+const StationNode = memo(function StationNode({ s, sel, dim, show, showPulse, isDead, isInterchange, labelPos, feat, introDelay, started, onHoverEnter, onHoverLeave, onSelect }: StationNodeProps) {
+  const enter = () => onHoverEnter(s.id, s.lines && s.lines.length ? s.lines : [s.line]);
+  return (
+    <g id={`st-${s.id}`} transform={`translate(${s.x},${s.y})`}>
+      <motion.g
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: started ? 1 : 0, opacity: started ? dim : 0 }}
+        transition={{ delay: introDelay, type: 'spring', stiffness: 340, damping: 18 }}
+      >
+        <motion.g
+          style={{ cursor: 'pointer' }}
+          tabIndex={0}
+          role="button"
+          aria-label={s.title}
+          whileHover={{ scale: 1.15 }}
+          whileTap={{ scale: 0.92 }}
+          onMouseEnter={enter}
+          onMouseLeave={onHoverLeave}
+          onFocus={enter}
+          onBlur={onHoverLeave}
+          onClick={() => onSelect(s.id)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(s.id); } }}
+        >
+          <circle r={22} fill="transparent" />
+          {showPulse && (
+            <motion.circle
+              r={RSEL + 8}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={4}
+              animate={{ scale: [1, 1.3, 1], opacity: [0.9, 0.15, 0.9] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          )}
+          {isDead
+            ? <GhostMarker sel={sel} />
+            : isInterchange
+              ? <InterchangeMarker sel={sel} />
+              : <ShapeMarker shape={s.shape} sel={sel} />}
+        </motion.g>
+        <AnimatePresence>
+          {show && (
+            <motion.foreignObject
+              key="label"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16, ease: 'easeOut' }}
+              transform={labelPos.a ? `rotate(${labelPos.a})` : undefined}
+              x={labelPos.fx} y={labelPos.fy} width={320} height={84}
+              style={{ overflow: 'visible', pointerEvents: 'none' }}>
+              <div className="plate-wrap" style={{ justifyContent: labelPos.right ? 'flex-start' : 'flex-end' }}>
+                <span className={`plate ${isDead ? 'ghost' : ''}`}><span className="dot" style={{ background: isDead ? '#8f8f96' : s.color }} /><span className="plate-title">{s.title}</span>{feat?.map((g) => <i key={g} className={`feat-ic ${g === '★' ? 'feat-star' : ''}`}>{g}</i>)}{isDead && <span className="plate-closed">closed</span>}</span>
+              </div>
+            </motion.foreignObject>
+          )}
+        </AnimatePresence>
+      </motion.g>
+    </g>
+  );
+});
+
 type Props = {
   lines: Line[];
   stations: Station[];
@@ -114,6 +195,10 @@ export default memo(function TransitMap({ lines, stations, terrain, pins = [], s
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [coarse, setCoarse] = useState(false); // touch: no hover, so name key stops at rest + enlarge hit areas
   useEffect(() => { try { setCoarse(matchMedia('(pointer: coarse)').matches); } catch {} }, []);
+  // stable hover-handler callbacks — critical for the memoised <StationNode>; otherwise
+  // every re-render creates fresh function identities and every station re-renders.
+  const handleHoverEnter = useCallback((id: string, ls: string[]) => { setHoverId(id); onHoverLine(ls); }, [onHoverLine]);
+  const handleHoverLeave = useCallback(() => { setHoverId(null); onHoverLine([]); }, [onHoverLine]);
   const dim = (lineId: string) => (activeLines.length > 0 && !activeLines.includes(lineId) ? 0.14 : 1);
   const [ox, oy] = origin;
   // abandoned threads: no train ever rides them, their ribbon ghosts + breaks up, and a
@@ -457,89 +542,41 @@ export default memo(function TransitMap({ lines, stations, terrain, pins = [], s
         </foreignObject>
       </motion.g>
 
-      {/* stations */}
-      {stations.map((s, i) => {
-        const sel = s.id === selectedId;
-        const dead = stopIsDead(s); // every thread through here is abandoned → board it up
-        const onLine = (l: string) => s.line === l || (s.lines?.includes(l) ?? false);
-        // keep the name tablets OUT of the at-rest overview — solid pills sitting over the
-        // ribbons hid the lines and looked messy. They reveal on hover/focus, when a single
-        // thread is active, or once you zoom in past the threshold. featured stops still pulse
-        // (a thin stroke-only ring, no fill) so the eye is guided without covering anything.
+      {/* stations — each is memoised (StationNode) so a hover only reconciles the two
+          affected stops rather than the whole pack. Featured-set lookup is a Set to keep
+          the per-stop check O(1). */}
+      {(() => {
+        const featSet = new Set(featured);
         const atRest = activeLines.length === 0 && !selectedId;
-        // touch has no hover, so at rest name the wayfinding anchors (featured + interchanges) —
-        // a curated few, never the full set (320px plates would overlap).
-        const anchorOnTouch = coarse && atRest && (featured.includes(s.id) || (s.lines?.length ?? 0) >= 2);
-        // a plain hover names ONLY the hovered stop (the rest of its line still lights
-        // via the dims); the line-wide reveal belongs to an explicit legend focus
-        const show = sel || hoverId === s.id || (!!focusedLine && onLine(focusedLine)) || (zoomedIn && atRest) || anchorOnTouch;
-        const pl = labelPos[s.id] ?? { fx: s.x < 980 ? RSEL + 12 : -(320 + RSEL + 12), fy: -42, right: s.x < 980 };
-        return (
-          <g key={s.id} id={`st-${s.id}`} transform={`translate(${s.x},${s.y})`}>
-            <motion.g
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: started ? 1 : 0, opacity: started ? dim(s.line) : 0 }}
-              transition={{ delay: dly(stDelay[s.id] ?? 0.5), type: 'spring', stiffness: 340, damping: 18 }}
-            >
-              {/* the interactive marker — hover/tap scale lives HERE so the name never
-                  inflates, and the focus ring hugs the dot instead of boxing the label */}
-              <motion.g
-                style={{ cursor: 'pointer' }}
-                tabIndex={0}
-                role="button"
-                aria-label={s.title}
-                whileHover={{ scale: 1.15 }}
-                whileTap={{ scale: 0.92 }}
-                onMouseEnter={() => { setHoverId(s.id); onHoverLine(s.lines && s.lines.length ? s.lines : [s.line]); }}
-                onMouseLeave={() => { setHoverId(null); onHoverLine([]); }}
-                onFocus={() => { setHoverId(s.id); onHoverLine(s.lines && s.lines.length ? s.lines : [s.line]); }}
-                onBlur={() => { setHoverId(null); onHoverLine([]); }}
-                onClick={() => onSelect(s.id)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(s.id); } }}
-              >
-                {/* an invisible 44px hit disc — the Wyman dots are small, so without this
-                    the hover target is ~8px and the cursor thrashes enter/leave at its edge
-                    (labels strobe); it also keeps small dots thumb-tappable on touch */}
-                <circle r={22} fill="transparent" />
-                {(sel || (featured.includes(s.id) && !selectedId && !dead)) && (
-                  <motion.circle
-                    r={RSEL + 8}
-                    fill="none"
-                    stroke={s.color}
-                    strokeWidth={4}
-                    animate={{ scale: [1, 1.3, 1], opacity: [0.9, 0.15, 0.9] }}
-                    transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                )}
-                {dead
-                  ? <GhostMarker sel={sel} />
-                  : s.lines && s.lines.length >= 2
-                    ? <InterchangeMarker sel={sel} />
-                    : <ShapeMarker shape={s.shape} sel={sel} />}
-              </motion.g>
-              <AnimatePresence>
-                {show && (
-                  <motion.foreignObject
-                    key="label"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.16, ease: 'easeOut' }}
-                    transform={pl.a ? `rotate(${pl.a})` : undefined}
-                    x={pl.fx} y={pl.fy} width={320} height={84}
-                    // visual-only: a 320-wide tablet would otherwise overlap a neighbouring
-                    // stop's marker and hijack its clicks (you'd open the wrong station).
-                    style={{ overflow: 'visible', pointerEvents: 'none' }}>
-                    <div className="plate-wrap" style={{ justifyContent: pl.right ? 'flex-start' : 'flex-end' }}>
-                      <span className={`plate ${dead ? 'ghost' : ''}`}><span className="dot" style={{ background: dead ? '#8f8f96' : s.color }} /><span className="plate-title">{s.title}</span>{featOf[s.id]?.map((g) => <i key={g} className={`feat-ic ${g === '★' ? 'feat-star' : ''}`}>{g}</i>)}{dead && <span className="plate-closed">closed</span>}</span>
-                    </div>
-                  </motion.foreignObject>
-                )}
-              </AnimatePresence>
-            </motion.g>
-          </g>
-        );
-      })}
+        return stations.map((s) => {
+          const sel = s.id === selectedId;
+          const dead = stopIsDead(s);
+          const onLine = (l: string) => s.line === l || (s.lines?.includes(l) ?? false);
+          const anchorOnTouch = coarse && atRest && (featSet.has(s.id) || (s.lines?.length ?? 0) >= 2);
+          const show = sel || hoverId === s.id || (!!focusedLine && onLine(focusedLine)) || (zoomedIn && atRest) || anchorOnTouch;
+          const pl = labelPos[s.id] ?? { fx: s.x < 980 ? RSEL + 12 : -(320 + RSEL + 12), fy: -42, right: s.x < 980 };
+          const showPulse = sel || (featSet.has(s.id) && !selectedId && !dead);
+          return (
+            <StationNode
+              key={s.id}
+              s={s}
+              sel={sel}
+              dim={dim(s.line)}
+              show={show}
+              showPulse={showPulse}
+              isDead={dead}
+              isInterchange={!!s.lines && s.lines.length >= 2}
+              labelPos={pl}
+              feat={featOf[s.id]}
+              introDelay={dly(stDelay[s.id] ?? 0.5)}
+              started={started}
+              onHoverEnter={handleHoverEnter}
+              onHoverLeave={handleHoverLeave}
+              onSelect={onSelect}
+            />
+          );
+        });
+      })()}
 
       {/* numbered route bullets — drawn last so terminal stops never cover them;
           sit just beyond each line's last stop, fanned out where lines overlap */}
