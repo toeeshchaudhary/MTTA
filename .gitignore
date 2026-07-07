@@ -23,3 +23,6 @@ pnpm-debug.log*
 # editors
 .vscode/
 .idea/
+
+# licensed RM Neue VF fonts — injected at build from private repo (see scripts/fetch-fonts.mjs)
+public/fonts/RMNeueVF-*.ttf
