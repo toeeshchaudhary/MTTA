@@ -49,9 +49,9 @@ const DEFAULTS: Site = {
     role: 'a Delhi student-artist who builds games & software, rices linux desktops, and curates a whole visual world.',
     blurb: "This isn't a résumé, it's a network. Each thread is a part of me; each stop is something I made or can't stop thinking about. Take it slow — ride a line, or jump in anywhere.",
     links: [
-      { label: 'github ↗', url: 'https://github.com/NerdsForGaming' },
+      { label: 'github ↗', url: 'https://github.com/toeeshchaudhary' },
       { label: 'cosmos ↗', url: 'https://www.cosmos.so/toeeshchaudhary' },
-      { label: 'email ↗', url: 'mailto:thesonofdevilhunter1@gmail.com' },
+      { label: 'email ↗', url: 'mailto:toeesh239@gmail.com' },
     ],
   },
   play: PLAY_DEFAULTS,

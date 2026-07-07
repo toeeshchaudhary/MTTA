@@ -2,7 +2,7 @@
 
 A personal portfolio drawn as a **NYC-subway-style transit map**. "The network" is a person:
 each line is a thread of toeesh, each station is something he made or thinks about. Public repo:
-`NerdsForGaming/MTTA`. Live on Vercel: `https://toeeshnetwork.vercel.app` (brand name is
+`toeeshchaudhary/MTTA`. Live on Vercel: `https://toeeshnetwork.vercel.app` (brand name is
 "toeesh.network" even though the domain isn't wired yet).
 
 ## Stack & running
@@ -42,5 +42,5 @@ Everything renders from `content/`:
 
 ## Conventions
 - **Verify visually** — run the app and screenshot with headless chromium (`/usr/bin/chromium --screenshot` or puppeteer-core driving `localhost:3000`); don't guess at UI. The harness blocks foreground `sleep`, and a long-lived dev server may already be running on another port — reuse it.
-- **Commit + push incrementally** to `NerdsForGaming/MTTA` (`main`) as coherent units land — the owner expects steady commits, not one dump. Leave their unrelated working-tree edits unstaged.
+- **Commit + push incrementally** to `toeeshchaudhary/MTTA` (`main`) as coherent units land — the owner expects steady commits, not one dump. Leave their unrelated working-tree edits unstaged.
 - When testing `/admin` writes (which mutate `content/`), **back up `content/` first and restore after** so tests don't pollute the real map.

@@ -63,4 +63,4 @@ lib/            content readers, play settings, sound kit
 
 ---
 
-Built by [toeesh](https://github.com/NerdsForGaming). Wayfinding system · v1.
+Built by [toeesh](https://github.com/toeeshchaudhary). Wayfinding system · v1.
