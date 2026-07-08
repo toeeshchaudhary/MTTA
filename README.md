@@ -1,8 +1,8 @@
 # MTTA — the Ministry of Toeesh Transport Association
 
-A personal site built as a **transit map of a person**. Instead of a résumé, it's a living network: each **line** is a thread of who I am, each **station** is something I made or can't stop thinking about, and little **trains** run the lines so the whole thing feels alive. Pan, zoom, ride a line, or tap any stop to read it.
+> This isn't a résumé, it's a network — take it slow, ride a line, or jump in anywhere.
 
-> *"This isn't a résumé, it's a network. Take it slow — ride a line, or jump in anywhere."*
+A personal site built as a **transit map of a person**. Instead of a résumé, it's a living network: each **line** is a thread of who I am, each **station** is something I made or can't stop thinking about, and little **trains** run the lines so the whole thing feels alive. Pan, zoom, ride a line, or tap any stop to read it.
 
 🚇 **Live:** https://toeeshnetwork.vercel.app
 
@@ -41,7 +41,7 @@ Everything ambient respects `prefers-reduced-motion` and an in-app **MOTION: OFF
 - WebAudio (synthesised, no asset files) for the sound kit
 - Per-stop OG images via `next/og`
 
-## Run it locally
+## Run it
 
 ```bash
 npm install
@@ -63,4 +63,4 @@ lib/            content readers, play settings, sound kit
 
 ---
 
-Built by [toeesh](https://github.com/toeeshchaudhary). Wayfinding system · v1.
+Built by [toeesh](https://github.com/toeeshchaudhary) · MIT licensed
